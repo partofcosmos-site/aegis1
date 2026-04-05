@@ -1,0 +1,274 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - email: string (required, immutable)
+    //   - displayName: string (optional)
+    //   - schoolHours: number (optional)
+    //   - targetExams: list of strings (optional)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: users/{userId}/logs
+    // Document ID: {logId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - rawText: string (required, immutable)
+    //   - subject: string (required)
+    //   - topic: string (optional)
+    //   - subtopic: string (optional)
+    //   - durationMinutes: number (required)
+    //   - problemsSolved: number (optional)
+    //   - mistakes: list of strings (optional)
+    //   - efficiencyScore: number (optional)
+    //   - focusScore: number (optional)
+    //   - date: string (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: users/{userId}/daily_insights
+    // Document ID: {insightId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - date: string (required)
+    //   - performanceSummary: string (required)
+    //   - keyInefficiencies: list of strings (optional)
+    //   - biggestMistakePattern: string (optional)
+    //   - hiddenWeakness: string (optional)
+    //   - nextDayPlan: list of strings (optional)
+    //   - priorityRanking: list of strings (optional)
+    //   - warnings: list of strings (optional)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: users/{userId}/goals
+    // Document ID: {goalId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - completed: boolean (required)
+    //   - targetDate: string (optional)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: users/{userId}/flashcards
+    // Document ID: {cardId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - front: string (required)
+    //   - back: string (required)
+    //   - deck: string (required)
+    //   - nextReview: string (required)
+    //   - interval: number (required)
+    //   - easeFactor: number (required)
+    //   - repetitions: number (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: users/{userId}/chat_sessions
+    // Document ID: {sessionId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - title: string (required)
+    //   - updatedAt: timestamp (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: users/{userId}/chat_sessions/{sessionId}/messages
+    // Document ID: {messageId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - role: string (required)
+    //   - text: string (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // Collection: users/{userId}/journal_entries
+    // Document ID: {entryId}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - title: string (required)
+    //   - content: string (required)
+    //   - date: string (required)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidString(field, maxLen) {
+      return !('field' in request.resource.data) || (request.resource.data[field] is string && request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidList(listField, maxSize, maxItemLen) {
+      return !('listField' in request.resource.data) || (
+        request.resource.data[listField] is list &&
+        request.resource.data[listField].size() <= maxSize
+      );
+    }
+
+    // Domain Validators
+    function isValidUserProfile() {
+      return hasRequiredFields(['uid', 'email', 'createdAt']) &&
+             request.resource.data.uid is string &&
+             request.resource.data.email is string &&
+             request.resource.data.createdAt is timestamp &&
+             (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() < 100)) &&
+             (!('schoolHours' in request.resource.data) || (request.resource.data.schoolHours is number && request.resource.data.schoolHours >= 0 && request.resource.data.schoolHours <= 24)) &&
+             (!('targetExams' in request.resource.data) || (request.resource.data.targetExams is list && request.resource.data.targetExams.size() <= 10));
+    }
+
+    function isValidStudyLog() {
+      return hasRequiredFields(['uid', 'rawText', 'subject', 'durationMinutes', 'date', 'createdAt']) &&
+             request.resource.data.uid is string &&
+             request.resource.data.rawText is string && request.resource.data.rawText.size() < 2000 &&
+             request.resource.data.subject is string && request.resource.data.subject.size() < 100 &&
+             request.resource.data.durationMinutes is number && request.resource.data.durationMinutes >= 0 &&
+             request.resource.data.date is string && request.resource.data.date.size() == 10 &&
+             request.resource.data.createdAt is timestamp &&
+             (!('topic' in request.resource.data) || (request.resource.data.topic is string && request.resource.data.topic.size() < 200)) &&
+             (!('subtopic' in request.resource.data) || (request.resource.data.subtopic is string && request.resource.data.subtopic.size() < 200)) &&
+             (!('problemsSolved' in request.resource.data) || (request.resource.data.problemsSolved is number && request.resource.data.problemsSolved >= 0)) &&
+             (!('mistakes' in request.resource.data) || (request.resource.data.mistakes is list && request.resource.data.mistakes.size() <= 50)) &&
+             (!('efficiencyScore' in request.resource.data) || (request.resource.data.efficiencyScore is number && request.resource.data.efficiencyScore >= 0 && request.resource.data.efficiencyScore <= 10)) &&
+             (!('focusScore' in request.resource.data) || (request.resource.data.focusScore is number && request.resource.data.focusScore >= 0 && request.resource.data.focusScore <= 10));
+    }
+
+    function isValidDailyInsight() {
+      return hasRequiredFields(['uid', 'date', 'performanceSummary', 'createdAt']) &&
+             request.resource.data.uid is string &&
+             request.resource.data.date is string && request.resource.data.date.size() == 10 &&
+             request.resource.data.performanceSummary is string && request.resource.data.performanceSummary.size() < 5000 &&
+             request.resource.data.createdAt is timestamp &&
+             (!('keyInefficiencies' in request.resource.data) || (request.resource.data.keyInefficiencies is list && request.resource.data.keyInefficiencies.size() <= 20)) &&
+             (!('biggestMistakePattern' in request.resource.data) || (request.resource.data.biggestMistakePattern is string && request.resource.data.biggestMistakePattern.size() < 1000)) &&
+             (!('hiddenWeakness' in request.resource.data) || (request.resource.data.hiddenWeakness is string && request.resource.data.hiddenWeakness.size() < 1000)) &&
+             (!('nextDayPlan' in request.resource.data) || (request.resource.data.nextDayPlan is list && request.resource.data.nextDayPlan.size() <= 20)) &&
+             (!('priorityRanking' in request.resource.data) || (request.resource.data.priorityRanking is list && request.resource.data.priorityRanking.size() <= 20)) &&
+             (!('warnings' in request.resource.data) || (request.resource.data.warnings is list && request.resource.data.warnings.size() <= 20));
+    }
+
+    function isValidGoal() {
+      return hasRequiredFields(['uid', 'title', 'completed', 'createdAt']) &&
+             request.resource.data.uid is string &&
+             request.resource.data.title is string && request.resource.data.title.size() < 200 &&
+             request.resource.data.completed is bool &&
+             request.resource.data.createdAt is timestamp &&
+             (!('description' in request.resource.data) || (request.resource.data.description is string && request.resource.data.description.size() < 1000)) &&
+             (!('targetDate' in request.resource.data) || (request.resource.data.targetDate is string && request.resource.data.targetDate.size() == 10));
+    }
+
+    function isValidFlashcard() {
+      return hasRequiredFields(['uid', 'front', 'back', 'deck', 'nextReview', 'interval', 'easeFactor', 'repetitions', 'createdAt']) &&
+             request.resource.data.uid is string &&
+             request.resource.data.front is string && request.resource.data.front.size() < 1000 &&
+             request.resource.data.back is string && request.resource.data.back.size() < 2000 &&
+             request.resource.data.deck is string && request.resource.data.deck.size() < 100 &&
+             request.resource.data.nextReview is string && request.resource.data.nextReview.size() <= 30 &&
+             request.resource.data.interval is number && request.resource.data.interval >= 0 &&
+             request.resource.data.easeFactor is number && request.resource.data.easeFactor >= 1.2 &&
+             request.resource.data.repetitions is number && request.resource.data.repetitions >= 0 &&
+             request.resource.data.createdAt is timestamp;
+    }
+
+    function isValidChatSession() {
+      return hasRequiredFields(['uid', 'title', 'updatedAt', 'createdAt']) &&
+             request.resource.data.uid is string &&
+             request.resource.data.title is string && request.resource.data.title.size() < 200 &&
+             request.resource.data.updatedAt is timestamp &&
+             request.resource.data.createdAt is timestamp;
+    }
+
+    function isValidChatMessage() {
+      return hasRequiredFields(['uid', 'role', 'text', 'createdAt']) &&
+             request.resource.data.uid is string &&
+             request.resource.data.role is string && (request.resource.data.role == 'user' || request.resource.data.role == 'model') &&
+             request.resource.data.text is string && request.resource.data.text.size() < 10000 &&
+             request.resource.data.createdAt is timestamp;
+    }
+
+    function isValidJournalEntry() {
+      return hasRequiredFields(['uid', 'title', 'content', 'date', 'createdAt']) &&
+             request.resource.data.uid is string &&
+             request.resource.data.title is string && request.resource.data.title.size() < 200 &&
+             request.resource.data.content is string && request.resource.data.content.size() < 10000 &&
+             request.resource.data.date is string && request.resource.data.date.size() == 10 &&
+             request.resource.data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile() && uidUnchanged();
+      allow update: if isOwner(userId) && isValidUserProfile() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+
+      match /logs/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidStudyLog() && uidUnchanged() && request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && isValidStudyLog() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.rawText == resource.data.rawText;
+        allow delete: if isOwner(userId);
+      }
+
+      match /daily_insights/{insightId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDailyInsight() && uidUnchanged() && request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && isValidDailyInsight() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /goals/{goalId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidGoal() && uidUnchanged() && request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && isValidGoal() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /flashcards/{cardId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidFlashcard() && uidUnchanged() && request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && isValidFlashcard() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /chat_sessions/{sessionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidChatSession() && uidUnchanged() && request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && isValidChatSession() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+
+        match /messages/{messageId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId) && isValidChatMessage() && uidUnchanged() && request.resource.data.uid == userId;
+          allow update: if isOwner(userId) && isValidChatMessage() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+          allow delete: if isOwner(userId);
+        }
+      }
+
+      match /journal_entries/{entryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidJournalEntry() && uidUnchanged() && request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && isValidJournalEntry() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and study constraints",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "schoolHours": { "type": "number", "description": "Hours spent in school/tuition daily" },
+        "targetExams": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "StudyLog": {
+      "title": "StudyLog",
+      "description": "A parsed study session log",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "rawText": { "type": "string" },
+        "subject": { "type": "string" },
+        "topic": { "type": "string" },
+        "subtopic": { "type": "string" },
+        "durationMinutes": { "type": "number" },
+        "problemsSolved": { "type": "number" },
+        "mistakes": { "type": "array", "items": { "type": "string" } },
+        "efficiencyScore": { "type": "number", "description": "1-10 score" },
+        "focusScore": { "type": "number", "description": "1-10 score" },
+        "date": { "type": "string", "description": "YYYY-MM-DD format" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "rawText", "subject", "durationMinutes", "date", "createdAt"]
+    },
+    "DailyInsight": {
+      "title": "DailyInsight",
+      "description": "AI generated daily analysis",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD format" },
+        "performanceSummary": { "type": "string" },
+        "keyInefficiencies": { "type": "array", "items": { "type": "string" } },
+        "biggestMistakePattern": { "type": "string" },
+        "hiddenWeakness": { "type": "string" },
+        "nextDayPlan": { "type": "array", "items": { "type": "string" } },
+        "priorityRanking": { "type": "array", "items": { "type": "string" } },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "date", "performanceSummary", "createdAt"]
+    },
+    "Flashcard": {
+      "title": "Flashcard",
+      "description": "Spaced repetition flashcard",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "front": { "type": "string" },
+        "back": { "type": "string" },
+        "deck": { "type": "string" },
+        "nextReview": { "type": "string", "format": "date-time" },
+        "interval": { "type": "number" },
+        "easeFactor": { "type": "number" },
+        "repetitions": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "front", "back", "deck", "nextReview", "interval", "easeFactor", "repetitions", "createdAt"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "User goal",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "targetDate": { "type": "string", "description": "YYYY-MM-DD format" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "title", "completed", "createdAt"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "AI chat session",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "title": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "title", "updatedAt", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Message in a chat session",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "role": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "role", "text", "createdAt"]
+    },
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "description": "User journal entry",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD format" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "title", "content", "date", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles"
+    },
+    "/users/{userId}/logs/{logId}": {
+      "schema": { "$ref": "#/entities/StudyLog" },
+      "description": "User study logs"
+    },
+    "/users/{userId}/daily_insights/{insightId}": {
+      "schema": { "$ref": "#/entities/DailyInsight" },
+      "description": "User daily insights"
+    },
+    "/users/{userId}/flashcards/{cardId}": {
+      "schema": { "$ref": "#/entities/Flashcard" },
+      "description": "User flashcards"
+    },
+    "/users/{userId}/goals/{goalId}": {
+      "schema": { "$ref": "#/entities/Goal" },
+      "description": "User goals"
+    },
+    "/users/{userId}/chat_sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/ChatSession" },
+      "description": "User chat sessions"
+    },
+    "/users/{userId}/chat_sessions/{sessionId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Messages in a chat session"
+    },
+    "/users/{userId}/journal_entries/{entryId}": {
+      "schema": { "$ref": "#/entities/JournalEntry" },
+      "description": "User journal entries"
+    }
+  }
+}

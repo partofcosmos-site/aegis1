@@ -1,0 +1,208 @@
+import React, { useState } from 'react';
+import { LogInput } from './LogInput';
+import { InsightsPanel } from './InsightsPanel';
+import { useAppContext } from '../context/AppContext';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { format } from 'date-fns';
+import { Clock, BookOpen, CheckCircle2, Edit2, Check, X, Trash2 } from 'lucide-react';
+
+export const Dashboard = () => {
+  const { user, logs } = useAppContext();
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  
+  const todayLogs = logs.filter(l => l.date === selectedDate);
+
+  const totalMinutes = todayLogs.reduce((acc, log) => acc + (log.durationMinutes || 0), 0);
+  const totalProblems = todayLogs.reduce((acc, log) => acc + (log.problemsSolved || 0), 0);
+  const subjects = Array.from(new Set(todayLogs.map(l => l.subject)));
+
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+
+  const handleEditClick = (log: any) => {
+    setEditingLogId(log.id);
+    setEditForm({
+      subject: log.subject || '',
+      topic: log.topic || '',
+      durationMinutes: log.durationMinutes || 0,
+      problemsSolved: log.problemsSolved || 0,
+    });
+  };
+
+  const handleSaveEdit = async (logId: string) => {
+    if (!user) return;
+    try {
+      const logRef = doc(db, 'users', user.uid, 'logs', logId);
+      await updateDoc(logRef, {
+        subject: (editForm.subject || 'General').substring(0, 99),
+        topic: (editForm.topic || '').substring(0, 199),
+        durationMinutes: Number(editForm.durationMinutes) || 0,
+        problemsSolved: Number(editForm.problemsSolved) || 0,
+      });
+      setEditingLogId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/logs/${logId}`);
+    }
+  };
+
+  const handleDeleteLog = async (logId: string) => {
+    if (!user) return;
+    if (window.confirm("Are you sure you want to delete this log?")) {
+      try {
+        const logRef = doc(db, 'users', user.uid, 'logs', logId);
+        await deleteDoc(logRef);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/logs/${logId}`);
+      }
+    }
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+      <div className="max-w-5xl mx-auto space-y-8">
+        
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">Overview</h1>
+            <p className="text-xs sm:text-sm text-zinc-500 mt-1">Select a date to view or log sessions</p>
+          </div>
+          <input 
+            type="date" 
+            value={selectedDate} 
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 w-full sm:w-auto"
+          />
+        </header>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
+            <div className="p-3 bg-blue-500/10 rounded-lg">
+              <Clock className="w-6 h-6 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm text-zinc-500 font-medium">Study Time</p>
+              <p className="text-2xl font-bold text-zinc-100">{Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m</p>
+            </div>
+          </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
+            <div className="p-3 bg-emerald-500/10 rounded-lg">
+              <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-sm text-zinc-500 font-medium">Problems Solved</p>
+              <p className="text-2xl font-bold text-zinc-100">{totalProblems}</p>
+            </div>
+          </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
+            <div className="p-3 bg-purple-500/10 rounded-lg">
+              <BookOpen className="w-6 h-6 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-sm text-zinc-500 font-medium">Subjects</p>
+              <p className="text-2xl font-bold text-zinc-100">{subjects.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <InsightsPanel selectedDate={selectedDate} />
+          </div>
+          <div className="space-y-6">
+            <LogInput selectedDate={selectedDate} />
+            
+            {/* Recent Logs */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+              <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-4">Sessions on {selectedDate}</h3>
+              {todayLogs.length === 0 ? (
+                <p className="text-sm text-zinc-600 text-center py-4">No sessions logged yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {todayLogs.map(log => (
+                    <div key={log.id} className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg group">
+                      {editingLogId === log.id ? (
+                        <div className="space-y-2">
+                          <input 
+                            type="text" 
+                            value={editForm.subject} 
+                            onChange={e => setEditForm({...editForm, subject: e.target.value})}
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
+                            placeholder="Subject"
+                          />
+                          <input 
+                            type="text" 
+                            value={editForm.topic} 
+                            onChange={e => setEditForm({...editForm, topic: e.target.value})}
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
+                            placeholder="Topic"
+                          />
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-[10px] text-zinc-500 uppercase">Mins</label>
+                              <input 
+                                type="number" 
+                                value={editForm.durationMinutes} 
+                                onChange={e => setEditForm({...editForm, durationMinutes: e.target.value})}
+                                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[10px] text-zinc-500 uppercase">Probs</label>
+                              <input 
+                                type="number" 
+                                value={editForm.problemsSolved} 
+                                onChange={e => setEditForm({...editForm, problemsSolved: e.target.value})}
+                                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 mt-2">
+                            <button onClick={() => setEditingLogId(null)} className="p-1 text-zinc-400 hover:text-zinc-200"><X className="w-4 h-4" /></button>
+                            <button onClick={() => handleSaveEdit(log.id)} className="p-1 text-emerald-400 hover:text-emerald-300"><Check className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex justify-between items-start mb-1 relative">
+                            <span className="text-sm font-medium text-zinc-200">{log.subject}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-zinc-500">{log.durationMinutes}m</span>
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                <button onClick={() => handleEditClick(log)} className="text-zinc-500 hover:text-indigo-400">
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button onClick={() => handleDeleteLog(log.id)} className="text-zinc-500 hover:text-red-400">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-zinc-400 truncate">{log.topic}</p>
+                          {log.problemsSolved > 0 && <p className="text-[10px] text-zinc-500 mt-1">{log.problemsSolved} problems</p>}
+                          {log.efficiencyScore && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="h-1.5 flex-1 bg-zinc-800 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-indigo-500 rounded-full" 
+                                  style={{ width: `${(log.efficiencyScore / 10) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-zinc-500 font-medium">EFF {log.efficiencyScore}/10</span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
