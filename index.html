@@ -3,10 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsEw098052B3zO281Xo1L3/020D12uEIf62y1x0T0+k1Z2+O1uTz1F1T5" crossorigin="anonymous">
+    <title>Savantix | Elite AI Study Optimization</title>
+    <meta name="description" content="Savantix is an advanced AI learning and study optimization system designed for JEE Advanced, Olympiads, and competitive academics." />
+    <meta name="keywords" content="study optimization, spaced repetition, AI tutor, JEE Advanced, Olympiad, study planner" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
   </head>
   <body>
+    <script>
+      window.addEventListener('error', (e) => {
+        document.body.innerHTML = '<div style="color:red; background:white; padding:20px; z-index:9999; position:absolute;">ERROR: ' + e.message + '<br/><pre>' + (e.error ? e.error.stack : '') + '</pre></div>';
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        document.body.innerHTML = '<div style="color:red; background:white; padding:20px; z-index:9999; position:absolute;">PROMISE REJECTION: ' + (e.reason ? e.reason.stack || e.reason : 'Unknown') + '</div>';
+      });
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

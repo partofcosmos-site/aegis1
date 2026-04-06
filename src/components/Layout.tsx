@@ -16,7 +16,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analytics', label: 'Analytics', icon: BarChart2 },
-    { id: 'chat', label: 'Aegis Chat', icon: MessageSquare },
+    { id: 'chat', label: 'Savantix Chat', icon: MessageSquare },
     { id: 'flashcards', label: 'Flashcards', icon: Layers },
     { id: 'journal', label: 'Journal', icon: BookOpen },
     { id: 'goals', label: 'Goals', icon: Target },
@@ -32,7 +32,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
           <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
             <BrainCircuit className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Aegis</h1>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Savantix</h1>
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -51,7 +51,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
           <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
             <BrainCircuit className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Aegis</h1>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Savantix</h1>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

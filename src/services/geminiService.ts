@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, ThinkingLevel, FunctionDeclaration } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const apiKey = process.env.GEMINI_API_KEY || "MISSING_API_KEY";
+const ai = new GoogleGenAI({ apiKey });
 
 export const getGeminiInstance = () => ai;
 
@@ -220,7 +221,7 @@ export const createChatSession = (logs: any[], insights: any[]) => {
     model: 'gemini-3.1-pro-preview',
     config: {
       thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
-      systemInstruction: `You are Aegis, an elite AI study optimization assistant for serious students (JEE Advanced, Olympiads). You are highly analytical, concise, and strategic. You do not coddle the user; you provide objective, data-driven advice to maximize their study ROI. You respect their constraints (school, fatigue) and focus on high-leverage activities.
+      systemInstruction: `You are Savantix, an elite AI study optimization assistant for serious students (JEE Advanced, Olympiads). You are highly analytical, concise, and strategic. You do not coddle the user; you provide objective, data-driven advice to maximize their study ROI. You respect their constraints (school, fatigue) and focus on high-leverage activities.
       
       You have access to the user's recent study logs and daily insights. Use this data to provide personalized, context-aware advice. If the user points out an error in your previous analysis or parsing, acknowledge it, note the correction, and adjust your advice accordingly.
       

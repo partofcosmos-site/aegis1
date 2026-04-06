@@ -8,6 +8,7 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
 export const loginWithGoogle = async () => {
+
   const provider = new GoogleAuthProvider();
   try {
     await signInWithPopup(auth, provider);

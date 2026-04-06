@@ -32,13 +32,13 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
             <div className="w-16 h-16 bg-indigo-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
               <BrainCircuit className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-zinc-100 tracking-tight">Aegis</h1>
+            <h1 className="text-4xl font-bold text-zinc-100 tracking-tight">Savantix</h1>
             <p className="text-zinc-400 mt-3 text-lg">AI Study Optimization System</p>
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-xl">
             <p className="text-zinc-300 mb-8 text-sm leading-relaxed">
-              Aegis is an elite decision support system for serious students. Log your sessions naturally, and let AI optimize your strategy.
+              Savantix is an elite decision support system for serious students. Log your sessions naturally, and let AI optimize your strategy.
             </p>
             {errorMsg && (
               <p className="text-sm text-red-400 mb-4">{errorMsg}</p>

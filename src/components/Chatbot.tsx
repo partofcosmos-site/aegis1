@@ -19,7 +19,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
   const [useSearch, setUseSearch] = useState(false);
   const [history, setHistory] = useState<any[]>([
     { role: 'user', parts: [{ text: "Hello" }] },
-    { role: 'model', parts: [{ text: "I'm Aegis. How can we optimize your study plan today?" }] }
+    { role: 'model', parts: [{ text: "I'm Savantix. How can we optimize your study plan today?" }] }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -70,7 +70,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
       } else {
         setHistory([
           { role: 'user', parts: [{ text: "Hello" }] },
-          { role: 'model', parts: [{ text: "I'm Aegis. How can we optimize your study plan today?" }] }
+          { role: 'model', parts: [{ text: "I'm Savantix. How can we optimize your study plan today?" }] }
         ]);
       }
       setCurrentSessionId(sessionId);
@@ -84,7 +84,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
   const startNewSession = () => {
     setHistory([
       { role: 'user', parts: [{ text: "Hello" }] },
-      { role: 'model', parts: [{ text: "I'm Aegis. How can we optimize your study plan today?" }] }
+      { role: 'model', parts: [{ text: "I'm Savantix. How can we optimize your study plan today?" }] }
     ]);
     setCurrentSessionId(null);
   };
@@ -153,7 +153,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
         tools.push({ googleSearch: {} });
       }
 
-      const systemInstruction = `You are Aegis, an elite AI study optimization assistant for serious students. You are highly analytical, concise, and strategic.
+      const systemInstruction = `You are Savantix, an elite AI study optimization assistant for serious students. You are highly analytical, concise, and strategic.
       Today is ${format(new Date(), 'yyyy-MM-dd')}.
       User's recent logs: ${JSON.stringify(logs.slice(0, 5))}
       User's recent insights: ${JSON.stringify(insights.slice(0, 3))}
@@ -414,7 +414,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
           <div>
             <h2 className="text-base sm:text-lg font-semibold text-zinc-100 flex items-center gap-2">
               <Bot className="w-5 h-5 text-indigo-400" />
-              Aegis Assistant
+              Savantix Assistant
             </h2>
             <p className="text-xs text-zinc-500">Strategic planning & deep analysis</p>
           </div>
@@ -504,7 +504,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
               </div>
               <div className="px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-tl-sm flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                <span className="text-xs text-zinc-500">Aegis is thinking...</span>
+                <span className="text-xs text-zinc-500">Savantix is thinking...</span>
               </div>
             </div>
           )}
@@ -517,7 +517,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Aegis..."
+              placeholder="Ask Savantix..."
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-4 pr-20 sm:pr-24 text-sm sm:text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
               disabled={isTyping}
             />
