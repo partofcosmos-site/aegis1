@@ -15,7 +15,13 @@ export const Dashboard = () => {
 
   const totalMinutes = todayLogs.reduce((acc, log) => acc + (log.durationMinutes || 0), 0);
   const totalProblems = todayLogs.reduce((acc, log) => acc + (log.problemsSolved || 0), 0);
-  const subjects = Array.from(new Set(todayLogs.map(l => l.subject)));
+  
+  const subjects = Array.from(new Set(
+    todayLogs.flatMap(l => (l.subject || 'Uncategorized').split(/,| and | & /i).map(s => {
+      const trimmed = s.trim();
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    }).filter(Boolean))
+  ));
 
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});

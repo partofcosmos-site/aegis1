@@ -35,8 +35,20 @@ export const Analytics = () => {
       totalMinutes += duration;
       totalProblems += log.problemsSolved || 0;
 
-      const subject = log.subject || 'Uncategorized';
-      subjectTime[subject] = (subjectTime[subject] || 0) + duration;
+      const rawSubject = log.subject || 'Uncategorized';
+      // Split by comma, 'and', or '&', then normalize casing
+      const subjects = rawSubject.split(/,| and | & /i).map(s => s.trim()).filter(Boolean);
+      
+      if (subjects.length === 0) {
+        subjectTime['Uncategorized'] = (subjectTime['Uncategorized'] || 0) + duration;
+      } else {
+        const durationPerSubject = duration / subjects.length;
+        subjects.forEach(subject => {
+          // Normalize: capitalize first letter, lowercase rest (e.g., "physics" -> "Physics")
+          const normalizedSubject = subject.charAt(0).toUpperCase() + subject.slice(1).toLowerCase();
+          subjectTime[normalizedSubject] = (subjectTime[normalizedSubject] || 0) + durationPerSubject;
+        });
+      }
 
       if (log.date && dailyDataMap[log.date] !== undefined) {
         dailyDataMap[log.date] += duration;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getGeminiInstance, logStudySessionTool, navigateAppTool } from '../services/geminiService';
-import { Send, Bot, User, Loader2, Globe, MessageSquarePlus, History } from 'lucide-react';
+import { Send, Bot, User, Loader2, Globe, MessageSquarePlus, History, Volume2, Square } from 'lucide-react';
 import clsx from 'clsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -25,6 +25,30 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
   const [isTyping, setIsTyping] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [ttsVoice, setTtsVoice] = useState('Zephyr');
+  const [ttsSpeed, setTtsSpeed] = useState(1);
+  const [playingMsgIndex, setPlayingMsgIndex] = useState<number | null>(null);
+  const [isTtsLoading, setIsTtsLoading] = useState(false);
+  
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  const ttsAbortControllerRef = useRef<AbortController | null>(null);
+
+  const stopTTS = () => {
+    if (ttsAbortControllerRef.current) {
+      ttsAbortControllerRef.current.abort();
+      ttsAbortControllerRef.current = null;
+    }
+    activeSourcesRef.current.forEach(source => {
+      try {
+        source.stop();
+        source.disconnect();
+      } catch (e) {}
+    });
+    activeSourcesRef.current = [];
+    setPlayingMsgIndex(null);
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -68,6 +92,9 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isTyping || !user) return;
+
+    // Stop TTS if playing
+    stopTTS();
 
     const userMsg = input.trim();
     setInput('');
@@ -226,6 +253,127 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     }
   };
 
+  const handlePlayTTS = async (text: string, index: number) => {
+    if (playingMsgIndex === index) {
+      stopTTS();
+      return;
+    }
+
+    // Stop any currently playing TTS
+    stopTTS();
+
+    const selection = window.getSelection()?.toString();
+    const textToRead = selection && selection.trim().length > 0 ? selection : text;
+
+    setIsTtsLoading(true);
+    setPlayingMsgIndex(index);
+    
+    ttsAbortControllerRef.current = new AbortController();
+    const signal = ttsAbortControllerRef.current.signal;
+    
+    try {
+      const ai = getGeminiInstance();
+      
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioCtx = audioCtxRef.current;
+      let nextStartTime = audioCtx.currentTime;
+      let isFirstChunk = true;
+
+      // Split text into manageable chunks (by sentences) to drastically reduce time-to-first-byte
+      const textChunks = textToRead.match(/[^.!?\n]+[.!?\n]+/g) || [textToRead];
+      const processedChunks: string[] = [];
+      let currentChunk = "";
+      for (const chunk of textChunks) {
+        currentChunk += chunk;
+        // Group short sentences together, but split when we reach ~100 chars
+        if (currentChunk.length > 100) {
+          processedChunks.push(currentChunk.trim());
+          currentChunk = "";
+        }
+      }
+      if (currentChunk.trim()) {
+        processedChunks.push(currentChunk.trim());
+      }
+
+      for (let i = 0; i < processedChunks.length; i++) {
+        if (signal.aborted) break;
+        
+        const chunkText = processedChunks[i];
+        const responseStream = await ai.models.generateContentStream({
+          model: "gemini-2.5-flash-preview-tts",
+          contents: [{ parts: [{ text: chunkText }] }],
+          config: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: ttsVoice },
+              },
+            },
+          },
+        });
+
+        for await (const chunk of responseStream) {
+          if (signal.aborted) break;
+
+          const base64Audio = chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          if (base64Audio) {
+            if (isFirstChunk) {
+              setIsTtsLoading(false);
+              isFirstChunk = false;
+            }
+
+            const binaryString = atob(base64Audio);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let j = 0; j < binaryString.length; j++) {
+              bytes[j] = binaryString.charCodeAt(j);
+            }
+            
+            // The PCM data is 16-bit little-endian
+            const int16Array = new Int16Array(bytes.buffer);
+            const audioBuffer = audioCtx.createBuffer(1, int16Array.length, 24000);
+            const channelData = audioBuffer.getChannelData(0);
+            for (let j = 0; j < int16Array.length; j++) {
+              channelData[j] = int16Array[j] / 32768.0; // Convert to [-1.0, 1.0]
+            }
+
+            const source = audioCtx.createBufferSource();
+            source.buffer = audioBuffer;
+            source.playbackRate.value = ttsSpeed;
+            source.connect(audioCtx.destination);
+            
+            const startTime = Math.max(audioCtx.currentTime, nextStartTime);
+            source.start(startTime);
+            
+            nextStartTime = startTime + (audioBuffer.duration / ttsSpeed);
+            activeSourcesRef.current.push(source);
+            
+            const isLastChunk = i === processedChunks.length - 1;
+            
+            source.onended = () => {
+              activeSourcesRef.current = activeSourcesRef.current.filter(s => s !== source);
+              if (activeSourcesRef.current.length === 0 && !ttsAbortControllerRef.current && isLastChunk) {
+                setPlayingMsgIndex(null);
+              }
+            };
+          }
+        }
+      }
+      
+      // Clear abort controller when stream finishes naturally
+      ttsAbortControllerRef.current = null;
+      
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error("TTS Error:", error);
+      }
+      setPlayingMsgIndex(null);
+    } finally {
+      setIsTtsLoading(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex h-full bg-zinc-950 overflow-hidden">
       {/* Sidebar for Chat History */}
@@ -270,6 +418,34 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
             </h2>
             <p className="text-xs text-zinc-500">Strategic planning & deep analysis</p>
           </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+             <select 
+               value={ttsVoice} 
+               onChange={(e) => setTtsVoice(e.target.value)}
+               className="bg-zinc-800 text-xs text-zinc-300 rounded px-2 py-1.5 border border-zinc-700 outline-none focus:border-indigo-500 transition-colors"
+               title="Select Voice"
+             >
+               <option value="Puck">Puck (Male)</option>
+               <option value="Charon">Charon (Male)</option>
+               <option value="Fenrir">Fenrir (Male)</option>
+               <option value="Kore">Kore (Female)</option>
+               <option value="Zephyr">Zephyr (Female)</option>
+               <option value="Aoede">Aoede (Female)</option>
+             </select>
+             <select 
+               value={ttsSpeed} 
+               onChange={(e) => setTtsSpeed(parseFloat(e.target.value))}
+               className="bg-zinc-800 text-xs text-zinc-300 rounded px-2 py-1.5 border border-zinc-700 outline-none focus:border-indigo-500 transition-colors"
+               title="Playback Speed"
+             >
+               <option value={0.5}>0.5x</option>
+               <option value={0.75}>0.75x</option>
+               <option value={1}>1x</option>
+               <option value={1.25}>1.25x</option>
+               <option value={1.5}>1.5x</option>
+               <option value={2}>2x</option>
+             </select>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
@@ -292,15 +468,29 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
                   {msg.role === 'user' ? (
                     textPart.text
                   ) : (
-                    <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 overflow-x-auto">
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        components={{
-                          img: ({node, ...props}) => <img {...props} referrerPolicy="no-referrer" className="max-w-full rounded-lg my-2" />
-                        }}
+                    <div className="relative group">
+                      <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 overflow-x-auto">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={{
+                            img: ({node, ...props}) => <img {...props} referrerPolicy="no-referrer" className="max-w-full rounded-lg my-2" />
+                          }}
+                        >
+                          {textPart.text}
+                        </ReactMarkdown>
+                      </div>
+                      <button
+                        onClick={() => handlePlayTTS(textPart.text, idx)}
+                        disabled={isTtsLoading && playingMsgIndex !== idx}
+                        className="absolute -bottom-2 -right-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-indigo-400 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity border border-zinc-700 disabled:opacity-50 shadow-sm"
+                        title="Listen to message (select text to read only selection)"
                       >
-                        {textPart.text}
-                      </ReactMarkdown>
+                        {playingMsgIndex === idx ? (
+                           <Square className="w-3.5 h-3.5" />
+                        ) : (
+                           <Volume2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>
