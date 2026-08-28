@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { 
   LogOut, 
@@ -15,9 +15,11 @@ import {
   X,
   Sparkles,
   Network,
-  Crown
+  Crown,
+  Zap
 } from 'lucide-react';
 import clsx from 'clsx';
+import { MicroLoggerModal } from './MicroLoggerModal';
 
 export type ActiveTabType = 
   | 'dashboard' 
@@ -40,7 +42,27 @@ interface LayoutProps {
 export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
   const { user, logout } = useAppContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMicroLoggerOpen, setIsMicroLoggerOpen] = useState(false);
   const isFounder = ['debanjan8686@gmail.com', 'partofcosmmos@gmail.com'].includes(user?.email || '');
+
+  // Global hotkeys for Micro-Logger HUD (Alt+L or Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Check Alt+L
+      if (e.altKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        setIsMicroLoggerOpen(prev => !prev);
+      }
+      // Check Ctrl+K or Cmd+K
+      else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsMicroLoggerOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -56,7 +78,13 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-200 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-zinc-950 text-zinc-200 flex flex-col md:flex-row font-sans relative">
+      {/* Global Floating Micro-Logger HUD Modal */}
+      <MicroLoggerModal 
+        isOpen={isMicroLoggerOpen} 
+        onClose={() => setIsMicroLoggerOpen(false)} 
+      />
+
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-zinc-900/60 backdrop-blur-md border-b border-zinc-800/80">
         <div className="flex items-center gap-3">
@@ -65,17 +93,29 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
           </div>
           <h1 className="text-xl font-bold tracking-tight text-zinc-100">Savantix</h1>
         </div>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-zinc-400 hover:text-zinc-200 transition-colors bg-zinc-800 rounded-lg"
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* Quick Micro-Log HUD Trigger on Mobile */}
+          <button
+            onClick={() => setIsMicroLoggerOpen(true)}
+            className="p-2 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg transition-colors cursor-pointer"
+            title="Open Micro-Logger (Alt+L)"
+          >
+            <Zap className="w-5 h-5 text-amber-400" />
+          </button>
+
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 text-zinc-400 hover:text-zinc-200 transition-colors bg-zinc-800 rounded-lg"
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar */}
       <aside className={clsx(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-zinc-900/80 backdrop-blur-xl border-r border-zinc-800/80 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 w-64 bg-zinc-900/80 backdrop-blur-xl border-r border-zinc-800/80 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="hidden md:flex p-6 items-center gap-3 border-b border-zinc-800/80">
@@ -86,6 +126,23 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
             <h1 className="text-lg font-bold tracking-tight text-zinc-100">Savantix</h1>
             <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Study Optimization</p>
           </div>
+        </div>
+
+        {/* Global Quick Micro-Logger Button */}
+        <div className="px-4 pt-3 pb-1">
+          <button
+            onClick={() => setIsMicroLoggerOpen(true)}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-900/40 to-indigo-800/20 hover:from-indigo-900/60 hover:to-indigo-800/40 text-indigo-200 border border-indigo-500/30 shadow-sm transition-all cursor-pointer group"
+            title="Sub-Second Micro-Logger HUD (Alt+L or Ctrl+K)"
+          >
+            <div className="flex items-center gap-2 text-xs font-semibold">
+              <Zap className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span>Micro-Logger HUD</span>
+            </div>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-950/80 border border-indigo-500/30 text-indigo-300">
+              Alt+L
+            </span>
+          </button>
         </div>
         
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">

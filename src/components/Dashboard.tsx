@@ -1,15 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LogInput } from './LogInput';
 import { InsightsPanel } from './InsightsPanel';
 import { StudyHeatmap } from './StudyHeatmap';
 import { ExamCountdown } from './ExamCountdown';
 import { useAppContext } from '../context/AppContext';
-import { format } from 'date-fns';
-import { Clock, BookOpen, CheckCircle2, Edit2, Check, X, Trash2 } from 'lucide-react';
+import { format, subDays, parseISO, isValid, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import {
+  Clock,
+  BookOpen,
+  CheckCircle2,
+  Edit2,
+  Check,
+  X,
+  Trash2,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  Flame,
+  Zap,
+  Trophy,
+  HeartPulse,
+  Info,
+  RotateCcw,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Scale,
+  ArrowRight,
+  TrendingDown,
+  TrendingUp,
+  Plus,
+  Minus
+} from 'lucide-react';
+import {
+  getStreakHealthTier,
+  getShieldTokenRack,
+  getAntiFragileStreakBadge,
+  MAX_HP,
+  MAX_SHIELD_TOKENS
+} from '../utils/streakResilienceEngine';
+import {
+  calculateSubjectEquilibrium,
+  SubjectEquilibriumReport
+} from '../utils/pidEquilibriumEngine';
 
 export const Dashboard = () => {
-  const { logs, updateLog, deleteLog } = useAppContext();
+  const { logs, updateLog, deleteLog, elasticStreak, updateElasticStreak, recomputeElasticStreak } = useAppContext();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [showHistory, setShowHistory] = useState(false);
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState(String(elasticStreak?.targetMinutesDaily || 120));
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Rolling 7-Day Logs for Dynamic Subject Equilibrium Matrix
+  const logs7Days = useMemo(() => {
+    const today = new Date();
+    const sevenDaysAgo = subDays(today, 6);
+    const startBoundary = startOfDay(sevenDaysAgo);
+    const endBoundary = endOfDay(today);
+
+    return (logs || []).filter(l => {
+      if (!l.date) return false;
+      const parsed = parseISO(l.date.substring(0, 10));
+      return isValid(parsed) && isWithinInterval(parsed, { start: startBoundary, end: endBoundary });
+    });
+  }, [logs]);
+
+  // Subject Equilibrium & PID Corrective Prescription Report
+  const equilibriumReport: SubjectEquilibriumReport = useMemo(() => {
+    return calculateSubjectEquilibrium(logs7Days);
+  }, [logs7Days]);
   
   const todayLogs = logs.filter(l => l.date === selectedDate);
 
@@ -25,6 +86,20 @@ export const Dashboard = () => {
 
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+
+  const healthTier = getStreakHealthTier(elasticStreak?.currentHP ?? 100);
+  const shieldRack = getShieldTokenRack(elasticStreak?.shieldTokens ?? 2, MAX_SHIELD_TOKENS);
+  const streakBadge = getAntiFragileStreakBadge(elasticStreak || {
+    currentHP: 100,
+    maxHP: 100,
+    shieldTokens: 2,
+    maxShieldTokens: 3,
+    activeStreakDays: 0,
+    longestStreakDays: 0,
+    lastEvaluatedDate: selectedDate,
+    targetMinutesDaily: 120,
+    history: []
+  });
 
   const handleDateChange = (newDate: string) => {
     setSelectedDate(newDate);
@@ -68,10 +143,37 @@ export const Dashboard = () => {
     }
   };
 
+  const handleSaveTarget = () => {
+    const parsed = parseInt(targetInput, 10);
+    if (!isNaN(parsed) && parsed >= 15) {
+      updateElasticStreak({ targetMinutesDaily: parsed });
+      setIsEditingTarget(false);
+      showToast(`🎯 Daily study target updated to ${parsed} mins!`);
+    }
+  };
+
+  const handleRecompute = () => {
+    recomputeElasticStreak();
+    showToast('⚡ Elastic streak recomputed from history!');
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   return (
     <div className="w-full px-4 sm:px-6 py-8">
       <div className="max-w-7xl mx-auto w-full space-y-8">
         
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div className="fixed top-5 right-5 z-50 bg-zinc-900 border border-indigo-500/50 text-indigo-200 px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-3">
+            <Sparkles className="w-4 h-4 text-indigo-400" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">Overview</h1>
@@ -85,8 +187,245 @@ export const Dashboard = () => {
           />
         </header>
 
+        {/* ========================================================================= */}
+        {/* R5: ELASTIC STREAK HEALTH BAR & RESILIENCE TOKEN ENGINE HUB */}
+        {/* ========================================================================= */}
+        <div className="bg-gradient-to-br from-zinc-900/90 via-zinc-900/70 to-zinc-950 border border-zinc-800/90 rounded-2xl p-6 shadow-2xl backdrop-blur-md space-y-6 relative overflow-hidden">
+          
+          {/* Ambient Glow Background Accent */}
+          <div 
+            className="absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-20 transition-all duration-700"
+            style={{ backgroundColor: healthTier.tier === 'emerald' ? '#10b981' : healthTier.tier === 'amber' ? '#f59e0b' : '#f43f5e' }}
+          />
+
+          {/* Top Row: Title, Anti-Fragile Badge & Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-2xl border ${healthTier.borderColor} bg-zinc-950/60 shadow-inner`}>
+                <ShieldCheck className={`w-6 h-6 ${healthTier.textColor}`} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-zinc-100 tracking-tight">Elastic Streak & Resilience Hub</h2>
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
+                    Anti-Fragile
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  100 HP health buffer absorbs off-days • Surplus effort charges shield tokens
+                </p>
+              </div>
+            </div>
+
+            {/* Streak & Record Badges */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-md ${streakBadge.badgeClass}`}>
+                <span>{streakBadge.icon}</span>
+                <span>{streakBadge.text}</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950/70 border border-zinc-800 rounded-xl text-xs font-semibold text-zinc-300">
+                <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                <span>Best: <strong className="text-zinc-100">{elasticStreak?.longestStreakDays ?? 0}d</strong></span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRecompute}
+                className="p-2 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 border border-zinc-700/60 rounded-xl text-xs transition-colors cursor-pointer"
+                title="Recalculate streak resilience from full log history"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Health Bar Section */}
+          <div className="space-y-2.5 relative z-10">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 font-mono">
+                <HeartPulse className={`w-4 h-4 ${healthTier.textColor}`} />
+                <span className="text-sm font-bold text-zinc-100">
+                  {elasticStreak?.currentHP ?? 100} <span className="text-zinc-500 font-normal">/ {MAX_HP} HP</span>
+                </span>
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${healthTier.borderColor} ${healthTier.textColor} bg-zinc-950/60`}>
+                  {healthTier.label}
+                </span>
+              </div>
+
+              {/* Daily Target Setting */}
+              <div className="flex items-center gap-2 text-zinc-400">
+                {isEditingTarget ? (
+                  <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1">
+                    <span className="text-[11px] text-zinc-400">Target:</span>
+                    <input
+                      type="number"
+                      min="15"
+                      max="720"
+                      value={targetInput}
+                      onChange={e => setTargetInput(e.target.value)}
+                      className="w-12 bg-transparent text-zinc-100 text-xs font-mono focus:outline-none"
+                    />
+                    <span className="text-[11px] text-zinc-500">m</span>
+                    <button
+                      type="button"
+                      onClick={handleSaveTarget}
+                      className="p-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] ml-1"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTarget(false)}
+                      className="p-1 text-zinc-500 hover:text-zinc-300 text-[10px]"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTargetInput(String(elasticStreak?.targetMinutesDaily || 120));
+                      setIsEditingTarget(true);
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-950/60 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-[11px] text-zinc-300 transition-colors cursor-pointer"
+                    title="Click to adjust daily target minutes"
+                  >
+                    <span>🎯 Target: <strong>{elasticStreak?.targetMinutesDaily || 120}m</strong> / day</span>
+                    <Sliders className="w-3 h-3 text-indigo-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Visual Health Bar */}
+            <div className="h-4 w-full bg-zinc-950/80 rounded-full border border-zinc-800/80 p-0.5 overflow-hidden shadow-inner relative">
+              <div 
+                className={`h-full rounded-full transition-all duration-700 ease-out ${healthTier.barColor}`}
+                style={{ width: `${Math.max(0, Math.min(100, elasticStreak?.currentHP ?? 100))}%` }}
+              />
+            </div>
+
+            {/* Mechanics Rules Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] text-zinc-400 pt-1">
+              <div className="bg-zinc-950/50 border border-zinc-800/70 rounded-lg p-2 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                <span><strong>+15 HP</strong> on Target ({elasticStreak?.targetMinutesDaily || 120}m)</span>
+              </div>
+              <div className="bg-zinc-950/50 border border-zinc-800/70 rounded-lg p-2 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
+                <span><strong>+25 HP & +1 🛡️</strong> Overdrive ({Math.round((elasticStreak?.targetMinutesDaily || 120) * 1.5)}m)</span>
+              </div>
+              <div className="bg-zinc-950/50 border border-zinc-800/70 rounded-lg p-2 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                <span><strong>-20 HP max</strong> Partial Study</span>
+              </div>
+              <div className="bg-zinc-950/50 border border-zinc-800/70 rounded-lg p-2 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                <span><strong>-35 HP</strong> Miss (0 Shields)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Resilience Shield Token Rack */}
+          <div className="border-t border-zinc-800/80 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+            <div>
+              <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-indigo-400" />
+                Resilience Shield Tokens ({elasticStreak?.shieldTokens ?? 2} / {MAX_SHIELD_TOKENS} Armed)
+              </span>
+              <p className="text-[11px] text-zinc-500 mt-0.5">
+                Shields automatically deploy on missed/rest days: 0 HP lost & streak frozen
+              </p>
+            </div>
+
+            {/* 3 Shield Icons Rack */}
+            <div className="flex items-center gap-2.5">
+              {shieldRack.map(slot => (
+                <div
+                  key={slot.index}
+                  className="group relative cursor-pointer"
+                  title={slot.tooltip}
+                >
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-center transition-all ${
+                    slot.isCharged
+                      ? 'bg-indigo-950/80 border-indigo-500/50 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.4)] group-hover:scale-110'
+                      : 'bg-zinc-950/60 border-zinc-800 text-zinc-600 group-hover:border-zinc-700'
+                  }`}>
+                    {slot.isCharged ? (
+                      <ShieldCheck className="w-5 h-5 text-indigo-400 fill-indigo-400/20 animate-pulse" />
+                    ) : (
+                      <ShieldAlert className="w-5 h-5 text-zinc-600" />
+                    )}
+                  </div>
+                  
+                  {/* Tooltip Overlay */}
+                  <div className="opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-zinc-900 border border-zinc-700 text-[10px] text-zinc-300 p-2 rounded-lg shadow-xl z-30">
+                    <p className="font-bold text-zinc-100 mb-0.5">{slot.label}</p>
+                    <p className="text-zinc-400 leading-snug">{slot.tooltip}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Defense History Accordion */}
+          {elasticStreak?.history && elasticStreak.history.length > 0 && (
+            <div className="border-t border-zinc-800/80 pt-3 relative z-10">
+              <button
+                type="button"
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center justify-between w-full text-xs text-zinc-400 hover:text-zinc-200 transition-colors py-1 cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5 font-semibold">
+                  <Info className="w-3.5 h-3.5 text-indigo-400" />
+                  Recent Resilience Defense & Health Log ({elasticStreak.history.length} events)
+                </span>
+                {showHistory ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {showHistory && (
+                <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800 animate-in fade-in duration-200">
+                  {elasticStreak.history.slice(0, 10).map((entry, idx) => (
+                    <div
+                      key={`${entry.date}-${idx}`}
+                      className="bg-zinc-950/70 border border-zinc-850 p-2.5 rounded-xl flex items-center justify-between text-xs gap-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-zinc-400 text-[11px]">{entry.date}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                          entry.status === 'surplus_overdrive' ? 'bg-cyan-950/60 border border-cyan-500/40 text-cyan-300' :
+                          entry.status === 'target_met' ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300' :
+                          entry.status === 'shield_defended' ? 'bg-indigo-950/60 border border-indigo-500/40 text-indigo-300' :
+                          entry.status === 'partial_decay' ? 'bg-amber-950/60 border border-amber-500/40 text-amber-300' :
+                          'bg-rose-950/60 border border-rose-500/40 text-rose-300'
+                        }`}>
+                          {entry.status === 'surplus_overdrive' ? '⚡ Overdrive' :
+                           entry.status === 'target_met' ? '✅ Target Met' :
+                           entry.status === 'shield_defended' ? '🛡️ Shield Defended' :
+                           entry.status === 'partial_decay' ? '⚠️ Partial Study' : '❌ Missed Study'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-[11px]">
+                        <span className="text-zinc-400">{entry.actualMinutes}m / {entry.targetMinutes}m</span>
+                        <span className={`font-mono font-bold ${entry.hpDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {entry.hpDelta >= 0 ? `+${entry.hpDelta}` : entry.hpDelta} HP
+                        </span>
+                        <span className="text-zinc-300 font-mono">({entry.hpResult} HP)</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 flex items-center gap-4 shadow-lg hover:border-zinc-700 transition-colors">
             <div className="p-3 bg-blue-500/10 rounded-full border border-blue-500/20">
               <Clock className="w-6 h-6 text-blue-400" />
@@ -110,8 +449,22 @@ export const Dashboard = () => {
               <BookOpen className="w-6 h-6 text-purple-400" />
             </div>
             <div>
-              <p className="text-sm text-zinc-500 font-medium">Subjects</p>
+              <p className="text-sm text-zinc-500 font-medium">Subjects Today</p>
               <p className="text-2xl font-bold text-zinc-100">{subjects.length}</p>
+            </div>
+          </div>
+          <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 flex items-center gap-4 shadow-lg hover:border-zinc-700 transition-colors">
+            <div className="p-3 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+              <Scale className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-zinc-500 font-medium">Equilibrium</p>
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${equilibriumReport.statusBadgeColor}`}>
+                  {equilibriumReport.status === 'harmonious' ? 'Harmonious' : equilibriumReport.status === 'mild_skew' ? 'Mild Skew' : 'Neglect Alert'}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-zinc-100 font-mono">{equilibriumReport.equilibriumScore}%</p>
             </div>
           </div>
         </div>
@@ -130,6 +483,48 @@ export const Dashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
+            
+            {/* Subject Equilibrium Status & PID Next-Day Prescription Banner */}
+            <div className="bg-gradient-to-r from-zinc-900/90 via-zinc-900/70 to-zinc-950 border border-zinc-800/90 rounded-2xl p-5 shadow-xl space-y-4 backdrop-blur-md relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400 shrink-0">
+                    <Scale className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-bold text-zinc-100">Subject Equilibrium & PID Rebalancer</h3>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${equilibriumReport.statusBadgeColor}`}>
+                        {equilibriumReport.statusLabel} ({equilibriumReport.equilibriumScore}%)
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-300 mt-1 font-medium leading-relaxed">
+                      {equilibriumReport.actionablePrescription}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  {equilibriumReport.subjectDistributions.map(sub => (
+                    <div
+                      key={sub.subject}
+                      className="px-2 py-1 bg-zinc-950/80 border border-zinc-800 rounded-lg text-[10px] font-mono flex items-center gap-1"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: sub.color }} />
+                      <span className="text-zinc-400">{sub.subject}:</span>
+                      <strong className={
+                        sub.recommendedDailyAdjustmentMins > 0 ? 'text-emerald-400' :
+                        sub.recommendedDailyAdjustmentMins < 0 ? 'text-amber-400' : 'text-zinc-400'
+                      }>
+                        {sub.recommendedDailyAdjustmentMins > 0 ? `+${sub.recommendedDailyAdjustmentMins}m` :
+                         sub.recommendedDailyAdjustmentMins < 0 ? `${sub.recommendedDailyAdjustmentMins}m` : '0m'}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <InsightsPanel selectedDate={selectedDate} />
           </div>
           <div className="space-y-6">

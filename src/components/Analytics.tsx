@@ -3,18 +3,41 @@ import { useAppContext } from '../context/AppContext';
 import { StudyHeatmap } from './StudyHeatmap';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, CartesianGrid, Legend
+  PieChart, Pie, Cell, AreaChart, Area, CartesianGrid, Legend,
+  ScatterChart, Scatter, ZAxis, ReferenceLine
 } from 'recharts';
 import {
   format, parseISO, isValid, subDays, eachDayOfInterval,
   differenceInDays, startOfDay, endOfDay, isWithinInterval
 } from 'date-fns';
 import {
-  Clock, CheckCircle2, TrendingUp, Download, Upload, Target,
-  Calendar, Zap, BarChart3, PieChart as PieIcon, Award, Filter,
+  Clock, CheckCircle2, TrendingUp, Upload, Target,
+  Calendar, Zap, BarChart3, Award,
   FileSpreadsheet, FileJson, Check, AlertTriangle, ArrowUpRight,
-  Info, RefreshCw, X, Sparkles, Compass
+  Info, X, Sparkles, Compass, Gauge, Crosshair, Brain,
+  Activity, Sliders, ChevronRight, CheckCircle, Flame,
+  Scale, Plus, Minus, RefreshCw, SlidersHorizontal, AlertCircle,
+  TrendingDown, Layers
 } from 'lucide-react';
+import {
+  calculateSACMData,
+  SACMReport,
+  SACMDataPoint,
+  SACMQuadrantId,
+  DEFAULT_VELOCITY_THRESHOLD,
+  DEFAULT_ACCURACY_THRESHOLD,
+  QUADRANT_META
+} from '../utils/sacmCalculator';
+import {
+  calculateSubjectEquilibrium,
+  loadTargetWeights,
+  saveTargetWeights,
+  resetTargetWeights,
+  DEFAULT_TARGET_WEIGHTS,
+  SubjectEquilibriumReport,
+  SubjectDistribution,
+  PID_GAINS
+} from '../utils/pidEquilibriumEngine';
 
 const PALETTE = [
   '#6366f1', // Indigo
@@ -48,6 +71,49 @@ const DEFAULT_EXAMS: ExamTarget[] = [
   { id: 'exam-4', name: 'MIT SAT / Subject Test', targetDate: '2026-10-05', targetHours: 300, completedHours: 0, category: 'General' }
 ];
 
+// Custom Tooltip for SACM Scatter Matrix
+const SACMCustomTooltip = ({ active, payload }: any) => {
+  if (!active || !payload || !payload.length) return null;
+  const data: SACMDataPoint = payload[0].payload;
+  if (!data) return null;
+
+  return (
+    <div className="bg-zinc-900/95 backdrop-blur-md border border-zinc-700/80 rounded-xl p-3.5 shadow-2xl text-xs max-w-xs space-y-2 z-50 pointer-events-none">
+      <div className="flex items-start justify-between gap-2 border-b border-zinc-800 pb-2">
+        <div>
+          <span className="font-bold text-zinc-100 text-sm block">{data.topic}</span>
+          <span className="text-[11px] text-zinc-400 font-medium">{data.subject} • {data.date}</span>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${data.badgeColor}`}>
+          {data.diagnosticTag}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <div className="bg-zinc-950/70 p-2 rounded-lg border border-zinc-800/80">
+          <span className="text-zinc-400 block text-[10px]">Velocity</span>
+          <strong className="text-indigo-300 font-mono text-xs">{data.velocityQpH} Q/hr</strong>
+          <span className="text-zinc-500 block text-[10px] mt-0.5">~{data.timePerQuestionMin} m/q</span>
+        </div>
+        <div className="bg-zinc-950/70 p-2 rounded-lg border border-zinc-800/80">
+          <span className="text-zinc-400 block text-[10px]">Accuracy</span>
+          <strong className={`font-mono text-xs ${data.accuracyPercent >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {data.accuracyPercent}%
+          </strong>
+          <span className="text-zinc-500 block text-[10px] mt-0.5">{data.problemsSolved} Qs in {data.durationMinutes}m</span>
+        </div>
+      </div>
+
+      {data.mistakes && data.mistakes.length > 0 && (
+        <div className="text-[10px] text-rose-300 bg-rose-950/40 border border-rose-800/40 rounded-lg p-1.5">
+          <span className="font-semibold text-rose-400">Mistakes noted: </span>
+          {data.mistakes.join(', ')}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Analytics = () => {
   const { logs, user, isGuest, addLog } = useAppContext();
 
@@ -61,6 +127,19 @@ export const Analytics = () => {
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // SACM State
+  const [sacmSubjectFilter, setSacmSubjectFilter] = useState<string>('all');
+  const [sacmTimeRange, setSacmTimeRange] = useState<TimeRangeOption>('30d');
+  const [velocityThreshold, setVelocityThreshold] = useState<number>(DEFAULT_VELOCITY_THRESHOLD);
+  const [accuracyThreshold, setAccuracyThreshold] = useState<number>(DEFAULT_ACCURACY_THRESHOLD);
+  const [showSACMSettings, setShowSACMSettings] = useState<boolean>(false);
+
+  // PID Subject Equilibrium State
+  const [pidWeights, setPidWeights] = useState<Record<string, number>>(() => loadTargetWeights());
+  const [showWeightCustomizer, setShowWeightCustomizer] = useState<boolean>(false);
+  const [newSubjectInput, setNewSubjectInput] = useState<string>('');
+  const [newSubjectWeightPct, setNewSubjectWeightPct] = useState<number>(20);
+
   // Load Exam Targets from localStorage
   const examTargets: ExamTarget[] = useMemo(() => {
     try {
@@ -72,6 +151,20 @@ export const Analytics = () => {
     } catch {}
     return DEFAULT_EXAMS;
   }, []);
+
+  // Extract unique subjects for filters
+  const availableSubjects = useMemo(() => {
+    const set = new Set<string>();
+    (logs || []).forEach(l => {
+      if (l.subject) {
+        const s = String(l.subject).trim();
+        if (s) set.add(s);
+      }
+    });
+    const standard = ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science'];
+    standard.forEach(s => set.add(s));
+    return Array.from(set);
+  }, [logs]);
 
   // Filter logs according to selected Time Range
   const { filteredLogs, startDate, endDate, totalDaysInRange } = useMemo(() => {
@@ -115,6 +208,104 @@ export const Analytics = () => {
       totalDaysInRange: daysCount
     };
   }, [logs, timeRange]);
+
+  // SACM Engine Data Calculation
+  const { sacmFilteredLogs, sacmReport } = useMemo(() => {
+    const today = new Date();
+    let start = subDays(today, 29);
+
+    if (sacmTimeRange === '7d') start = subDays(today, 6);
+    else if (sacmTimeRange === '30d') start = subDays(today, 29);
+    else if (sacmTimeRange === '90d') start = subDays(today, 89);
+    else if (sacmTimeRange === '365d') start = subDays(today, 364);
+    else if (sacmTimeRange === 'all') {
+      if (logs && logs.length > 0) {
+        const validTimestamps = logs
+          .map(l => l.date ? parseISO(l.date.substring(0, 10)).getTime() : NaN)
+          .filter(t => !isNaN(t));
+        if (validTimestamps.length > 0) {
+          start = new Date(Math.min(...validTimestamps));
+        } else {
+          start = subDays(today, 29);
+        }
+      } else {
+        start = subDays(today, 29);
+      }
+    }
+
+    const startBoundary = startOfDay(start);
+    const endBoundary = endOfDay(today);
+
+    let filtered = (logs || []).filter(l => {
+      if (!l.date) return false;
+      const parsed = parseISO(l.date.substring(0, 10));
+      return isValid(parsed) && isWithinInterval(parsed, { start: startBoundary, end: endBoundary });
+    });
+
+    if (sacmSubjectFilter !== 'all') {
+      filtered = filtered.filter(l => {
+        const s = String(l.subject || '').toLowerCase();
+        return s.includes(sacmSubjectFilter.toLowerCase());
+      });
+    }
+
+    const report: SACMReport = calculateSACMData(filtered, {
+      velocityThreshold,
+      accuracyThreshold
+    });
+
+    return {
+      sacmFilteredLogs: filtered,
+      sacmReport: report
+    };
+  }, [logs, sacmTimeRange, sacmSubjectFilter, velocityThreshold, accuracyThreshold]);
+
+  // Rolling 7-Day Logs for Dynamic Subject Equilibrium Matrix
+  const logs7Days = useMemo(() => {
+    const today = new Date();
+    const startBoundary = startOfDay(subDays(today, 6));
+    const endBoundary = endOfDay(today);
+
+    return (logs || []).filter(l => {
+      if (!l.date) return false;
+      const parsed = parseISO(l.date.substring(0, 10));
+      return isValid(parsed) && isWithinInterval(parsed, { start: startBoundary, end: endBoundary });
+    });
+  }, [logs]);
+
+  // Dynamic Subject Equilibrium Matrix & PID Report
+  const equilibriumReport: SubjectEquilibriumReport = useMemo(() => {
+    return calculateSubjectEquilibrium(logs7Days, pidWeights);
+  }, [logs7Days, pidWeights]);
+
+  const handleUpdateSubjectWeight = (subj: string, pct: number) => {
+    const updated = { ...pidWeights, [subj]: Math.max(0.01, pct / 100) };
+    const saved = saveTargetWeights(updated);
+    setPidWeights(saved);
+  };
+
+  const handleAddCustomSubject = () => {
+    if (!newSubjectInput.trim()) return;
+    const name = newSubjectInput.trim();
+    const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+    const updated = { ...pidWeights, [formattedName]: Math.max(0.05, newSubjectWeightPct / 100) };
+    const saved = saveTargetWeights(updated);
+    setPidWeights(saved);
+    setNewSubjectInput('');
+  };
+
+  const handleRemoveCustomSubject = (subj: string) => {
+    if (Object.keys(pidWeights).length <= 1) return;
+    const copy = { ...pidWeights };
+    delete copy[subj];
+    const saved = saveTargetWeights(copy);
+    setPidWeights(saved);
+  };
+
+  const handleResetPIDWeights = () => {
+    const reset = resetTargetWeights();
+    setPidWeights(reset);
+  };
 
   // Aggregate Core Analytics Metrics
   const analyticsData = useMemo(() => {
@@ -278,7 +469,6 @@ export const Analytics = () => {
 
   // Velocity Forecast & Readiness Calculator
   const examForecastData = useMemo(() => {
-    // Calculate student velocity in last 30 days
     const today = new Date();
     const thirtyDaysAgo = subDays(today, 30);
     const recentLogs = (logs || []).filter(l => {
@@ -291,14 +481,12 @@ export const Analytics = () => {
     const recentHours = recentMinutes / 60;
     const recentDailyVelocityHours = Math.max(0.1, recentHours / 30);
 
-    // Calculate total logged hours across all logs (or subject specific)
     const allMinutes = (logs || []).reduce((sum, l) => sum + (Math.max(0, Number(l.durationMinutes)) || 0), 0);
     const allHours = allMinutes / 60;
 
     return examTargets.map(exam => {
       const daysLeft = Math.max(0, differenceInDays(parseISO(exam.targetDate), today));
       
-      // Calculate actual completed hours for this subject/category
       let loggedHoursForExam = 0;
       if (exam.category === 'General') {
         loggedHoursForExam = allHours;
@@ -311,13 +499,11 @@ export const Analytics = () => {
         loggedHoursForExam = subMins / 60;
       }
 
-      // If user had custom completedHours stored on target, take the higher of logs or target
       const actualCompleted = Math.max(loggedHoursForExam, exam.completedHours || 0);
       const readinessPercent = Math.min(100, Math.round((actualCompleted / exam.targetHours) * 100));
       const hoursRemaining = Math.max(0, exam.targetHours - actualCompleted);
       const requiredDailyPace = daysLeft > 0 ? (hoursRemaining / daysLeft) : 0;
 
-      // Status assessment
       let paceStatus: 'ahead' | 'on_track' | 'behind' = 'on_track';
       if (recentDailyVelocityHours >= requiredDailyPace * 1.15) {
         paceStatus = 'ahead';
@@ -359,6 +545,7 @@ export const Analytics = () => {
       'durationMinutes',
       'durationHours',
       'problemsSolved',
+      'accuracyPercent',
       'focusScore',
       'efficiencyScore',
       'rawText',
@@ -379,6 +566,7 @@ export const Analytics = () => {
         durationMins,
         durationHours,
         Number(log.problemsSolved) || 0,
+        log.accuracyPercent != null ? Number(log.accuracyPercent) : '',
         Number(log.focusScore) || 8,
         Number(log.efficiencyScore) || 8,
         escape(log.rawText || ''),
@@ -472,7 +660,6 @@ export const Analytics = () => {
           const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
           
           parsedLogs = lines.slice(1).map(line => {
-            // Regex to parse comma-separated with quotes
             const row: string[] = [];
             let inQuotes = false;
             let current = '';
@@ -502,6 +689,7 @@ export const Analytics = () => {
               subtopic: logObj.subtopic || '',
               durationMinutes: Math.max(1, Math.round(Number(logObj.durationMinutes))) || 60,
               problemsSolved: Math.max(0, Math.round(Number(logObj.problemsSolved))) || 0,
+              accuracyPercent: logObj.accuracyPercent !== '' && !isNaN(Number(logObj.accuracyPercent)) ? Number(logObj.accuracyPercent) : null,
               focusScore: Math.min(10, Math.max(1, Math.round(Number(logObj.focusScore)))) || 8,
               efficiencyScore: Math.min(10, Math.max(1, Math.round(Number(logObj.efficiencyScore)))) || 8,
               rawText: logObj.rawText || '',
@@ -510,7 +698,6 @@ export const Analytics = () => {
           });
         }
 
-        // Validate and clean parsed logs
         const validParsed = parsedLogs.filter(l => l && typeof l === 'object' && l.date);
         if (validParsed.length === 0) {
           throw new Error('No valid study logs found in the uploaded file.');
@@ -545,11 +732,9 @@ export const Analytics = () => {
         finalLogs = [...importPreview];
       }
 
-      // Persist to storage
       const storageKey = isGuest ? 'savantix_guest_logs' : `savantix_user_logs_${user?.uid || 'guest_user'}`;
       localStorage.setItem(storageKey, JSON.stringify(finalLogs));
 
-      // Import each into context / state
       for (const log of importPreview) {
         await addLog(log);
       }
@@ -585,7 +770,7 @@ export const Analytics = () => {
                   Study Analytics & Velocity Intelligence
                 </h1>
                 <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-                  Dynamic velocity breakdown, 52-week activity heatmap, exam readiness, and data mobility
+                  Speed-accuracy calibration (SACM), 52-week activity heatmap, exam readiness, and data mobility
                 </p>
               </div>
             </div>
@@ -723,6 +908,930 @@ export const Analytics = () => {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* R3: SPEED VS. ACCURACY CALIBRATION MATRIX (SACM)                         */}
+        {/* ========================================================================= */}
+        <div className="bg-zinc-900/70 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-xl space-y-6">
+          
+          {/* SACM Section Header & Controls */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800/80 pb-5">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2.5 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl border border-indigo-500/30 text-indigo-400 shrink-0">
+                <Gauge className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="text-lg font-extrabold text-zinc-100 tracking-tight">
+                    Speed vs. Accuracy Calibration Matrix (SACM)
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 flex items-center gap-1">
+                    <Crosshair className="w-3 h-3" />
+                    Cognitive 4-Quadrant
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Calibrate the trade-off between Solving Velocity (Q/hr) and Accuracy (%) for JEE Advanced & Olympiad performance
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Pills & Calibration Setting Trigger */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Subject Filter */}
+              <div className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800 text-xs">
+                <span className="text-zinc-500 font-medium">Subject:</span>
+                <select
+                  value={sacmSubjectFilter}
+                  onChange={(e) => setSacmSubjectFilter(e.target.value)}
+                  className="bg-transparent text-zinc-200 font-semibold focus:outline-none cursor-pointer"
+                >
+                  <option value="all" className="bg-zinc-900 text-zinc-200">All Subjects</option>
+                  {availableSubjects.map(sub => (
+                    <option key={sub} value={sub} className="bg-zinc-900 text-zinc-200">{sub}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Time Range Filter */}
+              <div className="flex items-center p-1 bg-zinc-950 border border-zinc-800 rounded-xl">
+                {(
+                  [
+                    { id: '7d', label: '7D' },
+                    { id: '30d', label: '30D' },
+                    { id: 'all', label: 'All' }
+                  ] as Array<{ id: TimeRangeOption; label: string }>
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setSacmTimeRange(opt.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      sacmTimeRange === opt.id
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Threshold Adjuster Toggle */}
+              <button
+                onClick={() => setShowSACMSettings(!showSACMSettings)}
+                className={`p-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  showSACMSettings
+                    ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
+                    : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                }`}
+                title="Adjust Velocity & Accuracy Calibration Benchmarks"
+              >
+                <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden sm:inline">Benchmarks</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Benchmark Settings Slider Panel */}
+          {showSACMSettings && (
+            <div className="p-4 bg-zinc-950/90 border border-zinc-800 rounded-2xl space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between text-xs border-b border-zinc-800/80 pb-2">
+                <span className="font-bold text-zinc-200 flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-indigo-400" />
+                  Calibrate Exam Target Thresholds
+                </span>
+                <button
+                  onClick={() => {
+                    setVelocityThreshold(DEFAULT_VELOCITY_THRESHOLD);
+                    setAccuracyThreshold(DEFAULT_ACCURACY_THRESHOLD);
+                  }}
+                  className="text-[11px] text-indigo-400 hover:underline cursor-pointer"
+                >
+                  Reset Defaults (15 Q/hr, 80%)
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Velocity Threshold Slider */}
+                <div className="space-y-1.5 bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/60">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Target Velocity ($V_0$):</span>
+                    <strong className="text-indigo-400 font-mono">{velocityThreshold} Q/hr ({Math.round(60 / velocityThreshold)} min/q)</strong>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="40"
+                    step="1"
+                    value={velocityThreshold}
+                    onChange={(e) => setVelocityThreshold(Number(e.target.value))}
+                    className="w-full accent-indigo-500 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-zinc-500">
+                    <span>5 Q/hr (Tier 3 Olympiad)</span>
+                    <span>15 Q/hr (JEE Adv)</span>
+                    <span>40 Q/hr (JEE Main/Speed)</span>
+                  </div>
+                </div>
+
+                {/* Accuracy Threshold Slider */}
+                <div className="space-y-1.5 bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/60">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Target Accuracy ($Acc_0$):</span>
+                    <strong className="text-emerald-400 font-mono">{accuracyThreshold}%</strong>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="95"
+                    step="5"
+                    value={accuracyThreshold}
+                    onChange={(e) => setAccuracyThreshold(Number(e.target.value))}
+                    className="w-full accent-emerald-500 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-zinc-500">
+                    <span>50% (Exploratory)</span>
+                    <span>80% (JEE Adv Cutoff)</span>
+                    <span>95% (Top 100 AIR)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Executive STEM Diagnostic & Calibration Summary Banner */}
+          <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800/90 rounded-2xl p-5 shadow-lg space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-400">
+                  <Brain className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Dominant Archetype:</span>
+                    {sacmReport.dominantQuadrant ? (
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${sacmReport.quadrants[sacmReport.dominantQuadrant].badgeColor}`}>
+                        {sacmReport.quadrants[sacmReport.dominantQuadrant].name}
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-400">
+                        Awaiting Calibration Data
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-300 mt-1 font-medium">
+                    {sacmReport.executiveSummary}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Calibration Numbers */}
+              <div className="flex items-center gap-4 text-xs font-mono bg-zinc-900/90 px-3.5 py-2 rounded-xl border border-zinc-800 shrink-0">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">Avg Speed</span>
+                  <strong className="text-indigo-400 text-sm">{sacmReport.overallAvgVelocity} Q/h</strong>
+                </div>
+                <div className="w-px h-7 bg-zinc-800" />
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">Avg Accuracy</span>
+                  <strong className={`text-sm ${sacmReport.overallAvgAccuracy >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {sacmReport.overallAvgAccuracy}%
+                  </strong>
+                </div>
+                <div className="w-px h-7 bg-zinc-800" />
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">Sessions</span>
+                  <strong className="text-zinc-200 text-sm">{sacmReport.totalSessionsEvaluated}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Prescriptions Bullet Points */}
+            {sacmReport.topPrescriptions.length > 0 && (
+              <div className="pt-3 border-t border-zinc-800/80 space-y-1.5">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Actionable Exam Prescriptions:
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  {sacmReport.topPrescriptions.map((rec, idx) => (
+                    <div key={idx} className="flex items-start gap-2 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/60 text-zinc-300">
+                      <ChevronRight className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
+                      <span>{rec}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Scatter Plot Matrix & Quadrant Diagnostics Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left: Recharts Interactive Scatter Plot (Span 7) */}
+            <div className="lg:col-span-7 bg-zinc-950/80 border border-zinc-800/90 rounded-2xl p-5 space-y-4 shadow-lg flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-indigo-400" />
+                      4-Quadrant Scatter Calibration
+                    </h4>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Hover over any session data point to inspect topic details, pacing, and diagnostic notes
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    {sacmReport.dataPoints.length} Sessions Plotted
+                  </span>
+                </div>
+
+                {/* Quadrant Legend Bar */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 text-[10px]">
+                  <div className="flex items-center gap-1.5 bg-emerald-950/30 px-2 py-1 rounded-lg border border-emerald-500/20 text-emerald-300">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="truncate">Q1: Mastery ({sacmReport.quadrants.Q1_Mastery.count})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-blue-950/30 px-2 py-1 rounded-lg border border-blue-500/20 text-blue-300">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                    <span className="truncate">Q2: Overthinking ({sacmReport.quadrants.Q2_Overthinking.count})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-amber-950/30 px-2 py-1 rounded-lg border border-amber-500/20 text-amber-300">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    <span className="truncate">Q3: Rushing ({sacmReport.quadrants.Q3_Rushing.count})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-rose-950/30 px-2 py-1 rounded-lg border border-rose-500/20 text-rose-300">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                    <span className="truncate">Q4: Struggling ({sacmReport.quadrants.Q4_Struggling.count})</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Scatter Chart */}
+              <div className="h-80 w-full relative">
+                {sacmReport.dataPoints.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-500 space-y-2">
+                    <Crosshair className="w-10 h-10 text-zinc-700 animate-pulse" />
+                    <p className="text-xs font-semibold text-zinc-400">No session points in selected interval</p>
+                    <p className="text-[11px] text-zinc-600 max-w-xs">
+                      Log study sessions with question counts to calibrate your velocity-accuracy curve.
+                    </p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 20, right: 25, bottom: 25, left: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                      <XAxis
+                        type="number"
+                        dataKey="velocityQpH"
+                        name="Velocity"
+                        unit=" Q/h"
+                        domain={[0, (dataMax: number) => Math.max(35, Math.ceil((dataMax + 5) / 5) * 5)]}
+                        stroke="#71717a"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={{ stroke: '#3f3f46' }}
+                        label={{
+                          value: 'Solving Velocity (Questions / Hour)',
+                          position: 'insideBottom',
+                          offset: -15,
+                          fill: '#a1a1aa',
+                          fontSize: 11
+                        }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="accuracyPercent"
+                        name="Accuracy"
+                        unit="%"
+                        domain={[0, 100]}
+                        ticks={[0, 20, 40, 60, 80, 100]}
+                        stroke="#71717a"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={{ stroke: '#3f3f46' }}
+                        label={{
+                          value: 'Accuracy (%)',
+                          angle: -90,
+                          position: 'insideLeft',
+                          offset: 5,
+                          fill: '#a1a1aa',
+                          fontSize: 11
+                        }}
+                      />
+                      <ZAxis range={[80, 80]} />
+                      <Tooltip content={<SACMCustomTooltip />} />
+                      
+                      {/* Vertical Speed Benchmark Line */}
+                      <ReferenceLine
+                        x={velocityThreshold}
+                        stroke="#6366f1"
+                        strokeDasharray="4 4"
+                        strokeWidth={1.5}
+                        label={{
+                          value: `Speed: ${velocityThreshold} Q/h`,
+                          fill: '#818cf8',
+                          fontSize: 10,
+                          position: 'insideTopRight'
+                        }}
+                      />
+
+                      {/* Horizontal Accuracy Benchmark Line */}
+                      <ReferenceLine
+                        y={accuracyThreshold}
+                        stroke="#10b981"
+                        strokeDasharray="4 4"
+                        strokeWidth={1.5}
+                        label={{
+                          value: `Acc: ${accuracyThreshold}%`,
+                          fill: '#34d399',
+                          fontSize: 10,
+                          position: 'insideTopLeft'
+                        }}
+                      />
+
+                      {/* Scatter Dots */}
+                      <Scatter name="Sessions" data={sacmReport.dataPoints}>
+                        {sacmReport.dataPoints.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.color}
+                            stroke="#18181b"
+                            strokeWidth={1.5}
+                            className="transition-all hover:scale-125 cursor-pointer"
+                          />
+                        ))}
+                      </Scatter>
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              {/* Matrix Watermark Footnote */}
+              <div className="flex justify-between items-center text-[10px] text-zinc-500 pt-2 border-t border-zinc-900">
+                <span>Top-Right = Flow / Mastery ($V \ge {velocityThreshold}, Acc \ge {accuracyThreshold}\%$)</span>
+                <span>Bottom-Left = Struggling / Fatigued</span>
+              </div>
+            </div>
+
+            {/* Right: 4 Quadrant Summary Cards Grid (Span 5) */}
+            <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3.5">
+              
+              {/* Q1: Mastery Zone Card */}
+              <div className="bg-zinc-950/80 border border-emerald-500/30 hover:border-emerald-500/50 rounded-2xl p-4 space-y-2 transition-all shadow-md">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <h5 className="text-xs font-bold text-emerald-400">Q1: Flow / Mastery Zone</h5>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                    {sacmReport.quadrants.Q1_Mastery.count} Sessions ({sacmReport.quadrants.Q1_Mastery.percentage}%)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-zinc-300 bg-zinc-900/60 p-2 rounded-xl border border-zinc-800/60">
+                  <div>Avg Velocity: <strong className="text-emerald-400">{sacmReport.quadrants.Q1_Mastery.avgVelocity} Q/h</strong></div>
+                  <div>Avg Acc: <strong className="text-emerald-400">{sacmReport.quadrants.Q1_Mastery.avgAccuracy}%</strong></div>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  <strong className="text-zinc-200">Prescription: </strong>
+                  {sacmReport.quadrants.Q1_Mastery.actionablePrescription}
+                </p>
+              </div>
+
+              {/* Q2: Overthinking Zone Card */}
+              <div className="bg-zinc-950/80 border border-blue-500/30 hover:border-blue-500/50 rounded-2xl p-4 space-y-2 transition-all shadow-md">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    <h5 className="text-xs font-bold text-blue-400">Q2: Deliberate / Overthinking</h5>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-500/30">
+                    {sacmReport.quadrants.Q2_Overthinking.count} Sessions ({sacmReport.quadrants.Q2_Overthinking.percentage}%)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-zinc-300 bg-zinc-900/60 p-2 rounded-xl border border-zinc-800/60">
+                  <div>Avg Velocity: <strong className="text-blue-400">{sacmReport.quadrants.Q2_Overthinking.avgVelocity} Q/h</strong></div>
+                  <div>Avg Acc: <strong className="text-blue-400">{sacmReport.quadrants.Q2_Overthinking.avgAccuracy}%</strong></div>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  <strong className="text-zinc-200">Prescription: </strong>
+                  {sacmReport.quadrants.Q2_Overthinking.actionablePrescription}
+                </p>
+              </div>
+
+              {/* Q3: Rushing Zone Card */}
+              <div className="bg-zinc-950/80 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl p-4 space-y-2 transition-all shadow-md">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <h5 className="text-xs font-bold text-amber-400">Q3: Rushing / Guessing</h5>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-500/30">
+                    {sacmReport.quadrants.Q3_Rushing.count} Sessions ({sacmReport.quadrants.Q3_Rushing.percentage}%)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-zinc-300 bg-zinc-900/60 p-2 rounded-xl border border-zinc-800/60">
+                  <div>Avg Velocity: <strong className="text-amber-400">{sacmReport.quadrants.Q3_Rushing.avgVelocity} Q/h</strong></div>
+                  <div>Avg Acc: <strong className="text-amber-400">{sacmReport.quadrants.Q3_Rushing.avgAccuracy}%</strong></div>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  <strong className="text-zinc-200">Prescription: </strong>
+                  {sacmReport.quadrants.Q3_Rushing.actionablePrescription}
+                </p>
+              </div>
+
+              {/* Q4: Struggling Zone Card */}
+              <div className="bg-zinc-950/80 border border-rose-500/30 hover:border-rose-500/50 rounded-2xl p-4 space-y-2 transition-all shadow-md">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    <h5 className="text-xs font-bold text-rose-400">Q4: Struggling / Fatigued</h5>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-500/30">
+                    {sacmReport.quadrants.Q4_Struggling.count} Sessions ({sacmReport.quadrants.Q4_Struggling.percentage}%)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-zinc-300 bg-zinc-900/60 p-2 rounded-xl border border-zinc-800/60">
+                  <div>Avg Velocity: <strong className="text-rose-400">{sacmReport.quadrants.Q4_Struggling.avgVelocity} Q/h</strong></div>
+                  <div>Avg Acc: <strong className="text-rose-400">{sacmReport.quadrants.Q4_Struggling.avgAccuracy}%</strong></div>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  <strong className="text-zinc-200">Prescription: </strong>
+                  {sacmReport.quadrants.Q4_Struggling.actionablePrescription}
+                </p>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Subject Speed-Accuracy Calibration Overview Table */}
+          {sacmReport.subjectCalibrations.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Compass className="w-4 h-4 text-indigo-400" />
+                  Subject Velocity Calibration Status
+                </h4>
+                <span className="text-[11px] text-zinc-500">
+                  Calibrated against $V_0 = {velocityThreshold}$ Q/hr & $Acc_0 = {accuracyThreshold}\%$
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {sacmReport.subjectCalibrations.map((sub) => {
+                  const dominantMeta = QUADRANT_META[sub.dominantQuadrant];
+                  return (
+                    <div
+                      key={sub.subject}
+                      className="bg-zinc-950/70 border border-zinc-800/90 rounded-xl p-3.5 space-y-2.5 hover:border-zinc-700 transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-zinc-100 text-sm">{sub.subject}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${dominantMeta.badgeColor}`}>
+                          {dominantMeta.shortName}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-[11px] font-mono bg-zinc-900/60 p-2 rounded-lg border border-zinc-800/60">
+                        <div>
+                          <span className="text-[9px] text-zinc-500 block">TIME</span>
+                          <span className="text-zinc-300 font-bold">{sub.totalHours}h</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-zinc-500 block">SPEED</span>
+                          <span className="text-indigo-400 font-bold">{sub.avgVelocity} Q/h</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-zinc-500 block">ACC</span>
+                          <span className={`font-bold ${sub.avgAccuracy >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {sub.avgAccuracy}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-zinc-400 leading-snug">
+                        {sub.recommendation}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* ========================================================================= */}
+        {/* R4: DYNAMIC SUBJECT EQUILIBRIUM MATRIX (PID REBALANCER)                   */}
+        {/* ========================================================================= */}
+        <div className="bg-zinc-900/70 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-xl space-y-6">
+          
+          {/* Section Header & Controls */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-zinc-800/80 pb-5">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2.5 bg-gradient-to-br from-emerald-500/20 via-teal-500/20 to-indigo-500/20 rounded-2xl border border-emerald-500/30 text-emerald-400 shrink-0">
+                <Scale className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="text-lg font-extrabold text-zinc-100 tracking-tight">
+                    Dynamic Subject Equilibrium Matrix (PID Rebalancer)
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-1">
+                    <SlidersHorizontal className="w-3 h-3" />
+                    Shannon Entropy & PID Engine
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Rolling 7-day multi-subject parity tracking and discrete PID corrective daily prescriptions to eliminate subject neglect
+                </p>
+              </div>
+            </div>
+
+            {/* Customizer & Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowWeightCustomizer(!showWeightCustomizer)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                  showWeightCustomizer
+                    ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
+                    : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:border-zinc-700'
+                }`}
+                title="Customize subject target allocation weights"
+              >
+                <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Target Weights</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetPIDWeights}
+                className="p-2 bg-zinc-950 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-xl text-xs transition-colors cursor-pointer"
+                title="Reset target weights to JEE defaults (Physics 35%, Math 35%, Chem 30%)"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Interactive Target Weight Customizer Drawer */}
+          {showWeightCustomizer && (
+            <div className="p-5 bg-zinc-950/90 border border-zinc-800 rounded-2xl space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between text-xs border-b border-zinc-800/80 pb-2">
+                <span className="font-bold text-zinc-200 flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+                  Customize Target Subject Proportions ($p_i^*$)
+                </span>
+                <span className="text-[11px] text-zinc-500">
+                  Weights auto-normalize to 100% total
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                {Object.entries(pidWeights).map(([subj, fraction]) => {
+                  const pct = Math.round(fraction * 100);
+                  const isDeletable = Object.keys(pidWeights).length > 2;
+
+                  return (
+                    <div key={subj} className="bg-zinc-900/70 p-3.5 rounded-xl border border-zinc-800/70 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-zinc-200">{subj}</span>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-emerald-400 font-mono text-xs">{pct}%</strong>
+                          {isDeletable && !['Physics', 'Mathematics', 'Chemistry'].includes(subj) && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCustomSubject(subj)}
+                              className="text-zinc-500 hover:text-rose-400 p-0.5"
+                              title={`Remove ${subj}`}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="80"
+                        step="5"
+                        value={pct}
+                        onChange={(e) => handleUpdateSubjectWeight(subj, Number(e.target.value))}
+                        className="w-full accent-emerald-500 cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                        <span>Min 5%</span>
+                        <span>Current: {pct}%</span>
+                        <span>Max 80%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add Custom Subject Bar */}
+              <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-zinc-800/70 text-xs">
+                <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                  <input
+                    type="text"
+                    value={newSubjectInput}
+                    onChange={(e) => setNewSubjectInput(e.target.value)}
+                    placeholder="Add custom subject (e.g. Biology, CS)..."
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomSubject(); }}
+                  />
+                  <select
+                    value={newSubjectWeightPct}
+                    onChange={(e) => setNewSubjectWeightPct(Number(e.target.value))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-2 text-xs text-zinc-300 focus:outline-none"
+                  >
+                    <option value={15}>15%</option>
+                    <option value={20}>20%</option>
+                    <option value={25}>25%</option>
+                    <option value={30}>30%</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomSubject}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetPIDWeights}
+                  className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-xl font-medium cursor-pointer transition-colors"
+                >
+                  Reset JEE Standard (35% Phy, 35% Math, 30% Chem)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Executive AI Prescription Banner */}
+          <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800/90 rounded-2xl p-5 shadow-lg space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Equilibrium Status:</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${equilibriumReport.statusBadgeColor}`}>
+                      {equilibriumReport.statusLabel}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-200 mt-1 font-medium leading-relaxed">
+                    {equilibriumReport.actionablePrescription}
+                  </p>
+                </div>
+              </div>
+
+              {/* Equilibrium Metric Badge */}
+              <div className="flex items-center gap-4 text-xs font-mono bg-zinc-900/90 px-3.5 py-2 rounded-xl border border-zinc-800 shrink-0">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">Shannon Entropy</span>
+                  <strong className={`text-sm ${
+                    equilibriumReport.equilibriumScore >= 90 ? 'text-emerald-400' :
+                    equilibriumReport.equilibriumScore >= 75 ? 'text-amber-400' : 'text-rose-400'
+                  }`}>
+                    {equilibriumReport.equilibriumScore}%
+                  </strong>
+                </div>
+                <div className="w-px h-7 bg-zinc-800" />
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">7-Day Study</span>
+                  <strong className="text-indigo-300 text-sm">{equilibriumReport.totalHours7Days}h</strong>
+                </div>
+                <div className="w-px h-7 bg-zinc-800" />
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">Disciplines</span>
+                  <strong className="text-zinc-200 text-sm">{equilibriumReport.activeSubjectCount}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Prescriptions Bullet List */}
+            {equilibriumReport.detailedPrescriptions.length > 0 && (
+              <div className="pt-3 border-t border-zinc-800/80 space-y-1.5">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
+                  PID Corrective Prescriptions:
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  {equilibriumReport.detailedPrescriptions.map((desc, idx) => (
+                    <div key={idx} className="flex items-start gap-2 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/60 text-zinc-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                      <span className="leading-snug">{desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Grid Layout: Left Shannon Entropy Meter / Right Subject Distribution Bars */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left: Shannon Entropy Balance Meter Card (Span 5) */}
+            <div className="lg:col-span-5 bg-zinc-950/80 border border-zinc-800/90 rounded-2xl p-5 space-y-5 shadow-lg flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                  <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-400" />
+                    Shannon Entropy Parity Meter
+                  </h4>
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    Rolling 7 Days
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-2">
+                  Measures information dispersion and multi-discipline parity across your study schedule.
+                </p>
+              </div>
+
+              {/* Entropy Radial / Circle Meter */}
+              <div className="flex flex-col items-center justify-center py-4 relative">
+                <div className="relative w-44 h-44 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      className="stroke-zinc-800"
+                      strokeWidth="10"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      className={`transition-all duration-700 ${
+                        equilibriumReport.equilibriumScore >= 90 ? 'stroke-emerald-500' :
+                        equilibriumReport.equilibriumScore >= 75 ? 'stroke-amber-500' : 'stroke-rose-500'
+                      }`}
+                      strokeWidth="10"
+                      strokeDasharray={2 * Math.PI * 40}
+                      strokeDashoffset={2 * Math.PI * 40 * (1 - (equilibriumReport.equilibriumScore / 100))}
+                      strokeLinecap="round"
+                      fill="transparent"
+                    />
+                  </svg>
+                  
+                  {/* Center Score */}
+                  <div className="absolute flex flex-col items-center justify-center text-center">
+                    <span className="text-3xl font-extrabold font-mono text-zinc-100 tracking-tight">
+                      {equilibriumReport.equilibriumScore}%
+                    </span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mt-1 border ${equilibriumReport.statusBadgeColor}`}>
+                      {equilibriumReport.status === 'harmonious' ? 'Harmonious' : equilibriumReport.status === 'mild_skew' ? 'Mild Skew' : 'Neglect Alert'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Score Status Legend */}
+                <div className="flex items-center justify-center gap-4 text-[10px] text-zinc-400 mt-2">
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    ≥90% Harmonious
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    75-89% Mild Skew
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    &lt;75% Neglect
+                  </span>
+                </div>
+              </div>
+
+              {/* Mathematical Formulation Footer */}
+              <div className="p-3 bg-zinc-900/60 rounded-xl border border-zinc-800/60 text-[10px] text-zinc-400 space-y-1">
+                <div className="flex justify-between font-mono text-zinc-300">
+                  <span>Entropy Formula:</span>
+                  <span className="text-emerald-400 font-bold">E = (-Σ p_i ln p_i / ln N) × 100%</span>
+                </div>
+                <div className="flex justify-between text-zinc-500">
+                  <span>Raw Entropy H(P): {equilibriumReport.shannonEntropyRaw.toFixed(3)}</span>
+                  <span>Max H_max: {equilibriumReport.maxPossibleEntropy.toFixed(3)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Subject Distribution & PID Corrections (Span 7) */}
+            <div className="lg:col-span-7 bg-zinc-950/80 border border-zinc-800/90 rounded-2xl p-5 space-y-4 shadow-lg flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                  <h4 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-emerald-400" />
+                    Subject Distribution & Daily PID Allocator
+                  </h4>
+                  <span className="text-[11px] text-zinc-400">
+                    Kp = 120m, Ki = 30m, Kd = 20m
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-2">
+                  Comparison between Actual 7-Day Study % and Target % with discrete PID corrective minutes for tomorrow.
+                </p>
+              </div>
+
+              {/* Subject Distribution Cards */}
+              <div className="space-y-3">
+                {equilibriumReport.subjectDistributions.map((sub) => {
+                  const isNeglected = sub.deficitPercentage > 5;
+                  const isSurplus = sub.deficitPercentage < -5;
+
+                  return (
+                    <div
+                      key={sub.subject}
+                      className="bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-3.5 space-y-2.5 hover:border-zinc-700 transition-all"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: sub.color }}
+                          />
+                          <span className="font-bold text-zinc-100 text-sm">{sub.subject}</span>
+                          <span className="text-[11px] text-zinc-500 font-mono">
+                            ({sub.actualMinutes}m / {Math.round(sub.actualMinutes / 60 * 10) / 10}h)
+                          </span>
+                        </div>
+
+                        {/* PID Output Badge for Tomorrow */}
+                        <div className="flex items-center gap-2">
+                          {sub.recommendedDailyAdjustmentMins > 0 ? (
+                            <span className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                              <Plus className="w-3 h-3" />
+                              {sub.recommendedDailyAdjustmentMins}m Tomorrow
+                            </span>
+                          ) : sub.recommendedDailyAdjustmentMins < 0 ? (
+                            <span className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                              <Minus className="w-3 h-3" />
+                              {Math.abs(sub.recommendedDailyAdjustmentMins)}m Tomorrow
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-lg text-[11px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">
+                              On Target (0m)
+                            </span>
+                          )}
+
+                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                            isNeglected ? 'text-rose-400 bg-rose-950/60 border-rose-500/30' :
+                            isSurplus ? 'text-amber-400 bg-amber-950/60 border-amber-500/30' :
+                            'text-emerald-400 bg-emerald-950/60 border-emerald-500/30'
+                          }`}>
+                            {isNeglected ? `+${sub.deficitPercentage}% Deficit` :
+                             isSurplus ? `${sub.deficitPercentage}% Surplus` : 'Balanced'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Multi-layered Comparison Bar (Actual vs Target) */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
+                          <span>Actual: <strong className="text-zinc-200">{sub.actualPercentage}%</strong></span>
+                          <span>Target: <strong className="text-emerald-400">{sub.targetPercentage}%</strong></span>
+                        </div>
+                        <div className="w-full bg-zinc-950 h-3 rounded-full overflow-hidden p-0.5 border border-zinc-800 relative">
+                          {/* Target Guideline Line */}
+                          <div
+                            className="absolute top-0 bottom-0 w-0.5 bg-white/80 z-10 shadow-[0_0_4px_white]"
+                            style={{ left: `${Math.min(100, Math.max(0, sub.targetPercentage))}%` }}
+                            title={`Target: ${sub.targetPercentage}%`}
+                          />
+                          {/* Actual Progress Bar */}
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${Math.min(100, Math.max(2, sub.actualPercentage))}%`,
+                              backgroundColor: sub.color
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* PID Legend / Clamping Note */}
+              <div className="flex justify-between items-center text-[10px] text-zinc-500 pt-2 border-t border-zinc-900">
+                <span>PID Corrective Range Clamped to [−60m, +90m]</span>
+                <span>$e_i = p_i^* - p_i$ (Error Signal)</span>
+              </div>
+            </div>
+
+          </div>
+
         </div>
 
         {/* 52-Week Interactive Heatmap */}
@@ -899,7 +2008,7 @@ export const Analytics = () => {
               </div>
             </div>
 
-            {/* Recharts Area / Line Chart */}
+            {/* Recharts Area Chart */}
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={analyticsData.timelineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -1252,4 +2361,3 @@ export const Analytics = () => {
     </div>
   );
 };
-

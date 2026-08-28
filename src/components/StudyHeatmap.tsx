@@ -1,7 +1,31 @@
 import React, { useState, useMemo } from 'react';
 import { format, subDays, eachDayOfInterval, parseISO, isValid, addDays } from 'date-fns';
-import { Flame, Calendar, Trophy, Zap, Plus, Edit2, Trash2, X, Clock, CheckCircle2, BookOpen, Save } from 'lucide-react';
+import {
+  Flame,
+  Calendar,
+  Trophy,
+  Zap,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  Clock,
+  CheckCircle2,
+  BookOpen,
+  Save,
+  Shield,
+  ShieldCheck,
+  ShieldAlert,
+  HeartPulse
+} from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import {
+  getStreakHealthTier,
+  getShieldTokenRack,
+  getAntiFragileStreakBadge,
+  MAX_HP,
+  MAX_SHIELD_TOKENS
+} from '../utils/streakResilienceEngine';
 
 export interface StudyHeatmapProps {
   logs: any[];
@@ -30,8 +54,22 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({
   selectedDate: externalSelectedDate,
   className = ''
 }) => {
-  const { addLog, updateLog, deleteLog } = useAppContext();
+  const { addLog, updateLog, deleteLog, elasticStreak } = useAppContext();
   
+  const healthTier = getStreakHealthTier(elasticStreak?.currentHP ?? 100);
+  const shieldRack = getShieldTokenRack(elasticStreak?.shieldTokens ?? 2, MAX_SHIELD_TOKENS);
+  const streakBadge = getAntiFragileStreakBadge(elasticStreak || {
+    currentHP: 100,
+    maxHP: 100,
+    shieldTokens: 2,
+    maxShieldTokens: 3,
+    activeStreakDays: 0,
+    longestStreakDays: 0,
+    lastEvaluatedDate: format(new Date(), 'yyyy-MM-dd'),
+    targetMinutesDaily: 120,
+    history: []
+  });
+
   // Active date modal state
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [isAddingSession, setIsAddingSession] = useState(false);
@@ -382,16 +420,32 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({
           </div>
         </div>
 
-        {/* Dynamic Streak & Total Badges */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-300 font-semibold text-xs shadow-sm">
-            <Flame className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
-            <span>{currentStreak} Day Streak</span>
+        {/* Dynamic Streak & Elastic Health Badges */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-sm ${streakBadge.badgeClass}`}>
+            <span>{streakBadge.icon}</span>
+            <span>{streakBadge.text}</span>
+          </div>
+
+          {/* Elastic Health & Shield Tokens Pill */}
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/80 border border-zinc-800 rounded-xl text-xs"
+            title={`Streak Health: ${elasticStreak?.currentHP ?? 100}/100 HP (${healthTier.label}) • ${elasticStreak?.shieldTokens ?? 2}/3 Shields Armed`}
+          >
+            <HeartPulse className={`w-3.5 h-3.5 ${healthTier.textColor}`} />
+            <span className="font-mono font-bold text-zinc-200">{elasticStreak?.currentHP ?? 100} HP</span>
+            <div className="flex items-center gap-0.5 ml-1">
+              {shieldRack.map(s => (
+                <span key={s.index} title={s.tooltip} className="text-xs">
+                  {s.isCharged ? '🛡️' : '⚪'}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/25 rounded-xl text-indigo-300 font-medium text-xs">
             <Trophy className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Best: <strong>{longestStreak}d</strong></span>
+            <span>Best: <strong>{elasticStreak?.longestStreakDays ?? longestStreak}d</strong></span>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-emerald-300 font-medium text-xs">
@@ -512,27 +566,68 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({
               </button>
             </div>
 
-            {/* Day Summary Stats Banner */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3.5 text-center">
+            {/* Day Summary Stats Banner with Resilience Status */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3 text-center">
                 <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Total Time</span>
-                <p className="text-xl font-bold text-indigo-400 mt-1">
+                <p className="text-lg font-bold text-indigo-400 mt-1">
                   {Math.floor((currentModalEntry?.minutes || 0) / 60)}h {(currentModalEntry?.minutes || 0) % 60}m
                 </p>
               </div>
 
-              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3.5 text-center">
+              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3 text-center">
                 <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Problems Solved</span>
-                <p className="text-xl font-bold text-emerald-400 mt-1">
+                <p className="text-lg font-bold text-emerald-400 mt-1">
                   {currentModalEntry?.problems || 0}
                 </p>
               </div>
 
-              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3.5 text-center">
+              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3 text-center">
                 <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Sessions</span>
-                <p className="text-xl font-bold text-purple-400 mt-1">
+                <p className="text-lg font-bold text-purple-400 mt-1">
                   {currentModalLogs.length}
                 </p>
+              </div>
+
+              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3 text-center">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Resilience Impact</span>
+                {(() => {
+                  const hist = elasticStreak?.history?.find(h => h.date === modalDate);
+                  if (hist) {
+                    return (
+                      <div className="mt-1">
+                        <span className={`text-xs font-bold ${
+                          hist.status === 'surplus_overdrive' ? 'text-cyan-400' :
+                          hist.status === 'target_met' ? 'text-emerald-400' :
+                          hist.status === 'shield_defended' ? 'text-indigo-400' :
+                          hist.status === 'partial_decay' ? 'text-amber-400' : 'text-rose-400'
+                        }`}>
+                          {hist.status === 'surplus_overdrive' ? '+25 HP & +1 🛡️' :
+                           hist.status === 'target_met' ? '+15 HP' :
+                           hist.status === 'shield_defended' ? '0 HP (🛡️ Used)' :
+                           `${hist.hpDelta} HP`}
+                        </span>
+                        <p className="text-[9px] text-zinc-500 capitalize">{hist.status.replace('_', ' ')}</p>
+                      </div>
+                    );
+                  }
+                  const mins = currentModalEntry?.minutes || 0;
+                  const target = elasticStreak?.targetMinutesDaily || 120;
+                  return (
+                    <div className="mt-1">
+                      <span className={`text-xs font-bold ${
+                        mins >= target * 1.5 ? 'text-cyan-400' :
+                        mins >= target ? 'text-emerald-400' :
+                        mins > 0 ? 'text-amber-400' : 'text-zinc-500'
+                      }`}>
+                        {mins >= target * 1.5 ? '+25 HP (Overdrive)' :
+                         mins >= target ? '+15 HP (Target)' :
+                         mins > 0 ? 'Partial Study' : 'Rest Day'}
+                      </span>
+                      <p className="text-[9px] text-zinc-500">{mins >= target ? 'Healthy' : 'Degraded'}</p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

@@ -2,6 +2,14 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { auth, db, loginWithGoogle, logout as firebaseLogout, handleFirestoreError, OperationType } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
+import {
+  ElasticStreakState,
+  loadElasticStreakState,
+  saveElasticStreakState,
+  evaluateElasticStreak,
+  recomputeStreakFromHistory,
+  DEFAULT_STREAK_STATE
+} from '../utils/streakResilienceEngine';
 
 interface UserProfile {
   uid: string;
@@ -20,6 +28,7 @@ interface AppContextType {
   goals: any[];
   journalEntries: any[];
   chatSessions: any[];
+  elasticStreak: ElasticStreakState;
   loading: boolean;
   isGuest: boolean;
   login: () => Promise<void>;
@@ -37,6 +46,8 @@ interface AppContextType {
   addJournalEntry: (entry: any) => Promise<any>;
   updateJournalEntry: (id: string, data: any) => Promise<void>;
   deleteJournalEntry: (id: string) => Promise<void>;
+  updateElasticStreak: (data: Partial<ElasticStreakState>) => void;
+  recomputeElasticStreak: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -51,8 +62,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [goals, setGoals] = useState<any[]>([]);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
   const [chatSessions, setChatSessions] = useState<any[]>([]);
+  const [elasticStreak, setElasticStreak] = useState<ElasticStreakState>(() => loadElasticStreakState());
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+
+  // Synchronize and evaluate elastic streak health & resilience tokens whenever logs or user updates
+  useEffect(() => {
+    if (loading) return;
+    try {
+      setElasticStreak(prev => {
+        const evaluated = evaluateElasticStreak(prev, logs, prev.targetMinutesDaily);
+        saveElasticStreakState(evaluated);
+        return evaluated;
+      });
+    } catch (err) {
+      console.warn('Failed to evaluate elastic streak resilience state:', err);
+    }
+  }, [logs, loading]);
 
   const loadGuestData = () => {
     try {
@@ -525,6 +551,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateElasticStreak = (data: Partial<ElasticStreakState>) => {
+    setElasticStreak(prev => {
+      const next = { ...prev, ...data };
+      saveElasticStreakState(next);
+      return next;
+    });
+  };
+
+  const recomputeElasticStreak = () => {
+    try {
+      const recomputed = recomputeStreakFromHistory(logs, elasticStreak.targetMinutesDaily, elasticStreak.shieldTokens);
+      setElasticStreak(recomputed);
+      saveElasticStreakState(recomputed);
+    } catch (err) {
+      console.warn('Failed to recompute elastic streak resilience state:', err);
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       user,
@@ -534,6 +578,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       goals,
       journalEntries,
       chatSessions,
+      elasticStreak,
       loading,
       isGuest,
       login: loginWithGoogle,
@@ -550,7 +595,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deleteGoal,
       addJournalEntry,
       updateJournalEntry,
-      deleteJournalEntry
+      deleteJournalEntry,
+      updateElasticStreak,
+      recomputeElasticStreak
     }}>
       {children}
     </AppContext.Provider>

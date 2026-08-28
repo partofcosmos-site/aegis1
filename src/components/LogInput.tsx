@@ -1,11 +1,34 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Mic, MicOff, Sparkles, Cpu } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  Send, 
+  Loader2, 
+  Mic, 
+  MicOff, 
+  Sparkles, 
+  Zap, 
+  Clock, 
+  BookOpen, 
+  Tag, 
+  Hash, 
+  Percent, 
+  Smile, 
+  Flame 
+} from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { UniversalAIService } from '../services/universalAIService';
 import { AIVaultService } from '../services/aiVaultService';
 import { VoiceService } from '../services/voiceService';
+import { parseMicroLog, MicroLogEntity } from '../utils/microLogParser';
 import { format } from 'date-fns';
 
+const SUBJECT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  Physics: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30' },
+  Chemistry: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+  Mathematics: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30' },
+  Biology: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/30' },
+  'Computer Science': { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30' },
+  General: { bg: 'bg-zinc-800/40', text: 'text-zinc-300', border: 'border-zinc-700/50' }
+};
 
 export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
   const [text, setText] = useState('');
@@ -16,8 +39,14 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
   // Voice Speech-to-Text states
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
 
   const { user, addLog } = useAppContext();
+
+  // Instant client-side deterministic parsed tokens
+  const parsedMicro: MicroLogEntity = useMemo(() => {
+    return parseMicroLog(text);
+  }, [text]);
 
   useEffect(() => {
     try {
@@ -28,8 +57,6 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
       setActiveModelName('Universal AI');
     }
   }, []);
-
-  const isListeningRef = useRef(false);
 
   // Initialize Web Speech Recognition with auto-keepalive
   useEffect(() => {
@@ -63,11 +90,10 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
       };
 
       recognition.onend = () => {
-        // Auto-restart if user has not explicitly stopped listening (prevents 1-second disconnect)
         if (isListeningRef.current) {
           try {
             recognition.start();
-          } catch (e) {
+          } catch {
             isListeningRef.current = false;
             setIsListening(false);
           }
@@ -105,7 +131,47 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
     }
   };
 
+  // Instant Sub-Second Micro-Log Save (deterministic regex NLP, zero network latency)
+  const handleInstantFastLog = async () => {
+    if (!text.trim() || !user || isSubmitting) return;
 
+    if (isListening && recognitionRef.current) {
+      isListeningRef.current = false;
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+
+    setIsSubmitting(true);
+    const effectiveDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
+
+    try {
+      await addLog({
+        rawText: text.substring(0, 1999),
+        subject: (parsedMicro.subject || 'General').trim().substring(0, 99) || 'General',
+        topic: (parsedMicro.topic || '').trim().substring(0, 199),
+        subtopic: (parsedMicro.subtopic || 'Micro-Logged').trim().substring(0, 199),
+        durationMinutes: Math.max(1, Math.round(Number(parsedMicro.durationMinutes))) || 60,
+        problemsSolved: Math.max(0, Math.round(Number(parsedMicro.problemsSolved))) || 0,
+        accuracyPercent: parsedMicro.accuracyPercent,
+        mistakes: Array.isArray(parsedMicro.mistakes) ? parsedMicro.mistakes : [],
+        efficiencyScore: Math.min(10, Math.max(1, Math.round(Number(parsedMicro.efficiencyScore)))) || 8,
+        focusScore: Math.min(10, Math.max(1, Math.round(Number(parsedMicro.focusScore)))) || 8,
+        energyMood: parsedMicro.energyMood || 'Normal',
+        date: effectiveDate
+      });
+
+      setText('');
+      setMessage({ type: 'success', text: `⚡ Instant Saved! Logged ${parsedMicro.subject} (${parsedMicro.durationMinutes}m) with sub-second parser.` });
+      setTimeout(() => setMessage(null), 4000);
+    } catch (error: any) {
+      console.error("Failed to fast log", error);
+      setMessage({ type: 'error', text: error.message || "Failed to save study log." });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Full AI Deep Parser Save (with fallback to deterministic parser)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() || !user) return;
@@ -120,27 +186,35 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
     setMessage({ type: 'info', text: `Analyzing log with ${activeModelName}... Please wait.` });
 
     try {
-      // 1. Parse with Universal AI
-      const parsedData = await UniversalAIService.parseStudyLog(text);
+      let parsedData: any;
+      try {
+        // 1. Try Universal AI
+        parsedData = await UniversalAIService.parseStudyLog(text);
+      } catch (aiErr) {
+        console.warn("AI parsing fallback to deterministic micro-log parser:", aiErr);
+        parsedData = parsedMicro;
+      }
       
       const effectiveDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
 
       // 2. Save via AppContext (persists to Firestore or Guest Storage)
       await addLog({
         rawText: text.substring(0, 1999),
-        subject: (parsedData.subject || 'General').trim().substring(0, 99) || 'General',
-        topic: (parsedData.topic || '').trim().substring(0, 199),
-        subtopic: (parsedData.subtopic || '').trim().substring(0, 199),
-        durationMinutes: Math.max(0, Math.round(Number(parsedData.durationMinutes))) || 0,
-        problemsSolved: Math.max(0, Math.round(Number(parsedData.problemsSolved))) || 0,
-        mistakes: Array.isArray(parsedData.mistakes) ? parsedData.mistakes : [],
-        efficiencyScore: Math.min(10, Math.max(1, Math.round(Number(parsedData.efficiencyScore)))) || 5,
-        focusScore: Math.min(10, Math.max(1, Math.round(Number(parsedData.focusScore)))) || 5,
+        subject: (parsedData.subject || parsedMicro.subject || 'General').trim().substring(0, 99) || 'General',
+        topic: (parsedData.topic || parsedMicro.topic || '').trim().substring(0, 199),
+        subtopic: (parsedData.subtopic || parsedMicro.subtopic || '').trim().substring(0, 199),
+        durationMinutes: Math.max(1, Math.round(Number(parsedData.durationMinutes || parsedMicro.durationMinutes))) || 60,
+        problemsSolved: Math.max(0, Math.round(Number(parsedData.problemsSolved ?? parsedMicro.problemsSolved))) || 0,
+        accuracyPercent: parsedData.accuracyPercent ?? parsedMicro.accuracyPercent,
+        mistakes: Array.isArray(parsedData.mistakes) ? parsedData.mistakes : parsedMicro.mistakes,
+        efficiencyScore: Math.min(10, Math.max(1, Math.round(Number(parsedData.efficiencyScore || parsedMicro.efficiencyScore)))) || 8,
+        focusScore: Math.min(10, Math.max(1, Math.round(Number(parsedData.focusScore || parsedMicro.focusScore)))) || 8,
+        energyMood: parsedData.energyMood || parsedMicro.energyMood || 'Normal',
         date: effectiveDate
       });
 
       setText('');
-      setMessage({ type: 'success', text: `Saved! Parsed ${parsedData.subject} (${parsedData.durationMinutes}m) successfully.` });
+      setMessage({ type: 'success', text: `Saved! Parsed ${parsedData.subject || parsedMicro.subject} (${parsedData.durationMinutes || parsedMicro.durationMinutes}m) successfully.` });
       setTimeout(() => setMessage(null), 4000);
     } catch (error: any) {
       console.error("Failed to parse or save log", error);
@@ -150,14 +224,20 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
     }
   };
 
+  const currentSubjectStyle = SUBJECT_COLORS[parsedMicro.subject] || SUBJECT_COLORS.General;
+
   return (
-    <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-lg relative">
-      <div className="flex justify-between items-center mb-4">
+    <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-lg relative space-y-3">
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Quick Log</h2>
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Quick Log & Dictate</h2>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800/50 text-indigo-300 border border-zinc-700">
             <Sparkles className="w-3 h-3 text-indigo-400" />
             {activeModelName}
+          </span>
+          <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+            <Zap className="w-2.5 h-2.5 text-indigo-400" />
+            Sub-Second Ready
           </span>
         </div>
         {message && (
@@ -174,21 +254,20 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="e.g., Did 2h physics rotation, solved 25 questions, torque mistakes..."
-          className={`w-full bg-zinc-950/60 border rounded-xl p-4 pr-16 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none min-h-[120px] text-sm transition-all shadow-inner ${
+          placeholder="e.g., Did 2h physics rotation, solved 25 questions 85% accuracy, torque confusion..."
+          className={`w-full bg-zinc-950/60 border rounded-xl p-4 pr-24 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none min-h-[110px] text-sm transition-all shadow-inner ${
             isListening ? 'border-red-500/50 ring-1 ring-red-500/30' : 'border-zinc-800/80'
           }`}
           disabled={isSubmitting}
         />
 
         {isListening && (
-          <div className="absolute top-2 left-2 right-16 h-1">
+          <div className="absolute top-2 left-2 right-24 h-1">
             <canvas id="waveform-log" className="w-full h-full" />
           </div>
         )}
 
-
-        <div className="absolute bottom-3 right-3 flex items-center gap-2">
+        <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
           <button
             type="button"
             onClick={toggleVoiceInput}
@@ -199,19 +278,94 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
             }`}
             title={isListening ? 'Stop voice recording' : 'Click to dictate (Web Speech)'}
           >
-            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </button>
+
+          {/* Instant 1-Click Sub-Second Fast Save */}
+          <button
+            type="button"
+            onClick={handleInstantFastLog}
+            disabled={!text.trim() || isSubmitting}
+            className="flex items-center gap-1 px-2.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 disabled:opacity-40 disabled:pointer-events-none rounded-lg text-xs font-semibold transition-all cursor-pointer"
+            title="Sub-Second Fast Log (Deterministic NLP, zero AI delay)"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Fast</span>
           </button>
           
+          {/* AI Deep Analysis Save */}
           <button
             type="submit"
             disabled={!text.trim() || isSubmitting}
-            className="flex items-center justify-center w-10 h-10 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg transition-colors cursor-pointer shadow-md"
-            title="Submit study log"
+            className="flex items-center justify-center p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg transition-colors cursor-pointer shadow-md"
+            title="AI Deep Log"
           >
-            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
       </form>
+
+      {/* Real-time Sub-Second Parsed Token Preview (shows as student types/speaks) */}
+      {text.trim().length > 0 && (
+        <div className="rounded-xl bg-zinc-950/50 border border-zinc-800/70 p-2.5 transition-all animate-fadeIn">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mr-1">Preview:</span>
+
+            {/* Subject */}
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-semibold ${currentSubjectStyle.bg} ${currentSubjectStyle.text} ${currentSubjectStyle.border}`}>
+              <BookOpen className="w-3 h-3" />
+              {parsedMicro.subject}
+            </span>
+
+            {/* Topic */}
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-zinc-700/60 bg-zinc-800/50 text-zinc-200 text-[11px] font-medium">
+              <Tag className="w-3 h-3 text-zinc-400" />
+              <span className="truncate max-w-[160px]">{parsedMicro.topic}</span>
+            </span>
+
+            {/* Duration */}
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-zinc-700/60 bg-zinc-800/50 text-zinc-200 text-[11px] font-medium">
+              <Clock className="w-3 h-3 text-indigo-400" />
+              {parsedMicro.durationMinutes}m
+            </span>
+
+            {/* Problems */}
+            {parsedMicro.problemsSolved > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] font-medium">
+                <Hash className="w-3 h-3" />
+                {parsedMicro.problemsSolved} Qs
+              </span>
+            )}
+
+            {/* Accuracy */}
+            {parsedMicro.accuracyPercent !== null && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${
+                parsedMicro.accuracyPercent >= 80 
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' 
+                  : parsedMicro.accuracyPercent >= 60 
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' 
+                  : 'border-red-500/30 bg-red-500/10 text-red-400'
+              }`}>
+                <Percent className="w-3 h-3" />
+                {parsedMicro.accuracyPercent}%
+              </span>
+            )}
+
+            {/* Energy / Mood */}
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-zinc-700/60 bg-zinc-800/50 text-zinc-300 text-[11px] font-medium">
+              <Smile className="w-3 h-3 text-amber-400" />
+              {parsedMicro.energyMood}
+            </span>
+
+            {/* Mistakes */}
+            {parsedMicro.mistakes.map((mistake, i) => (
+              <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px] font-medium">
+                {mistake}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
