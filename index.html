@@ -2,23 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#09090b" />
     <title>Savantix | Elite AI Study Optimization</title>
     <meta name="description" content="Savantix is an advanced AI learning and study optimization system designed for JEE Advanced, Olympiads, and competitive academics." />
     <meta name="keywords" content="study optimization, spaced repetition, AI tutor, JEE Advanced, Olympiad, study planner" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
   </head>
-  <body>
-    <script>
-      window.addEventListener('error', (e) => {
-        document.body.innerHTML = '<div style="color:red; background:white; padding:20px; z-index:9999; position:absolute;">ERROR: ' + e.message + '<br/><pre>' + (e.error ? e.error.stack : '') + '</pre></div>';
-      });
-      window.addEventListener('unhandledrejection', (e) => {
-        document.body.innerHTML = '<div style="color:red; background:white; padding:20px; z-index:9999; position:absolute;">PROMISE REJECTION: ' + (e.reason ? e.reason.stack || e.reason : 'Unknown') + '</div>';
-      });
-    </script>
+  <body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
