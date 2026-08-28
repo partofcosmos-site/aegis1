@@ -20,14 +20,31 @@ export default function App() {
       <AppProvider>
         <AuthWrapper>
           <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-            {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'chat' && <Chatbot setActiveTab={setActiveTab} />}
-            {activeTab === 'analytics' && <Analytics />}
-            {activeTab === 'journal' && <Journal />}
-            {activeTab === 'goals' && <Goals />}
-            {activeTab === 'pomodoro' && <Pomodoro />}
-            {activeTab === 'settings' && <Settings />}
-            {activeTab === 'flashcards' && <Flashcards />}
+            {/* Persistent Tab Viewport: Preserves background streams & timers across tab switches */}
+            <div className={`h-full w-full ${activeTab === 'dashboard' ? 'block' : 'hidden'}`}>
+              <Dashboard />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
+              <Chatbot setActiveTab={setActiveTab} />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'analytics' ? 'block' : 'hidden'}`}>
+              <Analytics />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'journal' ? 'block' : 'hidden'}`}>
+              <Journal />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'goals' ? 'block' : 'hidden'}`}>
+              <Goals />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'pomodoro' ? 'block' : 'hidden'}`}>
+              <Pomodoro />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
+              <Settings />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'flashcards' ? 'block' : 'hidden'}`}>
+              <Flashcards />
+            </div>
           </Layout>
         </AuthWrapper>
       </AppProvider>

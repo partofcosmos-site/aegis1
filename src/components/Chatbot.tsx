@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getGeminiInstance, logStudySessionTool, navigateAppTool } from '../services/geminiService';
 import { UniversalAIService } from '../services/universalAIService';
 import { AIVaultService } from '../services/aiVaultService';
-import { Send, Bot, User, Loader2, Globe, MessageSquarePlus, History, Volume2, Square } from 'lucide-react';
+import { Send, Bot, User, Loader2, Globe, MessageSquarePlus, History, Volume2, Square, Mic, MicOff, Cpu } from 'lucide-react';
 import clsx from 'clsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -32,6 +32,73 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
   const [ttsSpeed, setTtsSpeed] = useState(1);
   const [playingMsgIndex, setPlayingMsgIndex] = useState<number | null>(null);
   const [isTtsLoading, setIsTtsLoading] = useState(false);
+  const [activeModelName, setActiveModelName] = useState<string>('Savantix AI');
+
+  // Speech-to-Text state
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    try {
+      const activeProvider = AIVaultService.getActiveProvider();
+      const modelShort = activeProvider.selectedModel.split('/').pop()?.replace(':free', ' (Free)') || activeProvider.name;
+      setActiveModelName(modelShort);
+    } catch {
+      setActiveModelName('Savantix AI');
+    }
+  }, []);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        let currentTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          currentTranscript += event.results[i][0].transcript;
+        }
+        if (currentTranscript.trim()) {
+          setInput(prev => {
+            const clean = prev.trim();
+            return clean ? `${clean} ${currentTranscript.trim()}` : currentTranscript.trim();
+          });
+        }
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      alert('Voice transcription is not supported in this browser. Please try Chrome/Edge or type directly.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+      }
+    }
+  };
   
   const audioCtxRef = useRef<AudioContext | null>(null);
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
@@ -612,25 +679,40 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Savantix..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-4 pr-20 sm:pr-24 text-sm sm:text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              placeholder={isListening ? "Listening... Speak now..." : `Ask Savantix (${activeModelName})...`}
+              className={`w-full bg-zinc-950 border rounded-xl py-3 pl-4 pr-28 sm:pr-32 text-sm sm:text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                isListening ? 'border-red-500/50 ring-1 ring-red-500/30' : 'border-zinc-800'
+              }`}
               disabled={isTyping}
             />
-            <button 
-              type="button"
-              onClick={() => setUseSearch(!useSearch)}
-              className={clsx("absolute right-10 sm:right-12 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 transition-colors rounded-md", useSearch ? "text-indigo-400 bg-indigo-500/10" : "text-zinc-500 hover:text-zinc-300")}
-              title="Toggle Google Search (Real-time data)"
-            >
-              <Globe className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            <button
-              type="submit"
-              disabled={!input.trim() || isTyping}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-400 disabled:text-zinc-600 transition-colors"
-            >
-              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <button 
+                type="button"
+                onClick={toggleVoiceInput}
+                className={clsx(
+                  "p-1.5 sm:p-2 transition-all rounded-md cursor-pointer",
+                  isListening ? "text-red-400 bg-red-500/20 animate-pulse border border-red-500/30" : "text-zinc-500 hover:text-zinc-300"
+                )}
+                title={isListening ? "Stop voice input" : "Voice input (Speak to Savantix)"}
+              >
+                {isListening ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
+              </button>
+              <button 
+                type="button"
+                onClick={() => setUseSearch(!useSearch)}
+                className={clsx("p-1.5 sm:p-2 transition-colors rounded-md cursor-pointer", useSearch ? "text-indigo-400 bg-indigo-500/10" : "text-zinc-500 hover:text-zinc-300")}
+                title="Toggle Google Search (Real-time data)"
+              >
+                <Globe className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <button
+                type="submit"
+                disabled={!input.trim() || isTyping}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-400 disabled:text-zinc-600 transition-colors cursor-pointer"
+              >
+                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
           </form>
         </div>
       </div>
