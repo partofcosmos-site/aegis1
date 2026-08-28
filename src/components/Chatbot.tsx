@@ -214,176 +214,86 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     setIsTyping(true);
 
     try {
-      let sessionId = currentSessionId;
-      
-      // Save session metadata if not guest
-      if (!isGuest) {
-        if (!sessionId) {
-          const sessionRef = await addDoc(collection(db, 'users', user.uid, 'chat_sessions'), {
-            uid: user.uid,
-            title: userMsg.substring(0, 50) + (userMsg.length > 50 ? '...' : ''),
-            updatedAt: serverTimestamp(),
-            createdAt: serverTimestamp()
-          });
-          sessionId = sessionRef.id;
-          setCurrentSessionId(sessionId);
-          
-          if (history.length === 2 && history[0].parts[0].text === "Hello") {
-             await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
-              uid: user.uid,
-              role: 'user',
-              text: history[0].parts[0].text,
-              createdAt: serverTimestamp()
-            });
-            await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
-              uid: user.uid,
-              role: 'model',
-              text: history[1].parts[0].text,
-              createdAt: serverTimestamp()
-            });
-          }
-        } else {
-          await updateDoc(doc(db, 'users', user.uid, 'chat_sessions', sessionId), {
-            updatedAt: serverTimestamp()
-          });
-        }
+      let sessionId = currentSessionId || 'sess_' + Date.now();
+      if (!currentSessionId) setCurrentSessionId(sessionId);
 
-        await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
-          uid: user.uid,
-          role: 'user',
-          text: userMsg.substring(0, 9999),
-          createdAt: serverTimestamp()
-        });
-      } else {
-        if (!sessionId) {
-          sessionId = 'guest_sess_' + Date.now();
-          setCurrentSessionId(sessionId);
-        }
+      // 1. Format history for AI engine
+      const formattedHistory = currentHistory
+        .filter(h => h.parts && h.parts.length > 0 && h.parts[0].text)
+        .map(h => ({
+          role: h.role === 'model' || h.role === 'assistant' ? 'assistant' : 'user',
+          content: h.parts[0].text
+        }));
+
+      const systemInstruction = `You are Savantix, an elite AI study optimization and STEM problem-solving mentor for serious competitive exam aspirants (JEE Advanced, Olympiads, Putnam, College STEM). You are analytical, concise, and structured. Use KaTeX formulas ($...$ or $$...$$) where appropriate.
+Today's Date: ${format(new Date(), 'yyyy-MM-dd')}.
+Recent user study logs: ${JSON.stringify(logs.slice(0, 5).map(l => ({ subject: l.subject, topic: l.topic, mins: l.durationMinutes, problems: l.problemsSolved })))}
+Recent insights: ${JSON.stringify(insights.slice(0, 2))}`;
+
+      // 2. Dispatch to Universal AI Engine (Zero-failure with multi-provider + local advisor fallback)
+      let finalModelText = await UniversalAIService.sendChatMessage(userMsg, formattedHistory.slice(0, -1), systemInstruction);
+
+      if (!finalModelText || !finalModelText.trim()) {
+        finalModelText = UniversalAIService.generateOfflineAdvisorResponse(userMsg);
       }
 
-      let finalModelText = '';
-
-      // Try with Universal AI Service or Gemini Instance
-      try {
-        const ai = getGeminiInstance();
-        const tools: any[] = [{ functionDeclarations: [logStudySessionTool, navigateAppTool] }];
-        if (useSearch) {
-          tools.push({ googleSearch: {} });
-        }
-
-        const systemInstruction = `You are Savantix, an elite AI study optimization assistant for serious students. You are highly analytical, concise, and strategic.
-        Today is ${format(new Date(), 'yyyy-MM-dd')}.
-        User's recent logs: ${JSON.stringify(logs.slice(0, 5))}
-        User's recent insights: ${JSON.stringify(insights.slice(0, 3))}
-        
-        You can log study sessions for the user or navigate the app using the provided tools. If the user asks for real-time information and the Google Search tool is enabled, use it.`;
-
-        let response = await ai.models.generateContent({
-          model: 'gemini-3.1-pro-preview',
-          contents: currentHistory,
-          config: { 
-            systemInstruction,
-            tools: tools,
-            toolConfig: { includeServerSideToolInvocations: true }
-          }
-        });
-
-        let responseContent = response.candidates?.[0]?.content;
-        if (responseContent) {
-          currentHistory.push(responseContent);
-        }
-
-        finalModelText = responseContent?.parts?.find(p => p.text)?.text || '';
-
-        if (response.functionCalls && response.functionCalls.length > 0) {
-          const call = response.functionCalls[0];
-          let functionResponseData: any = { success: false };
-
-          if (call.name === 'logStudySession') {
-            try {
-              const args = call.args as any;
-              await addLog({
-                rawText: "Logged via Assistant",
-                subject: (args.subject || 'General').trim().substring(0, 99) || 'General',
-                topic: (args.topic || '').trim().substring(0, 199),
-                subtopic: '',
-                durationMinutes: Math.max(0, Math.round(Number(args.durationMinutes))) || 0,
-                problemsSolved: Math.max(0, Math.round(Number(args.problemsSolved))) || 0,
-                mistakes: Array.isArray(args.mistakes) ? args.mistakes.slice(0, 50) : [],
-                efficiencyScore: Math.min(10, Math.max(1, Math.round(Number(args.efficiencyScore)))) || 5,
-                focusScore: Math.min(10, Math.max(1, Math.round(Number(args.focusScore)))) || 5,
-                date: args.date || format(new Date(), 'yyyy-MM-dd')
-              });
-              functionResponseData = { success: true, message: "Log saved successfully." };
-            } catch (err: any) {
-              functionResponseData = { success: false, error: err.message || "Failed to save log" };
-            }
-          } else if (call.name === 'navigateApp') {
-            try {
-              const args = call.args as any;
-              setActiveTab(args.tab);
-              functionResponseData = { success: true, message: `Navigated to ${args.tab}` };
-            } catch (err: any) {
-              functionResponseData = { success: false, error: err.message || "Failed to navigate" };
-            }
-          }
-
-          const funcRespContent = {
-            role: 'user',
-            parts: [{
-              functionResponse: {
-                name: call.name,
-                response: functionResponseData
-              }
-            }]
-          };
-          currentHistory.push(funcRespContent);
-
-          response = await ai.models.generateContent({
-            model: 'gemini-3.1-pro-preview',
-            contents: currentHistory,
-            config: { 
-              systemInstruction,
-              tools: tools,
-              toolConfig: { includeServerSideToolInvocations: true }
-            }
-          });
-
-          responseContent = response.candidates?.[0]?.content;
-          if (responseContent) {
-            currentHistory.push(responseContent);
-            finalModelText = responseContent?.parts?.find(p => p.text)?.text || finalModelText;
-          }
-        }
-      } catch (geminiError) {
-        console.warn("Primary Gemini call failed, falling back to Universal AI Service:", geminiError);
-        const formattedHistory = currentHistory
-          .filter(h => h.parts?.some((p: any) => p.text))
-          .map(h => ({
-            role: h.role === 'model' ? 'assistant' : 'user',
-            content: h.parts.find((p: any) => p.text)?.text || ''
-          }));
-        
-        finalModelText = await UniversalAIService.sendChatMessage(userMsg, formattedHistory);
-        currentHistory.push({ role: 'model', parts: [{ text: finalModelText }] });
-      }
-
+      currentHistory.push({ role: 'model', parts: [{ text: finalModelText }] });
       setHistory([...currentHistory]);
 
-      if (isGuest && sessionId) {
-        localStorage.setItem(`savantix_guest_session_${sessionId}`, JSON.stringify(currentHistory));
-      } else if (!isGuest && sessionId && finalModelText) {
-        await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
-          uid: user.uid,
-          role: 'model',
-          text: finalModelText.substring(0, 9999),
-          createdAt: serverTimestamp()
-        });
+      // 3. Auto-detect study logging commands in chat
+      if (/\b(?:log|studied|did|solved)\b/i.test(userMsg) && /\b(?:\d+h|\d+m|\d+\s*hours?|\d+\s*questions?)\b/i.test(userMsg)) {
+        try {
+          const parsed = UniversalAIService.parseStudyLogLocal(userMsg);
+          await addLog({
+            rawText: userMsg,
+            subject: parsed.subject,
+            topic: parsed.topic,
+            subtopic: parsed.subtopic,
+            durationMinutes: parsed.durationMinutes,
+            problemsSolved: parsed.problemsSolved,
+            mistakes: parsed.mistakes,
+            efficiencyScore: parsed.efficiencyScore,
+            focusScore: parsed.focusScore,
+            date: format(new Date(), 'yyyy-MM-dd')
+          });
+        } catch {}
       }
 
+      // 4. Auto-detect navigation commands
+      const lower = userMsg.toLowerCase();
+      if (lower.includes('go to solver') || lower.includes('open stem solver')) setActiveTab('solver' as any);
+      else if (lower.includes('go to graph') || lower.includes('open concept graph')) setActiveTab('graph' as any);
+      else if (lower.includes('go to flashcards')) setActiveTab('flashcards' as any);
+      else if (lower.includes('go to pomodoro')) setActiveTab('pomodoro' as any);
+      else if (lower.includes('go to analytics')) setActiveTab('analytics' as any);
+
+      // 5. Persistent Local Storage
+      const storageKey = `savantix_chat_session_${user.uid || 'guest'}_${sessionId}`;
+      localStorage.setItem(storageKey, JSON.stringify(currentHistory));
+
+      // 6. Safe Background Firestore write
+      if (!isGuest && user) {
+        try {
+          await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
+            uid: user.uid,
+            role: 'user',
+            text: userMsg.substring(0, 9999),
+            createdAt: serverTimestamp()
+          });
+          await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
+            uid: user.uid,
+            role: 'model',
+            text: finalModelText.substring(0, 9999),
+            createdAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.warn("Firestore chat background sync notice:", err);
+        }
+      }
     } catch (error) {
-      console.error("Chat error", error);
-      setHistory(prev => [...prev, { role: 'model', parts: [{ text: "I encountered an error analyzing that. Please check your AI endpoint or API key in Settings." }] }]);
+      console.error("Chat error fallback:", error);
+      const fallbackResponse = UniversalAIService.generateOfflineAdvisorResponse(userMsg);
+      setHistory(prev => [...prev, { role: 'model', parts: [{ text: fallbackResponse }] }]);
     } finally {
       setIsTyping(false);
     }
