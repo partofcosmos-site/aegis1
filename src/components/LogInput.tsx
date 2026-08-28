@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Loader2, Mic } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { parseStudyLog } from '../services/geminiService';
+import { UniversalAIService } from '../services/universalAIService';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -18,8 +18,8 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
     setIsSubmitting(true);
     setMessage(null);
     try {
-      // 1. Parse with Gemini
-      const parsedData = await parseStudyLog(text);
+      // 1. Parse with Universal AI
+      const parsedData = await UniversalAIService.parseStudyLog(text);
       
       // 2. Save to Firestore
       const logsRef = collection(db, 'users', user.uid, 'logs');

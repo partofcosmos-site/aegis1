@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Save, User as UserIcon } from 'lucide-react';
+import { Save, User as UserIcon, Cpu, Trash2, CheckCircle, AlertCircle, RefreshCw, Zap, ShieldCheck, Sparkles } from 'lucide-react';
+import { AIProviderConfig, ProviderType, PROVIDER_TEMPLATES } from '../services/aiProviderTypes';
+import { AIVaultService } from '../services/aiVaultService';
 
 export const Settings = () => {
   const { user, profile, updateProfile } = useAppContext();
@@ -8,107 +10,398 @@ export const Settings = () => {
   const [schoolHours, setSchoolHours] = useState(profile?.schoolHours?.toString() || '0');
   const [targetExams, setTargetExams] = useState(profile?.targetExams?.join(', ') || '');
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Multi-Provider States
+  const [providers, setProviders] = useState<AIProviderConfig[]>([]);
+  const [editingProvider, setEditingProvider] = useState<AIProviderConfig | null>(null);
+  const [isTestingId, setIsTestingId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
 
   useEffect(() => {
-    if (profile) {
-      setDisplayName(profile.displayName || user?.displayName || '');
-      setSchoolHours(profile.schoolHours?.toString() || '0');
-      setTargetExams(profile.targetExams?.join(', ') || '');
-    }
-  }, [profile, user]);
+    setProviders(AIVaultService.getProviders());
+  }, []);
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setMessage(null);
-    try {
-      await updateProfile({
-        displayName,
-        schoolHours: parseInt(schoolHours) || 0,
-        targetExams: targetExams.split(',').map(e => e.trim()).filter(e => e),
-      });
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      setMessage({ type: 'error', text: 'Failed to update profile.' });
-    } finally {
-      setIsSaving(false);
+  const handleTest = async (config: AIProviderConfig) => {
+    setIsTestingId(config.id);
+    const result = await AIVaultService.testConnection(config);
+    setTestResults(prev => ({ ...prev, [config.id]: result }));
+    setIsTestingId(null);
+  };
+
+  const handleSetDefault = (id: string) => {
+    AIVaultService.setActiveProvider(id);
+    setProviders(AIVaultService.getProviders());
+  };
+
+  const handleDeleteProvider = (id: string) => {
+    const updated = providers.filter(p => p.id !== id);
+    if (updated.length > 0 && !updated.some(p => p.isDefault)) {
+      updated[0].isDefault = true;
     }
+    AIVaultService.saveProviders(updated);
+    setProviders(updated);
+  };
+
+  const handleCreateFromTemplate = (type: ProviderType) => {
+    const tmpl = PROVIDER_TEMPLATES[type];
+    const newConfig: AIProviderConfig = {
+      id: 'prov_' + Date.now(),
+      name: `${tmpl.label} (${providers.filter(p => p.providerType === type).length + 1})`,
+      providerType: type,
+      baseUrl: tmpl.defaultBaseUrl,
+      apiKey: '',
+      selectedModel: tmpl.defaultModels[0]?.id || '',
+      temperature: 0.2,
+      maxTokens: 4096,
+      thinkingLevel: 'high',
+      supportsVision: tmpl.defaultModels[0]?.supportsVision ?? true,
+      isDefault: providers.length === 0,
+      createdAt: Date.now()
+    };
+    setEditingProvider(newConfig);
+  };
+
+  const handleSaveProvider = (config: AIProviderConfig) => {
+    const index = providers.findIndex(p => p.id === config.id);
+    let updated: AIProviderConfig[];
+    if (index >= 0) {
+      updated = [...providers];
+      updated[index] = config;
+    } else {
+      updated = [...providers, config];
+    }
+    if (config.isDefault) {
+      updated = updated.map(p => ({ ...p, isDefault: p.id === config.id }));
+    }
+    AIVaultService.saveProviders(updated);
+    setProviders(updated);
+    setEditingProvider(null);
   };
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-zinc-950">
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Settings</h2>
-          <p className="text-zinc-400 mt-1">Manage your profile and preferences.</p>
+          <h2 className="text-2xl font-bold text-zinc-100">Settings & AI Engines</h2>
+          <p className="text-zinc-400 mt-1">Configure multi-provider LLM endpoints, 16 free models, API keys, and study profile.</p>
         </div>
 
-        <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
-          <div className="p-6 border-b border-zinc-800 flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center">
-              <UserIcon className="w-8 h-8 text-indigo-400" />
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-zinc-100">{user?.email}</h3>
-              <p className="text-sm text-zinc-500">Account linked via Google</p>
+        {/* AI Provider Management Section */}
+        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+            <div className="flex items-center gap-3">
+              <Cpu className="w-6 h-6 text-indigo-400" />
+              <div>
+                <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
+                  Universal AI Providers & Free Models
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> 16 Free Models Included
+                  </span>
+                </h3>
+                <p className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  Zero-leakage: API keys are encrypted & stored strictly in your browser session.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
+          {/* Quick Provider Templates Bar */}
+          <div>
+            <span className="text-xs uppercase font-semibold tracking-wider text-zinc-500 block mb-2">Quick Add Template</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
+              {(Object.keys(PROVIDER_TEMPLATES) as ProviderType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleCreateFromTemplate(type)}
+                  className="px-2.5 py-2 bg-zinc-800/70 hover:bg-indigo-600/20 hover:border-indigo-500 border border-zinc-700/50 rounded-lg text-xs font-medium text-zinc-200 transition-all text-center"
+                >
+                  {PROVIDER_TEMPLATES[type].label.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Active Provider Cards */}
+          <div className="space-y-3">
+            {providers.map((prov) => (
+              <div
+                key={prov.id}
+                className={`p-4 rounded-xl border transition-all ${
+                  prov.isDefault
+                    ? 'bg-zinc-950/80 border-indigo-500/50 shadow-sm shadow-indigo-500/10'
+                    : 'bg-zinc-950/40 border-zinc-800/80 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-zinc-200 text-sm">{prov.name}</span>
+                      {prov.isDefault && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-full">
+                          Active Default
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 text-[10px] bg-zinc-800 text-zinc-400 rounded-md font-mono">
+                        {prov.selectedModel}
+                      </span>
+                    </div>
+                    <div className="text-xs text-zinc-500 mt-1 font-mono">{prov.baseUrl}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {testResults[prov.id] && (
+                      <span
+                        className={`text-xs flex items-center gap-1 ${
+                          testResults[prov.id].success ? 'text-emerald-400' : 'text-red-400'
+                        }`}
+                      >
+                        {testResults[prov.id].success ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                        {testResults[prov.id].message}
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => handleTest(prov)}
+                      disabled={isTestingId === prov.id}
+                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+                    >
+                      {isTestingId === prov.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                      Test
+                    </button>
+
+                    {!prov.isDefault && (
+                      <button
+                        onClick={() => handleSetDefault(prov.id)}
+                        className="px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/40 rounded-lg text-xs font-medium transition-colors"
+                      >
+                        Make Default
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setEditingProvider(prov)}
+                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-medium transition-colors"
+                    >
+                      Edit
+                    </button>
+
+                    {providers.length > 1 && (
+                      <button
+                        onClick={() => handleDeleteProvider(prov.id)}
+                        className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* User Profile Section */}
+        <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+          <div className="p-6 border-b border-zinc-800 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center">
+              <UserIcon className="w-6 h-6 text-indigo-400" />
+            </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">Display Name</label>
+              <h3 className="text-base font-medium text-zinc-100">{user?.email || 'Logged in user'}</h3>
+              <p className="text-xs text-zinc-500">Account linked via Google Cloud Sync</p>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Display Name</label>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-zinc-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">Daily School/Class Hours</label>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Daily School / Class Hours</label>
               <input
                 type="number"
                 min="0"
                 max="24"
                 value={schoolHours}
                 onChange={(e) => setSchoolHours(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-zinc-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500"
               />
-              <p className="text-xs text-zinc-500 mt-1">Used to calculate your available study time.</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">Target Exams (comma separated)</label>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Target Exams (comma separated)</label>
               <input
                 type="text"
-                placeholder="e.g., JEE, NEET, SAT"
+                placeholder="e.g., JEE Advanced 2026, IPhO, MIT SAT"
                 value={targetExams}
                 onChange={(e) => setTargetExams(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-zinc-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
-            <div className="pt-4 flex items-center justify-between">
-              {message ? (
-                <div className={`text-sm ${message.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
-                  {message.text}
+            <div className="pt-2 flex items-center justify-between">
+              {profileMessage && (
+                <div className={`text-xs ${profileMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                  {profileMessage.text}
                 </div>
-              ) : (
-                <div></div>
               )}
               <button
-                onClick={handleSave}
+                onClick={async () => {
+                  setIsSaving(true);
+                  try {
+                    await updateProfile({
+                      displayName,
+                      schoolHours: parseInt(schoolHours) || 0,
+                      targetExams: targetExams.split(',').map((e) => e.trim()).filter(Boolean)
+                    });
+                    setProfileMessage({ type: 'success', text: 'Profile updated successfully!' });
+                  } catch {
+                    setProfileMessage({ type: 'error', text: 'Failed to update profile.' });
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
                 disabled={isSaving}
-                className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+                className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors ml-auto"
               >
                 <Save className="w-4 h-4" />
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isSaving ? 'Saving...' : 'Save Profile'}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Edit Provider Modal */}
+        {editingProvider && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+              <h3 className="text-lg font-bold text-zinc-100">
+                Configure {PROVIDER_TEMPLATES[editingProvider.providerType]?.label || 'Provider'}
+              </h3>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">Provider Label</label>
+                  <input
+                    type="text"
+                    value={editingProvider.name}
+                    onChange={(e) => setEditingProvider({ ...editingProvider, name: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">Base URL</label>
+                  <input
+                    type="text"
+                    value={editingProvider.baseUrl}
+                    onChange={(e) => setEditingProvider({ ...editingProvider, baseUrl: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">API Key</label>
+                  <input
+                    type="password"
+                    placeholder="Enter API Key (stored encrypted in browser localStorage)"
+                    value={editingProvider.apiKey}
+                    onChange={(e) => setEditingProvider({ ...editingProvider, apiKey: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">Model Selection</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editingProvider.selectedModel}
+                      onChange={(e) => setEditingProvider({ ...editingProvider, selectedModel: e.target.value })}
+                      placeholder="e.g. nvidia/nemotron-3-ultra-550b-a55b:free, gpt-4o"
+                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
+                    />
+                    {PROVIDER_TEMPLATES[editingProvider.providerType]?.defaultModels.length > 0 && (
+                      <select
+                        onChange={(e) => setEditingProvider({ ...editingProvider, selectedModel: e.target.value })}
+                        className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 text-xs text-zinc-300 max-w-[160px]"
+                      >
+                        <option value="">Choose Model</option>
+                        {PROVIDER_TEMPLATES[editingProvider.providerType].defaultModels.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.isFree ? `[FREE] ${m.name}` : m.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1">
+                      Temperature ({editingProvider.temperature})
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={editingProvider.temperature}
+                      onChange={(e) =>
+                        setEditingProvider({ ...editingProvider, temperature: parseFloat(e.target.value) })
+                      }
+                      className="w-full accent-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1">Reasoning Budget</label>
+                    <select
+                      value={editingProvider.thinkingLevel || 'high'}
+                      onChange={(e) =>
+                        setEditingProvider({
+                          ...editingProvider,
+                          thinkingLevel: e.target.value as any
+                        })
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200"
+                    >
+                      <option value="none">Standard</option>
+                      <option value="low">Low Reasoning</option>
+                      <option value="medium">Medium Reasoning</option>
+                      <option value="high">High Reasoning Budget</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800">
+                <button
+                  onClick={() => setEditingProvider(null)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSaveProvider(editingProvider)}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Save Provider
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

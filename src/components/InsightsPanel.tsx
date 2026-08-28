@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { generateDailyInsights } from '../services/geminiService';
+import { UniversalAIService } from '../services/universalAIService';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Brain, AlertTriangle, Target, TrendingUp, Zap, Loader2 } from 'lucide-react';
@@ -22,7 +22,7 @@ export const InsightsPanel = ({ selectedDate }: { selectedDate: string }) => {
         schoolHours: profile?.schoolHours || 6,
         targetExams: profile?.targetExams || ['JEE Advanced']
       };
-      const insightData = await generateDailyInsights(todayLogs, constraints);
+      const insightData = await UniversalAIService.generateDailyInsights(todayLogs, constraints);
       
       const insightsRef = collection(db, 'users', user.uid, 'daily_insights');
       await addDoc(insightsRef, {

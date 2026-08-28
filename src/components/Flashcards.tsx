@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { Plus, Trash2, Edit2, Play, ChevronLeft, ChevronRight, Check, X, RotateCcw, Sparkles, Image as ImageIcon } from 'lucide-react';
-import { generateFlashcardsWithAI } from '../services/geminiService';
+import { UniversalAIService } from '../services/universalAIService';
 import clsx from 'clsx';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -190,7 +190,7 @@ export const Flashcards = () => {
         base64Data = aiImagePreview?.split(',')[1];
       }
 
-      const generatedCards = await generateFlashcardsWithAI(aiPrompt, base64Data, mimeType);
+      const generatedCards = await UniversalAIService.generateFlashcardsWithAI(aiPrompt);
       
       const batchPromises = generatedCards.map(card => {
         const cardData: any = {

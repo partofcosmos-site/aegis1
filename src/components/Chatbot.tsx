@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getGeminiInstance, logStudySessionTool, navigateAppTool } from '../services/geminiService';
+import { UniversalAIService } from '../services/universalAIService';
+import { AIVaultService } from '../services/aiVaultService';
 import { Send, Bot, User, Loader2, Globe, MessageSquarePlus, History, Volume2, Square } from 'lucide-react';
 import clsx from 'clsx';
 import ReactMarkdown from 'react-markdown';
