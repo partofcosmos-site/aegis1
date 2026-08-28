@@ -3,7 +3,9 @@ import { Send, Loader2, Mic, MicOff, Sparkles, Cpu } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { UniversalAIService } from '../services/universalAIService';
 import { AIVaultService } from '../services/aiVaultService';
+import { VoiceService } from '../services/voiceService';
 import { format } from 'date-fns';
+
 
 export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
   const [text, setText] = useState('');
@@ -78,28 +80,31 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
     }
   }, []);
 
-  const toggleVoiceInput = () => {
-    if (!recognitionRef.current) {
-      setMessage({ type: 'info', text: 'Voice recognition is not supported in this browser. Try Chrome/Edge or type directly.' });
-      setTimeout(() => setMessage(null), 4000);
-      return;
-    }
+  const voiceService = useRef(new VoiceService());
 
+  const toggleVoiceInput = async () => {
     if (isListening) {
-      isListeningRef.current = false;
-      recognitionRef.current.stop();
+      const transcript = await voiceService.current.stopRecording();
+      setText(prev => prev ? `${prev} ${transcript}` : transcript);
       setIsListening(false);
+      setMessage(null);
     } else {
-      try {
-        isListeningRef.current = true;
-        setMessage({ type: 'info', text: 'Listening... Speak your study session details.' });
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (err) {
-        console.error('Failed to start speech recognition:', err);
-      }
+      setIsListening(true);
+      setMessage({ type: 'info', text: 'Listening... Speak your study session details.' });
+      await voiceService.current.startRecording((level) => {
+        const canvas = document.getElementById('waveform-log') as HTMLCanvasElement;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#6366f1';
+            ctx.fillRect(0, 0, (level / 255) * canvas.width, canvas.height);
+          }
+        }
+      });
     }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,11 +182,11 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
         />
 
         {isListening && (
-          <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-[10px] font-semibold animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-            Listening...
+          <div className="absolute top-2 left-2 right-16 h-1">
+            <canvas id="waveform-log" className="w-full h-full" />
           </div>
         )}
+
 
         <div className="absolute bottom-3 right-3 flex items-center gap-2">
           <button

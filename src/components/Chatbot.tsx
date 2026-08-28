@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getGeminiInstance, logStudySessionTool, navigateAppTool } from '../services/geminiService';
 import { UniversalAIService } from '../services/universalAIService';
 import { AIVaultService } from '../services/aiVaultService';
+import { VoiceService } from '../services/voiceService';
 import { Send, Bot, User, Loader2, Globe, MessageSquarePlus, History, Volume2, Square, Mic, MicOff, Cpu } from 'lucide-react';
+
 import clsx from 'clsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -92,26 +94,29 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     }
   }, []);
 
-  const toggleVoiceInput = () => {
-    if (!recognitionRef.current) {
-      alert('Voice transcription is not supported in this browser. Please try Chrome/Edge or type directly.');
-      return;
-    }
+  const voiceService = useRef(new VoiceService());
 
+  const toggleVoiceInput = async () => {
     if (isListening) {
-      isListeningRef.current = false;
-      recognitionRef.current.stop();
+      const transcript = await voiceService.current.stopRecording();
+      setInput(prev => prev ? `${prev} ${transcript}` : transcript);
       setIsListening(false);
     } else {
-      try {
-        isListeningRef.current = true;
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (err) {
-        console.error('Failed to start speech recognition:', err);
-      }
+      setIsListening(true);
+      await voiceService.current.startRecording((level) => {
+        const canvas = document.getElementById('waveform') as HTMLCanvasElement;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#6366f1';
+            ctx.fillRect(0, 0, (level / 255) * canvas.width, canvas.height);
+          }
+        }
+      });
     }
   };
+
   
   const audioCtxRef = useRef<AudioContext | null>(null);
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
@@ -688,6 +693,9 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
 
         <div className="p-3 sm:p-4 bg-zinc-900 border-t border-zinc-800">
           <form onSubmit={handleSend} className="max-w-3xl mx-auto relative">
+                <div className="absolute top-0 left-0 w-full h-1 overflow-hidden">
+                  <canvas id="waveform" className={clsx("h-full transition-opacity", isListening ? "opacity-100" : "opacity-0")} />
+                </div>
             <input
               type="text"
               value={input}
@@ -698,6 +706,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
               }`}
               disabled={isTyping}
             />
+
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <button 
                 type="button"
