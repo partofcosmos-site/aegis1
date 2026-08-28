@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -8,7 +8,6 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
 export const loginWithGoogle = async () => {
-
   const provider = new GoogleAuthProvider();
   try {
     await signInWithPopup(auth, provider);
@@ -17,8 +16,8 @@ export const loginWithGoogle = async () => {
       console.log('Sign-in popup closed by user.');
       return;
     }
-    console.error("Error signing in with Google", error);
-    throw error;
+    console.warn("Popup failed, attempting redirect:", error.code);
+    await signInWithRedirect(auth, provider);
   }
 };
 
