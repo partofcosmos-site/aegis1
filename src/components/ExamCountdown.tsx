@@ -1,0 +1,209 @@
+import React, { useState, useMemo } from 'react';
+import { Calendar, Target, Clock, AlertCircle, Plus, Trash2, CheckCircle2, ChevronRight } from 'lucide-react';
+import { differenceInDays, parseISO, format } from 'date-fns';
+
+interface ExamTarget {
+  id: string;
+  name: string;
+  targetDate: string;
+  targetHours: number;
+  completedHours: number;
+  category: 'Physics' | 'Math' | 'Chemistry' | 'General';
+}
+
+const DEFAULT_EXAMS: ExamTarget[] = [
+  { id: 'exam-1', name: 'JEE Advanced 2026', targetDate: '2026-05-24', targetHours: 1200, completedHours: 420, category: 'General' },
+  { id: 'exam-2', name: 'IPhO (International Physics Olympiad)', targetDate: '2026-07-12', targetHours: 800, completedHours: 310, category: 'Physics' },
+  { id: 'exam-3', name: 'NSEP (National Standard Exam in Physics)', targetDate: '2026-11-23', targetHours: 400, completedHours: 180, category: 'Physics' },
+  { id: 'exam-4', name: 'MIT SAT / Subject Test', targetDate: '2026-10-05', targetHours: 300, completedHours: 140, category: 'General' }
+];
+
+export const ExamCountdown: React.FC = () => {
+  const [exams, setExams] = useState<ExamTarget[]>(() => {
+    const saved = localStorage.getItem('savantix_exam_targets');
+    return saved ? JSON.parse(saved) : DEFAULT_EXAMS;
+  });
+
+  const [isAdding, setIsAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [targetDate, setTargetDate] = useState('');
+  const [targetHours, setTargetHours] = useState('');
+  const [category, setCategory] = useState<'Physics' | 'Math' | 'Chemistry' | 'General'>('General');
+
+  const saveExams = (newExams: ExamTarget[]) => {
+    setExams(newExams);
+    localStorage.setItem('savantix_exam_targets', JSON.stringify(newExams));
+  };
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !targetDate) return;
+
+    const newTarget: ExamTarget = {
+      id: 'target_' + Date.now(),
+      name: name.trim(),
+      targetDate,
+      targetHours: Number(targetHours) || 500,
+      completedHours: 0,
+      category
+    };
+
+    saveExams([...exams, newTarget]);
+    setName('');
+    setTargetDate('');
+    setTargetHours('');
+    setIsAdding(false);
+  };
+
+  const handleDelete = (id: string) => {
+    saveExams(exams.filter(e => e.id !== id));
+  };
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-sm space-y-4">
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div className="flex items-center gap-2">
+          <Target className="w-5 h-5 text-indigo-400" />
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-100">Exam Countdowns & Velocity Forecast</h3>
+            <p className="text-[11px] text-zinc-400">Milestone tickers & study pace tracking</p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setIsAdding(!isAdding)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-lg text-xs font-medium transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {isAdding ? 'Close' : 'Add Target'}
+        </button>
+      </div>
+
+      {/* Add Exam Form */}
+      {isAdding && (
+        <form onSubmit={handleAdd} className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Target Exam Name</label>
+              <input
+                type="text"
+                placeholder="e.g. JEE Advanced 2026"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Target Exam Date</label>
+              <input
+                type="date"
+                value={targetDate}
+                onChange={e => setTargetDate(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Estimated Prep Hours</label>
+              <input
+                type="number"
+                placeholder="e.g. 1000"
+                value={targetHours}
+                onChange={e => setTargetHours(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Category</label>
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value as any)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+              >
+                <option value="General">General / All Subjects</option>
+                <option value="Physics">Physics Olympiad</option>
+                <option value="Math">Math Olympiad</option>
+                <option value="Chemistry">Chemistry</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="submit"
+              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition-colors"
+            >
+              Save Milestone
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Exam Countdown Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {exams.map(exam => {
+          const daysLeft = Math.max(0, differenceInDays(parseISO(exam.targetDate), new Date()));
+          const hoursRemaining = Math.max(0, exam.targetHours - exam.completedHours);
+          const requiredHoursPerDay = daysLeft > 0 ? (hoursRemaining / daysLeft).toFixed(1) : '0.0';
+          const progressPercent = Math.min(100, Math.round((exam.completedHours / exam.targetHours) * 100));
+
+          return (
+            <div
+              key={exam.id}
+              className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4 space-y-3 relative group hover:border-zinc-700 transition-all"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-zinc-200">{exam.name}</h4>
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>{format(parseISO(exam.targetDate), 'MMM dd, yyyy')}</span>
+                    <span className="px-1.5 py-0.2 text-[10px] bg-zinc-800 text-zinc-400 rounded">
+                      {exam.category}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-xl font-bold font-mono text-indigo-400">{daysLeft}d</div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Remaining</span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px] text-zinc-400">
+                  <span>Progress ({exam.completedHours}h / {exam.targetHours}h)</span>
+                  <span className="font-semibold text-indigo-300">{progressPercent}%</span>
+                </div>
+                <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-indigo-500 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Velocity Pace Footer */}
+              <div className="flex items-center justify-between text-[11px] pt-1 text-zinc-400 border-t border-zinc-800/40">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <Clock className="w-3.5 h-3.5" />
+                  Pace required: <strong>{requiredHoursPerDay} hrs/day</strong>
+                </span>
+
+                <button
+                  onClick={() => handleDelete(exam.id)}
+                  className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-opacity p-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};

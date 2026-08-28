@@ -8,7 +8,8 @@
 
 **Savantix (Aegis)** is an elite, zero-friction AI decision-support platform designed for competitive STEM aspirants (JEE Advanced, Physics & Math Olympiads, IPhO, Elite Academics). 
 
-Unlike rigid calendar planners, Savantix combines **natural language study logging**, **constraint-aware daily AI performance optimization**, **SM-2 spaced repetition flashcards with LaTeX KaTeX and inline SVG diagrams**, and a **Universal Multi-Provider AI Architecture** with client-side zero-leak encrypted storage.
+### 💧 The Core Philosophy: "Frictionless as Drinking Water"
+Keeping a physical study logbook or navigating complex productivity tools drains mental energy. Savantix eliminates all logging resistance: speak or type a one-line thought (*"Did 2h rotation, 25 Qs, torque mistakes"*), and the system automatically extracts subjects, practice problem counts, duration, and mistakes into structured analytics, spaced repetition cards, and visual progress maps.
 
 ---
 
@@ -22,42 +23,55 @@ Unlike rigid calendar planners, Savantix combines **natural language study loggi
 
 ---
 
-## ⚡ Core Feature Suite
+## ⚡ Next-Generation Feature Suite
 
 ### 1. 📊 Natural Language Study Logging & NLP Parser
-* Type or dictate study sessions naturally (e.g. *"Did 2h physics rotation, solved 25 questions, torque mistakes"*).
-* Automatically extracts `subject`, `topic`, `subtopic`, converts duration to minutes (`2h` $\to$ `120m`), isolates practice problem counts from lecture watch time, and infers focus/efficiency ratings ($1-10$).
-* Retrospective date picker allows historical backlogging with local timezone accuracy (`date-fns`).
+* Type or dictate study sessions naturally via **Web Speech Voice-to-Text**.
+* Automatically extracts `subject`, `topic`, `subtopic`, converts duration (`2h` $\to$ `120m`), isolates practice problem counts from lecture time, and infers focus/efficiency ratings ($1-10$).
+* **Live Active Model Badge:** Dynamically displays the current AI model processing your logs.
+* **Persistent Multi-Tab Viewport:** Switching tabs never interrupts ongoing AI generation, audio streaming, or timers.
 
-### 2. 🧠 Constraint-Aware AI Daily Analysis
-* High-reasoning performance synthesis factoring in real-world constraints (daily school hours, tuition, fatigue).
-* Generates:
-  * Executive Performance Summary
-  * Hidden Weakness Identification
-  * Recurring Mistake Patterns
-  * Constraint-Aware Prioritized Next-Day Plan
+### 2. 📅 52-Week Study Streak & Velocity Heatmap (`StudyHeatmap.tsx`)
+* GitHub-style 52-week (364-day) continuous activity track directly on Dashboard & Analytics.
+* Dynamic 4-tier intensity shading mapping daily hours:
+  * Tier 4 (4+ hrs): Mastery Indigo
+  * Tier 3 (2.5 - 4 hrs): Deep Focus
+  * Tier 2 (1 - 2.5 hrs): Solid Session
+  * Tier 1 (< 1 hr): Review / Quick
+* Real-time streak tracking (Current Streak, Longest Streak, Active Days).
 
-### 3. 🗂️ SuperMemo-2 (SM-2) Flashcards & KaTeX Engine
+### 3. 🎯 Dynamic Exam Countdown & Velocity Forecaster (`ExamCountdown.tsx`)
+* Live milestone countdown tickers for competitive targets (JEE Advanced, IPhO, NSEP, MIT SAT).
+* Automatically calculates daily pace requirements (e.g. *"Pace required: 2.8 hrs/day"* to hit preparation targets).
+* Interactive progress bars and custom exam target creation.
+
+### 4. 🔬 Socratic STEM & Olympiad Step-by-Step Solver (`StemSolver.tsx`)
+* 6-phase progressive problem breakdown for difficult physics, calculus, and chemistry problems.
+* **Tiered Socratic Hints:** Reveal hints on-demand to preserve the deliberate active problem-solving struggle.
+* Full mathematical formatting powered by KaTeX ($...$ inline, $$...$$ block) and boxed final answers.
+
+### 5. 🕸️ Interactive Concept Mastery & Topic Graph (`ConceptGraph.tsx`)
+* 2D visual dependency graph mapping prerequisite chains and downstream concepts across Physics, Math, and Chemistry.
+* Dynamic mastery heat telemetry:
+  * **Olympiad Master ($\ge 90\%$):** Emerald Glow
+  * **Proficient ($75-89\%$):** Indigo
+  * **Practicing ($60-74\%$):** Amber
+  * **Needs Focus ($<60\%$):** Red
+* Slide-out inspector drawer detailing prerequisites and connected concepts.
+
+### 6. 🧠 Multi-Model AI Council Consensus Engine
+* Dispatches complex queries simultaneously to multiple top-performing free models (e.g. `liquid/lfm-2.5-2.6b:free` for speed, `nvidia/nemotron-3-super-120b-a12b:free` for STEM accuracy, `z-ai/glm-5.2:free` for reasoning).
+* Synthesizes cross-model agreements into unified, high-confidence strategic advice.
+
+### 7. 🗂️ SuperMemo-2 (SM-2) Flashcards & KaTeX Engine
 * Dynamic Ease Factor ($EF \ge 1.3$) spaced repetition scheduling across 4 review tiers (*Again, Hard, Good, Easy*).
-* Full LaTeX mathematical rendering ($...$ inline, $$...$$ block) powered by KaTeX.
-* **Multimodal Diagram Generation:** Generates inline, scalable SVG vector diagrams for physics force vectors, geometric proofs, and circuit schematics.
-* **Anki Importer:** Full CSV/TSV import with cloze deletion support (`{{c1::answer}}`).
-* 3D hardware-accelerated card flip animations.
+* Multimodal AI card generator with inline SVG diagram creation for circuits, force vectors, and geometry.
+* Anki CSV/TSV import with cloze deletion support (`{{c1::answer}}`).
 
-### 4. 📈 Continuous Study Analytics
-* Continuous calendar timeline of total study volume plotted via Recharts.
-* Proportional subject distribution donut charts and exact minute breakdowns.
-* Smart multi-subject tokenization (splitting *"Physics and Math 120m"* evenly).
-
-### 5. ⏱️ Drift-Free Pomodoro Focus Timer
+### 8. ⏱️ Drift-Free Pomodoro Focus Timer
 * 15/25/50/90 min Focus & 5/10/15/30 min Break presets.
 * Wall-clock target tracking (`targetEndTimeRef`) eliminating background tab timer drift.
-* Automatic mode transitions, dual-tone audio completion chimes, auto-logging to database, and integrated Lofi radio stream.
-
-### 6. 💬 Savantix Conversational Assistant & Voice Engine
-* Multi-turn strategic study advisor with Firestore persistence.
-* Built-in tools: Direct session logging (`logStudySession`) and tab navigation (`navigateApp`).
-* Web Audio API streaming text-to-speech engine with 6 natural voice models (`Puck`, `Charon`, `Fenrir`, `Kore`, `Zephyr`, `Aoede`) and variable playback speeds ($0.5\times - 2\times$).
+* Dual-tone Web Audio chimes and integrated Lofi focus stream.
 
 ---
 
@@ -85,16 +99,6 @@ A comprehensive stress-test benchmark was conducted across all **16 Free Tier Mo
 | **`thinkingmachines/inkling-small:free`** | **0/6 (0.0%)** | N/A | N/A | N/A | N/A | 🚫 **Offline** (HTTP 403 Access Forbidden) |
 | **`nvidia/nemotron-3.5-lightning:free`** | **0/6 (0.0%)** | N/A | N/A | N/A | N/A | 🚫 **Retired** (HTTP 404 Model Not Found) |
 | **`nvidia/llama-nemotron-rerank-vl-1b-v2:free`** | **0/6 (0.0%)** | N/A | N/A | N/A | N/A | 🚫 **Specialized** (Rerank Endpoint Only) |
-
----
-
-### 🏆 Top 5 Free Models for Students & Researchers
-
-1. **`liquid/lfm-2.5-2.6b:free` (Speed Champion — 1,714 ms)**: Ultra-low latency responses, ideal for real-time quick logging and instant flashcard lookups.
-2. **`inclusionai/ling-3.0-flash-fin:free` (Fast & Consistent — 2,550 ms)**: 100% uptime with rapid analytical feedback.
-3. **`nvidia/nemotron-3-super-120b-a12b:free` (STEM & Math Champion — 2,578 ms)**: Flawless mathematical proofs (energy conservation, multi-variable calculus) and strict JSON schema compliance.
-4. **`cohere/north-mini-code:free` (Code & Logic — 2,706 ms)**: Reliable structured data generation without markdown code block corruption.
-5. **`nvidia/nemotron-3-ultra-550b-a55b:free` (Deep Reasoning — 3,144 ms)**: Massive 550B MoE capacity for complex multi-step Olympiad problem synthesis.
 
 ---
 

@@ -1,9 +1,48 @@
+/**
+ * @file aiVaultService.ts
+ * @module Services/AIVaultService
+ * @description
+ * Client-side cryptographic and zero-leak configuration vault for Universal AI providers.
+ * 
+ * ## Architecture Rationale & Zero-Leak Security Model
+ * In competitive academic research and high-volume AI usage, students frequently configure
+ * custom high-tier API keys (OpenAI, Anthropic, OpenRouter, Together AI) or connect to local
+ * self-hosted inferencing servers (Ollama, LM Studio, vLLM).
+ * 
+ * Traditional platforms send these keys to server backends or cloud databases, introducing
+ * significant credential leakage risks.
+ * 
+ * **AIVaultService enforces a strict Client-Side Zero-Leak policy**:
+ * - Secrets are stored exclusively in the browser's origin-isolated `localStorage`.
+ * - Credentials are NEVER transmitted to Cloud Firestore, telemetry streams, build artifacts, or server logs.
+ * - Outbound API calls stream directly from the user's browser client to the provider endpoint using direct browser CORS headers.
+ * 
+ * ## Core Capabilities
+ * - **Provider Multi-Tenancy**: Store, switch, and manage unlimited AI provider configurations.
+ * - **Smart Code & Doc Snippet Parser**: Heuristic regex/AST extractor that automatically parses Python SDK calls,
+ *   cURL commands, JavaScript fetches, and JSON payloads to extract Base URLs, Model IDs, and API keys in 1 click.
+ * - **Live Model Discovery**: Dynamically queries `GET /v1/models` on custom endpoints to populate available models.
+ * - **Latency Ping & Handshake Validator**: Measures real-time round-trip latency (ms) and connection validity before execution.
+ */
+
 import { AIProviderConfig, ProviderType, PROVIDER_TEMPLATES, AIModelPreset } from './aiProviderTypes';
 
+/** Local storage key under which provider profiles are securely persisted in the browser. */
 const STORAGE_KEY = 'aegis_ai_providers_vault_v1';
+
+/** Local storage key tracking the identifier of the currently active default AI provider. */
 const ACTIVE_PROVIDER_ID_KEY = 'aegis_active_ai_provider_id';
 
+/**
+ * Service class managing client-side AI credentials, endpoint configurations, and connection testing.
+ */
 export class AIVaultService {
+  /**
+   * Retrieves the full list of configured AI providers from local storage.
+   * If no providers exist, initializes default production presets (OpenRouter Free Tier + Google Gemini).
+   * 
+   * @returns {AIProviderConfig[]} Array of stored provider configurations.
+   */
   public static getProviders(): AIProviderConfig[] {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -46,10 +85,21 @@ export class AIVaultService {
     }
   }
 
+  /**
+   * Persists an array of AI provider configurations into browser local storage.
+   * 
+   * @param {AIProviderConfig[]} providers Array of provider configurations to save.
+   */
   public static saveProviders(providers: AIProviderConfig[]): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(providers));
   }
 
+  /**
+   * Retrieves the active AI provider configuration designated for primary inference tasks.
+   * 
+   * @returns {AIProviderConfig} The active provider configuration.
+   * @throws {Error} If no valid provider is available.
+   */
   public static getActiveProvider(): AIProviderConfig {
     const providers = this.getProviders();
     const activeId = localStorage.getItem(ACTIVE_PROVIDER_ID_KEY);
@@ -60,6 +110,11 @@ export class AIVaultService {
     return found;
   }
 
+  /**
+   * Sets the default active AI provider by ID and updates persistence.
+   * 
+   * @param {string} id The unique provider identifier to activate.
+   */
   public static setActiveProvider(id: string): void {
     const providers = this.getProviders().map(p => ({
       ...p,
@@ -70,8 +125,12 @@ export class AIVaultService {
   }
 
   /**
-   * Smart Code/cURL/Doc Snippet Parser:
-   * Auto-extracts baseUrl, model, and apiKey from pasted Python, JavaScript, cURL, or JSON snippets.
+   * Smart Code / cURL / Doc Snippet Parser:
+   * Heuristically parses pasted documentation code snippets (Python SDK, cURL bash commands,
+   * JavaScript fetch, or JSON payloads) and extracts the `baseUrl`, `selectedModel`, `apiKey`, and `name`.
+   * 
+   * @param {string} raw Raw code or snippet text pasted by the user.
+   * @returns {Partial<AIProviderConfig>} Inferred configuration properties.
    */
   public static parseSnippetToConfig(raw: string): Partial<AIProviderConfig> {
     const text = raw.trim();
@@ -89,7 +148,7 @@ export class AIVaultService {
       } catch (e) {}
     }
 
-    // 2. Extract Base URL
+    // 2. Extract Base URL from HTTP / HTTPS patterns
     const urlMatch = text.match(/https?:\/\/[^\s"'\)\,\}]+/i);
     if (urlMatch) {
       let u = urlMatch[0].trim();
@@ -98,7 +157,7 @@ export class AIVaultService {
       result.baseUrl = u;
     }
 
-    // 3. Extract Model Name
+    // 3. Extract Model Name via common assignment patterns
     const modelMatch = text.match(/(?:model|model_id|modelName)\s*[:=]\s*["']([^"']+)["']/i) ||
                        text.match(/"model"\s*:\s*"([^"]+)"/i) ||
                        text.match(/--model\s+([^\s]+)/i);
@@ -106,14 +165,14 @@ export class AIVaultService {
       result.selectedModel = modelMatch[1].trim();
     }
 
-    // 4. Extract API Key (Bearer or api_key)
+    // 4. Extract API Key (Bearer tokens or key assignments)
     const keyMatch = text.match(/(?:Bearer|api_key|apiKey|key)\s*[:= ]\s*["']?([a-zA-Z0-9_\-]{15,})["']?/i) ||
                      text.match(/Authorization:\s*Bearer\s+([^\s"']+)/i);
     if (keyMatch && !keyMatch[1].includes('$') && !keyMatch[1].includes('<')) {
       result.apiKey = keyMatch[1].trim();
     }
 
-    // 5. Inferred Name
+    // 5. Infer display name from model or hostname
     if (result.selectedModel) {
       result.name = `Custom: ${result.selectedModel.split('/').pop()}`;
     } else if (result.baseUrl) {
@@ -128,7 +187,12 @@ export class AIVaultService {
   }
 
   /**
-   * Dynamically fetch live model list from ANY endpoint (GET /models)
+   * Dynamically queries `GET /v1/models` on any OpenAI-compatible custom endpoint to retrieve
+   * the live list of available models and context windows.
+   * 
+   * @param {string} baseUrl The root or /v1 Base URL of the endpoint.
+   * @param {string} [apiKey] Optional authentication token.
+   * @returns {Promise<AIModelPreset[]>} Array of available models with metadata.
    */
   public static async fetchRemoteModels(baseUrl: string, apiKey?: string): Promise<AIModelPreset[]> {
     const controller = new AbortController();
@@ -157,6 +221,13 @@ export class AIVaultService {
     }
   }
 
+  /**
+   * Performs an immediate diagnostic connection test and latency benchmark against a provider configuration.
+   * Dispatches a minimal single-token ping to verify authentication, endpoint routing, and round-trip response time.
+   * 
+   * @param {AIProviderConfig} config Provider configuration to test.
+   * @returns {Promise<{ success: boolean; latencyMs: number; message: string }>} Diagnostic test result.
+   */
   public static async testConnection(config: AIProviderConfig): Promise<{ success: boolean; latencyMs: number; message: string }> {
     const start = performance.now();
     const controller = new AbortController();
@@ -242,4 +313,28 @@ export class AIVaultService {
       clearTimeout(timer);
     }
   }
+
+  /**
+   * Scrubs sensitive API keys, bearer tokens, and credentials from error messages before logging or displaying.
+   */
+  public static scrubError(errorStr: string): string {
+    if (!errorStr || typeof errorStr !== 'string') return 'An error occurred';
+    return errorStr.replace(/AIza[0-9A-Za-z-_]{35}/g, '[REDACTED_KEY]')
+                   .replace(/sk-or-v1-[0-9a-f]{64}/g, '[REDACTED_KEY]')
+                   .replace(/sk-[0-9a-zA-Z]{20,}/g, '[REDACTED_KEY]')
+                   .replace(/gsk_[0-9a-zA-Z]{20,}/g, '[REDACTED_KEY]');
+  }
+
+  /**
+   * Retrieves parallel router models or returns undefined to use defaults.
+   */
+  public static getMultiModelRouterModels(): any[] | undefined {
+    try {
+      const raw = localStorage.getItem('savantix_parallel_router_models');
+      return raw ? JSON.parse(raw) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 }
+

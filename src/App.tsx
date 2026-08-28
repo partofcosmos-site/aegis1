@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppProvider } from './context/AppContext';
 import { AuthWrapper } from './components/AuthWrapper';
-import { Layout } from './components/Layout';
+import { Layout, ActiveTabType } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { Chatbot } from './components/Chatbot';
 import { Analytics } from './components/Analytics';
@@ -10,25 +10,36 @@ import { Goals } from './components/Goals';
 import { Pomodoro } from './components/Pomodoro';
 import { Settings } from './components/Settings';
 import { Flashcards } from './components/Flashcards';
+import { StemSolver } from './components/StemSolver';
+import { ConceptGraph } from './components/ConceptGraph';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'analytics' | 'journal' | 'goals' | 'pomodoro' | 'settings' | 'flashcards'>('dashboard');
+  const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
 
   return (
     <ErrorBoundary>
       <AppProvider>
         <AuthWrapper>
           <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-            {/* Persistent Tab Viewport: Preserves background streams & timers across tab switches */}
+            {/* Persistent Tab Viewport: Preserves background streams, solvers & timers across tab switches */}
             <div className={`h-full w-full ${activeTab === 'dashboard' ? 'block' : 'hidden'}`}>
               <Dashboard />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'analytics' ? 'block' : 'hidden'}`}>
+              <Analytics />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'solver' ? 'block' : 'hidden'}`}>
+              <StemSolver />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'graph' ? 'block' : 'hidden'}`}>
+              <ConceptGraph />
             </div>
             <div className={`h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
               <Chatbot setActiveTab={setActiveTab} />
             </div>
-            <div className={`h-full w-full ${activeTab === 'analytics' ? 'block' : 'hidden'}`}>
-              <Analytics />
+            <div className={`h-full w-full ${activeTab === 'flashcards' ? 'block' : 'hidden'}`}>
+              <Flashcards />
             </div>
             <div className={`h-full w-full ${activeTab === 'journal' ? 'block' : 'hidden'}`}>
               <Journal />
@@ -41,9 +52,6 @@ export default function App() {
             </div>
             <div className={`h-full w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
               <Settings />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'flashcards' ? 'block' : 'hidden'}`}>
-              <Flashcards />
             </div>
           </Layout>
         </AuthWrapper>

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { StudyHeatmap } from './StudyHeatmap';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from 'recharts';
 import { format, parseISO, isValid, eachDayOfInterval, startOfToday, endOfToday } from 'date-fns';
 
@@ -140,6 +141,9 @@ export const Analytics = () => {
             <p className="text-3xl font-bold text-zinc-100">{analyticsData.totalProblems}</p>
           </div>
         </div>
+
+        {/* 52-Week Study Streak Heatmap */}
+        <StudyHeatmap logs={logs} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Timeline Chart */}

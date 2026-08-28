@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { LogInput } from './LogInput';
 import { InsightsPanel } from './InsightsPanel';
+import { StudyHeatmap } from './StudyHeatmap';
+import { ExamCountdown } from './ExamCountdown';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
 import { Clock, BookOpen, CheckCircle2, Edit2, Check, X, Trash2 } from 'lucide-react';
@@ -113,6 +115,12 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* 52-Week Study Streak Heatmap */}
+        <StudyHeatmap logs={logs} />
+
+        {/* Dynamic Exam Countdowns & Velocity Forecast */}
+        <ExamCountdown />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
