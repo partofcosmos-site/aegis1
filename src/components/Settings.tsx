@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Save, User as UserIcon, Cpu, Trash2, CheckCircle, AlertCircle, RefreshCw, Zap, ShieldCheck, Sparkles } from 'lucide-react';
-import { AIProviderConfig, ProviderType, PROVIDER_TEMPLATES } from '../services/aiProviderTypes';
+import { Save, User as UserIcon, Cpu, Trash2, CheckCircle, AlertCircle, RefreshCw, Zap, ShieldCheck, Sparkles, Clipboard, DownloadCloud, Code } from 'lucide-react';
+import { AIProviderConfig, ProviderType, PROVIDER_TEMPLATES, AIModelPreset } from '../services/aiProviderTypes';
 import { AIVaultService } from '../services/aiVaultService';
 
 export const Settings = () => {
@@ -17,6 +17,15 @@ export const Settings = () => {
   const [editingProvider, setEditingProvider] = useState<AIProviderConfig | null>(null);
   const [isTestingId, setIsTestingId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
+
+  // Dynamic Remote Models State
+  const [remoteModels, setRemoteModels] = useState<AIModelPreset[]>([]);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+
+  // Paste / Snippet Importer State
+  const [snippetText, setSnippetText] = useState('');
+  const [showSnippetModal, setShowSnippetModal] = useState(false);
+  const [snippetMessage, setSnippetMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setProviders(AIVaultService.getProviders());
@@ -47,7 +56,7 @@ export const Settings = () => {
     const tmpl = PROVIDER_TEMPLATES[type];
     const newConfig: AIProviderConfig = {
       id: 'prov_' + Date.now(),
-      name: `${tmpl.label} (${providers.filter(p => p.providerType === type).length + 1})`,
+      name: `${tmpl.label.split(' ')[0]} Config`,
       providerType: type,
       baseUrl: tmpl.defaultBaseUrl,
       apiKey: '',
@@ -55,11 +64,45 @@ export const Settings = () => {
       temperature: 0.2,
       maxTokens: 4096,
       thinkingLevel: 'high',
-      supportsVision: tmpl.defaultModels[0]?.supportsVision ?? true,
       isDefault: providers.length === 0,
       createdAt: Date.now()
     };
     setEditingProvider(newConfig);
+    setRemoteModels([]);
+  };
+
+  const handleFetchRemoteModels = async () => {
+    if (!editingProvider || !editingProvider.baseUrl) return;
+    setIsFetchingModels(true);
+    try {
+      const models = await AIVaultService.fetchRemoteModels(editingProvider.baseUrl, editingProvider.apiKey);
+      setRemoteModels(models);
+    } catch {
+      setRemoteModels([]);
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
+  const handleParseSnippet = () => {
+    if (!snippetText.trim()) return;
+    const parsed = AIVaultService.parseSnippetToConfig(snippetText);
+    const newConfig: AIProviderConfig = {
+      id: 'prov_' + Date.now(),
+      name: parsed.name || 'Imported Custom Model',
+      providerType: 'openai-compatible',
+      baseUrl: parsed.baseUrl || 'https://api.openai.com/v1',
+      apiKey: parsed.apiKey || '',
+      selectedModel: parsed.selectedModel || 'custom-model',
+      temperature: 0.2,
+      maxTokens: 4096,
+      thinkingLevel: 'high',
+      isDefault: providers.length === 0,
+      createdAt: Date.now()
+    };
+    setEditingProvider(newConfig);
+    setShowSnippetModal(false);
+    setSnippetText('');
   };
 
   const handleSaveProvider = (config: AIProviderConfig) => {
@@ -83,33 +126,41 @@ export const Settings = () => {
     <div className="flex-1 overflow-y-auto p-6 bg-zinc-950">
       <div className="max-w-4xl mx-auto space-y-8">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Settings & AI Engines</h2>
-          <p className="text-zinc-400 mt-1">Configure multi-provider LLM endpoints, 16 free models, API keys, and study profile.</p>
+          <h2 className="text-2xl font-bold text-zinc-100">Settings & Universal AI Providers</h2>
+          <p className="text-zinc-400 mt-1">Use ANY AI model from any documentation, endpoint, or provider with zero hardcoding.</p>
         </div>
 
         {/* AI Provider Management Section */}
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 space-y-6">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
             <div className="flex items-center gap-3">
               <Cpu className="w-6 h-6 text-indigo-400" />
               <div>
                 <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
-                  Universal AI Providers & Free Models
+                  Universal AI Models & Endpoints
                   <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> 16 Free Models Included
+                    <Sparkles className="w-3 h-3" /> Unrestricted Custom Models
                   </span>
                 </h3>
                 <p className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  Zero-leakage: API keys are encrypted & stored strictly in your browser session.
+                  Zero-leakage: Secrets stored exclusively in your browser session.
                 </p>
               </div>
             </div>
+
+            <button
+              onClick={() => setShowSnippetModal(true)}
+              className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-semibold transition-all self-start sm:self-auto"
+            >
+              <Code className="w-4 h-4" />
+              Paste Doc / cURL Snippet
+            </button>
           </div>
 
           {/* Quick Provider Templates Bar */}
           <div>
-            <span className="text-xs uppercase font-semibold tracking-wider text-zinc-500 block mb-2">Quick Add Template</span>
+            <span className="text-xs uppercase font-semibold tracking-wider text-zinc-500 block mb-2">Templates & Presets</span>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
               {(Object.keys(PROVIDER_TEMPLATES) as ProviderType[]).map((type) => (
                 <button
@@ -140,10 +191,10 @@ export const Settings = () => {
                       <span className="font-semibold text-zinc-200 text-sm">{prov.name}</span>
                       {prov.isDefault && (
                         <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-full">
-                          Active Default
+                          Active Model
                         </span>
                       )}
-                      <span className="px-2 py-0.5 text-[10px] bg-zinc-800 text-zinc-400 rounded-md font-mono">
+                      <span className="px-2 py-0.5 text-[10px] bg-zinc-800 text-zinc-300 font-mono rounded-md border border-zinc-700">
                         {prov.selectedModel}
                       </span>
                     </div>
@@ -176,12 +227,15 @@ export const Settings = () => {
                         onClick={() => handleSetDefault(prov.id)}
                         className="px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/40 rounded-lg text-xs font-medium transition-colors"
                       >
-                        Make Default
+                        Use This Model
                       </button>
                     )}
 
                     <button
-                      onClick={() => setEditingProvider(prov)}
+                      onClick={() => {
+                        setEditingProvider(prov);
+                        setRemoteModels([]);
+                      }}
                       className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-medium transition-colors"
                     >
                       Edit
@@ -209,8 +263,8 @@ export const Settings = () => {
               <UserIcon className="w-6 h-6 text-indigo-400" />
             </div>
             <div>
-              <h3 className="text-base font-medium text-zinc-100">{user?.email || 'Logged in user'}</h3>
-              <p className="text-xs text-zinc-500">Account linked via Google Cloud Sync</p>
+              <h3 className="text-base font-medium text-zinc-100">{user?.email || 'Active User'}</h3>
+              <p className="text-xs text-zinc-500">Synced to Google Cloud Firestore</p>
             </div>
           </div>
 
@@ -280,17 +334,61 @@ export const Settings = () => {
           </div>
         </div>
 
+        {/* Snippet / Code Importer Modal */}
+        {showSnippetModal && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                  <Code className="w-5 h-5 text-indigo-400" />
+                  Paste Any Documentation / Code Snippet
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Paste any Python code, cURL command, JavaScript fetch, or JSON configuration from any AI documentation. The parser will automatically extract the Base URL, Model ID, and Endpoint.
+              </p>
+
+              <textarea
+                value={snippetText}
+                onChange={(e) => setSnippetText(e.target.value)}
+                placeholder={`e.g. paste python snippet:
+client = OpenAI(base_url="https://api.together.xyz/v1", api_key="...")
+response = client.chat.completions.create(model="meta-llama/Llama-3-70b-chat-hf")`}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 min-h-[140px] focus:outline-none focus:border-indigo-500"
+              />
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setShowSnippetModal(false)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleParseSnippet}
+                  disabled={!snippetText.trim()}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg disabled:opacity-50"
+                >
+                  Auto-Detect & Configure
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Edit Provider Modal */}
         {editingProvider && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
-              <h3 className="text-lg font-bold text-zinc-100">
-                Configure {PROVIDER_TEMPLATES[editingProvider.providerType]?.label || 'Provider'}
-              </h3>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-xl p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h3 className="text-lg font-bold text-zinc-100">
+                  Configure AI Model & Endpoint
+                </h3>
+              </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Provider Label</label>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">Custom Display Name</label>
                   <input
                     type="text"
                     value={editingProvider.name}
@@ -300,20 +398,21 @@ export const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Base URL</label>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">API Base URL (Any Endpoint)</label>
                   <input
                     type="text"
                     value={editingProvider.baseUrl}
                     onChange={(e) => setEditingProvider({ ...editingProvider, baseUrl: e.target.value })}
+                    placeholder="https://openrouter.ai/api/v1, http://localhost:11434/v1, etc."
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">API Key</label>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1">API Key / Token</label>
                   <input
                     type="password"
-                    placeholder="Enter API Key (stored encrypted in browser localStorage)"
+                    placeholder="Enter API Key (Optional for local Ollama/LM Studio)"
                     value={editingProvider.apiKey}
                     onChange={(e) => setEditingProvider({ ...editingProvider, apiKey: e.target.value })}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
@@ -321,32 +420,52 @@ export const Settings = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Model Selection</label>
-                  <div className="flex gap-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-zinc-400">Model Name / ID (Any String)</label>
+                    <button
+                      type="button"
+                      onClick={handleFetchRemoteModels}
+                      disabled={isFetchingModels || !editingProvider.baseUrl}
+                      className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
+                    >
+                      {isFetchingModels ? <RefreshCw className="w-3 h-3 animate-spin" /> : <DownloadCloud className="w-3 h-3" />}
+                      Fetch Live Models from Endpoint
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
                     <input
                       type="text"
                       value={editingProvider.selectedModel}
                       onChange={(e) => setEditingProvider({ ...editingProvider, selectedModel: e.target.value })}
-                      placeholder="e.g. nvidia/nemotron-3-ultra-550b-a55b:free, gpt-4o"
-                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
+                      placeholder="Type ANY model name e.g. nvidia/nemotron-3-ultra-550b-a55b:free, gpt-4o, my-model"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
                     />
-                    {PROVIDER_TEMPLATES[editingProvider.providerType]?.defaultModels.length > 0 && (
-                      <select
-                        onChange={(e) => setEditingProvider({ ...editingProvider, selectedModel: e.target.value })}
-                        className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 text-xs text-zinc-300 max-w-[160px]"
-                      >
-                        <option value="">Choose Model</option>
-                        {PROVIDER_TEMPLATES[editingProvider.providerType].defaultModels.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.isFree ? `[FREE] ${m.name}` : m.name}
-                          </option>
-                        ))}
-                      </select>
+
+                    {/* Show Remote Models if fetched */}
+                    {remoteModels.length > 0 && (
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-zinc-500 block mb-1">
+                          Fetched from Server ({remoteModels.length} models)
+                        </span>
+                        <select
+                          onChange={(e) => setEditingProvider({ ...editingProvider, selectedModel: e.target.value })}
+                          value={editingProvider.selectedModel}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 font-mono"
+                        >
+                          <option value="">Choose Fetched Model...</option>
+                          {remoteModels.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 pt-1">
                   <div>
                     <label className="block text-xs font-medium text-zinc-400 mb-1">
                       Temperature ({editingProvider.temperature})

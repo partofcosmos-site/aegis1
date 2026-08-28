@@ -3,13 +3,13 @@ import subprocess
 
 node_dir = r"C:\Program Files\nodejs"
 env = os.environ.copy()
-env["PATH"] = node_dir + os.pathsep + env.get("PATH", "")
+env["PATH"] = node_dir + os.pathsep + os.path.join(r"C:\Users\white\master-hub\aegis1\node_modules\.bin") + os.pathsep + env.get("PATH", "")
 
 aegis_dir = r"C:\Users\white\master-hub\aegis1"
-npx_cmd = os.path.join(node_dir, "npx.cmd")
+vite_cmd = os.path.join(aegis_dir, "node_modules", ".bin", "vite.cmd")
 
-print("Building aegis1 with npx vite build...")
-res = subprocess.run([npx_cmd, "vite", "build"], cwd=aegis_dir, env=env, capture_output=True, text=True)
+print("Building aegis1 with vite.cmd...")
+res = subprocess.run(f'"{vite_cmd}" build', cwd=aegis_dir, env=env, shell=True, capture_output=True, text=True)
 print("Build exit code:", res.returncode)
 print("Build stdout:\n", res.stdout)
 if res.stderr:
