@@ -446,13 +446,46 @@ response = client.chat.completions.create(model="meta-llama/Llama-3-70b-chat-hf"
                       type="text"
                       value={editingProvider.selectedModel}
                       onChange={(e) => setEditingProvider({ ...editingProvider, selectedModel: e.target.value })}
-                      placeholder="Type ANY model name e.g. nvidia/nemotron-3-ultra-550b-a55b:free, gpt-4o, my-model"
+                      placeholder="Type ANY model name e.g. deepseek/deepseek-r1:free, gemini-2.0-flash"
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-sm text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
                     />
 
+                    {/* Popular Free Models Quick Chips */}
+                    <div className="pt-1">
+                      <span className="text-[10px] uppercase font-semibold text-zinc-500 block mb-1.5">
+                        Free Frontier Models (1-Click Select)
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { id: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 (Free)', desc: 'Reasoning' },
+                          { id: 'liquid/lfm-40b:free', label: 'LFM 40B (Free)', desc: 'Speed' },
+                          { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 120B (Free)', desc: 'STEM Math' },
+                          { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (Free)', desc: 'General' },
+                          { id: 'qwen/qwen-2.5-72b-instruct:free', label: 'Qwen 72B (Free)', desc: 'Math' },
+                          { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: 'Multimodal' },
+                          { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', desc: '1M Context' },
+                          { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', desc: 'Reasoning' }
+                        ].map(preset => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setEditingProvider({ ...editingProvider, selectedModel: preset.id })}
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-mono border transition-all ${
+                              editingProvider.selectedModel === preset.id
+                                ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                                : 'bg-zinc-950/60 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
+                            }`}
+                            title={`${preset.id} (${preset.desc})`}
+                          >
+                            <span>{preset.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Show Remote Models if fetched */}
                     {remoteModels.length > 0 && (
-                      <div>
+                      <div className="pt-2">
                         <span className="text-[10px] uppercase font-semibold text-zinc-500 block mb-1">
                           Fetched from Server ({remoteModels.length} models)
                         </span>
