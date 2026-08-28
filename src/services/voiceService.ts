@@ -1,3 +1,5 @@
+import { getGeminiInstance } from './geminiService';
+
 export class VoiceService {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
@@ -35,7 +37,6 @@ export class VoiceService {
         const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
         const base64 = await this.blobToBase64(audioBlob);
         
-        // Integration point: Call your existing Gemini service here
         const text = await this.transcribeAudio(base64);
         resolve(text);
       };
@@ -48,13 +49,32 @@ export class VoiceService {
   private blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
+      reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
       reader.readAsDataURL(blob);
     });
   }
 
   private async transcribeAudio(base64: string): Promise<string> {
-    console.log('Transcribing audio...');
-    return 'Transcribed text placeholder';
+    try {
+      const ai = getGeminiInstance();
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash',
+        contents: [{
+          role: 'user',
+          parts: [{
+            inlineData: {
+              mimeType: 'audio/webm',
+              data: base64
+            }
+          }, {
+            text: "Transcribe this audio verbatim. Return ONLY the transcribed text."
+          }]
+        }]
+      });
+      return response.text() || "";
+    } catch (error) {
+      console.error("Transcription failed:", error);
+      return "";
+    }
   }
-}
+}
