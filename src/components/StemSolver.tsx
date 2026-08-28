@@ -554,6 +554,10 @@ export const StemSolver: React.FC = () => {
       const rect = parent.getBoundingClientRect();
       const dpr = Math.max(1, window.devicePixelRatio || 1);
 
+      const rawWidth = rect.width > 0 ? rect.width : (parent.parentElement?.clientWidth || window.innerWidth - 320 || 800);
+      const displayWidth = Math.max(300, Math.floor(rawWidth));
+      const displayHeight = 440;
+
       // Store current drawing in offscreen memory canvas before resize
       if (canvas.width > 0 && canvas.height > 0) {
         memCanvas.width = canvas.width;
@@ -563,9 +567,6 @@ export const StemSolver: React.FC = () => {
           memCtx.drawImage(canvas, 0, 0);
         }
       }
-
-      const displayWidth = Math.floor(rect.width);
-      const displayHeight = 440;
 
       canvas.width = displayWidth * dpr;
       canvas.height = displayHeight * dpr;
@@ -582,8 +583,18 @@ export const StemSolver: React.FC = () => {
     };
 
     resizeCanvas();
+    const observer = new ResizeObserver(() => {
+      resizeCanvas();
+    });
+    if (canvas.parentElement) {
+      observer.observe(canvas.parentElement);
+    }
+
     window.addEventListener('resize', resizeCanvas);
-    return () => window.removeEventListener('resize', resizeCanvas);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', resizeCanvas);
+    };
   }, [canvasGridStyle, drawBackgroundGrid]);
 
   // Push Canvas snapshot to Undo Stack
