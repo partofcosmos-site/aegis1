@@ -131,12 +131,12 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-sm relative">
-      <div className="flex justify-between items-center mb-3">
+    <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-lg relative">
+      <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
           <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Quick Log</h2>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800 text-indigo-300 border border-zinc-700">
-            <Cpu className="w-3 h-3 text-indigo-400" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800/50 text-indigo-300 border border-zinc-700">
+            <Sparkles className="w-3 h-3 text-indigo-400" />
             {activeModelName}
           </span>
         </div>
@@ -155,14 +155,14 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="e.g., Did 2h physics rotation, solved 25 questions, torque mistakes..."
-          className={`w-full bg-zinc-950 border rounded-lg p-4 pr-24 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none min-h-[100px] text-sm transition-all ${
-            isListening ? 'border-red-500/50 ring-1 ring-red-500/30' : 'border-zinc-800'
+          className={`w-full bg-zinc-950/60 border rounded-xl p-4 pr-16 text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none min-h-[120px] text-sm transition-all shadow-inner ${
+            isListening ? 'border-red-500/50 ring-1 ring-red-500/30' : 'border-zinc-800/80'
           }`}
           disabled={isSubmitting}
         />
 
         {isListening && (
-          <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded-full text-[10px] font-semibold animate-pulse">
+          <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-[10px] font-semibold animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
             Listening...
           </div>
@@ -172,10 +172,10 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
           <button
             type="button"
             onClick={toggleVoiceInput}
-            className={`p-2 transition-all rounded-md cursor-pointer ${
+            className={`p-2 transition-all rounded-lg cursor-pointer ${
               isListening
-                ? 'bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80'
             }`}
             title={isListening ? 'Stop voice recording' : 'Click to dictate (Web Speech)'}
           >
@@ -185,7 +185,7 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
           <button
             type="submit"
             disabled={!text.trim() || isSubmitting}
-            className="flex items-center justify-center w-10 h-10 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg transition-colors cursor-pointer"
+            className="flex items-center justify-center w-10 h-10 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-lg transition-colors cursor-pointer shadow-md"
             title="Submit study log"
           >
             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}

@@ -69,7 +69,7 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+    <div className="flex-1 overflow-y-auto p-6 lg:p-10 bg-zinc-950">
       <div className="max-w-5xl mx-auto space-y-8">
         
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -81,14 +81,14 @@ export const Dashboard = () => {
             type="date" 
             value={selectedDate} 
             onChange={(e) => handleDateChange(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 w-full sm:w-auto"
+            className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-full px-4 py-2.5 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner w-full sm:w-auto"
           />
         </header>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg">
+          <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 flex items-center gap-4 shadow-lg hover:border-zinc-700 transition-colors">
+            <div className="p-3 bg-blue-500/10 rounded-full border border-blue-500/20">
               <Clock className="w-6 h-6 text-blue-400" />
             </div>
             <div>
@@ -96,8 +96,8 @@ export const Dashboard = () => {
               <p className="text-2xl font-bold text-zinc-100">{Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m</p>
             </div>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/10 rounded-lg">
+          <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 flex items-center gap-4 shadow-lg hover:border-zinc-700 transition-colors">
+            <div className="p-3 bg-emerald-500/10 rounded-full border border-emerald-500/20">
               <CheckCircle2 className="w-6 h-6 text-emerald-400" />
             </div>
             <div>
@@ -105,8 +105,8 @@ export const Dashboard = () => {
               <p className="text-2xl font-bold text-zinc-100">{totalProblems}</p>
             </div>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
-            <div className="p-3 bg-purple-500/10 rounded-lg">
+          <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 flex items-center gap-4 shadow-lg hover:border-zinc-700 transition-colors">
+            <div className="p-3 bg-purple-500/10 rounded-full border border-purple-500/20">
               <BookOpen className="w-6 h-6 text-purple-400" />
             </div>
             <div>
@@ -117,7 +117,9 @@ export const Dashboard = () => {
         </div>
 
         {/* 52-Week Study Streak Heatmap */}
-        <StudyHeatmap logs={logs} />
+        <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+          <StudyHeatmap logs={logs} />
+        </div>
 
         {/* Dynamic Exam Countdowns & Velocity Forecast */}
         <ExamCountdown />
@@ -130,75 +132,78 @@ export const Dashboard = () => {
             <LogInput selectedDate={selectedDate} />
             
             {/* Recent Logs */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-4">Sessions on {selectedDate}</h3>
+            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Sessions</h3>
+                <span className="px-2.5 py-0.5 bg-zinc-800/50 rounded-full text-[10px] text-zinc-500 border border-zinc-700 font-medium">{selectedDate}</span>
+              </div>
               {todayLogs.length === 0 ? (
-                <p className="text-sm text-zinc-600 text-center py-4">No sessions logged yet.</p>
+                <p className="text-sm text-zinc-600 text-center py-8">No sessions logged yet.</p>
               ) : (
                 <div className="space-y-3">
                   {todayLogs.map(log => (
-                    <div key={log.id} className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg group">
+                    <div key={log.id} className="p-4 bg-zinc-950/50 border border-zinc-800/50 rounded-xl group hover:border-zinc-700 transition-all hover:shadow-md">
                       {editingLogId === log.id ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <input 
                             type="text" 
                             value={editForm.subject} 
                             onChange={e => setEditForm({...editForm, subject: e.target.value})}
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
+                            className="w-full bg-zinc-900/60 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:ring-1 focus:ring-indigo-500"
                             placeholder="Subject"
                           />
                           <input 
                             type="text" 
                             value={editForm.topic} 
                             onChange={e => setEditForm({...editForm, topic: e.target.value})}
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
+                            className="w-full bg-zinc-900/60 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:ring-1 focus:ring-indigo-500"
                             placeholder="Topic"
                           />
                           <div className="flex gap-2">
                             <div className="flex-1">
-                              <label className="text-[10px] text-zinc-500 uppercase">Mins</label>
+                              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Mins</label>
                               <input 
                                 type="number" 
                                 value={editForm.durationMinutes} 
                                 onChange={e => setEditForm({...editForm, durationMinutes: e.target.value})}
-                                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
+                                className="w-full bg-zinc-900/60 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:ring-1 focus:ring-indigo-500"
                               />
                             </div>
                             <div className="flex-1">
-                              <label className="text-[10px] text-zinc-500 uppercase">Probs</label>
+                              <label className="text-[10px] text-zinc-500 uppercase tracking-wider">Probs</label>
                               <input 
                                 type="number" 
                                 value={editForm.problemsSolved} 
                                 onChange={e => setEditForm({...editForm, problemsSolved: e.target.value})}
-                                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
+                                className="w-full bg-zinc-900/60 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:ring-1 focus:ring-indigo-500"
                               />
                             </div>
                           </div>
-                          <div className="flex justify-end gap-2 mt-2">
-                            <button onClick={() => setEditingLogId(null)} className="p-1 text-zinc-400 hover:text-zinc-200"><X className="w-4 h-4" /></button>
-                            <button onClick={() => handleSaveEdit(log.id)} className="p-1 text-emerald-400 hover:text-emerald-300"><Check className="w-4 h-4" /></button>
+                          <div className="flex justify-end gap-2 mt-3 pt-2 border-t border-zinc-800">
+                            <button onClick={() => setEditingLogId(null)} className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">Cancel</button>
+                            <button onClick={() => handleSaveEdit(log.id)} className="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors shadow-sm">Save</button>
                           </div>
                         </div>
                       ) : (
                         <>
-                          <div className="flex justify-between items-start mb-1 relative">
-                            <span className="text-sm font-medium text-zinc-200">{log.subject}</span>
+                          <div className="flex justify-between items-start mb-2 relative">
+                            <span className="text-sm font-semibold text-zinc-200">{log.subject}</span>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-zinc-500">{log.durationMinutes}m</span>
+                              <span className="text-xs text-zinc-500 font-medium bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">{log.durationMinutes}m</span>
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                <button onClick={() => handleEditClick(log)} className="text-zinc-500 hover:text-indigo-400">
-                                  <Edit2 className="w-3 h-3" />
+                                <button onClick={() => handleEditClick(log)} className="p-1 text-zinc-500 hover:text-indigo-400 transition-colors">
+                                  <Edit2 className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => handleDeleteLog(log.id)} className="text-zinc-500 hover:text-red-400">
-                                  <Trash2 className="w-3 h-3" />
+                                <button onClick={() => handleDeleteLog(log.id)} className="p-1 text-zinc-500 hover:text-red-400 transition-colors">
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
                           </div>
                           <p className="text-xs text-zinc-400 truncate">{log.topic}</p>
-                          {log.problemsSolved > 0 && <p className="text-[10px] text-zinc-500 mt-1">{log.problemsSolved} problems</p>}
+                          {log.problemsSolved > 0 && <p className="text-[10px] text-zinc-500 mt-2 font-medium bg-zinc-900/50 inline-block px-2 py-0.5 rounded-full">{log.problemsSolved} problems</p>}
                           {log.efficiencyScore && (
-                            <div className="mt-2 flex items-center gap-2">
+                            <div className="mt-3 flex items-center gap-2">
                               <div className="h-1.5 flex-1 bg-zinc-800 rounded-full overflow-hidden">
                                 <div 
                                   className="h-full bg-indigo-500 rounded-full" 

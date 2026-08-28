@@ -82,21 +82,21 @@ export const ConceptGraph: React.FC = () => {
               <Network className="w-6 h-6 text-indigo-400" />
               Topic Mastery & Concept Constellation
             </h2>
-            <p className="text-zinc-400 text-sm mt-1">
+            <p className="text-zinc-500 text-sm mt-1">
               Visual dependency graph mapping conceptual prerequisites and dynamic mastery levels.
             </p>
           </div>
 
           {/* Subject Filter Bar */}
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 p-1 bg-zinc-900/60 backdrop-blur-md rounded-xl border border-zinc-800/80">
             {(['All', 'Physics', 'Math', 'Chemistry'] as const).map(sub => (
               <button
                 key={sub}
                 onClick={() => setSelectedSubject(sub)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   selectedSubject === sub
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-indigo-600 text-white shadow-lg'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 {sub}
@@ -107,20 +107,20 @@ export const ConceptGraph: React.FC = () => {
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search concepts, physical laws, or topics..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 pl-10 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl py-3 pl-12 pr-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
           />
         </div>
 
         {/* Interactive Graph Canvas + Inspector Panel */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* SVG Graph View */}
-          <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 min-h-[460px] relative overflow-hidden flex items-center justify-center">
+          <div className="lg:col-span-2 bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-4 min-h-[460px] relative overflow-hidden flex items-center justify-center shadow-lg">
             <svg className="w-full h-full min-h-[440px]" viewBox="100 50 600 520">
               {/* Render Connection Lines */}
               {nodes.map(node =>
@@ -198,51 +198,52 @@ export const ConceptGraph: React.FC = () => {
 
           {/* Node Inspector Drawer */}
           {selectedNode ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5">
+            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 space-y-6 shadow-lg">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-3 py-1 rounded-full">
                   {selectedNode.subject}
                 </span>
-                <h3 className="text-xl font-bold text-zinc-100 mt-2">{selectedNode.label}</h3>
+                <h3 className="text-xl font-bold text-zinc-100 mt-3">{selectedNode.label}</h3>
               </div>
 
               {/* Mastery Gauge */}
-              <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2">
+              <div className="p-4 bg-zinc-950/50 rounded-xl border border-zinc-800/80 space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-zinc-400">Mastery Rating</span>
-                  <span className="font-bold text-emerald-400">{selectedNode.mastery}% ({getMasteryColor(selectedNode.mastery).label})</span>
+                  <span className="font-bold text-emerald-400">{selectedNode.mastery}%</span>
                 </div>
                 <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
                   <div
-                    className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                    className="bg-emerald-500 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                     style={{ width: `${selectedNode.mastery}%` }}
                   />
                 </div>
+                <span className="text-[10px] text-zinc-500 font-medium block">{getMasteryColor(selectedNode.mastery).label}</span>
               </div>
 
               {/* Prerequisites */}
               <div>
-                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Prerequisites</h4>
+                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2.5">Prerequisites</h4>
                 {selectedNode.prerequisites.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {selectedNode.prerequisites.map(pId => {
                       const pNode = nodes.find(n => n.id === pId);
                       return (
-                        <span key={pId} className="text-xs bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-md border border-zinc-700">
+                        <span key={pId} className="text-xs bg-zinc-900 text-zinc-300 px-3 py-1.5 rounded-lg border border-zinc-700/50">
                           {pNode?.label || pId}
                         </span>
                       );
                     })}
                   </div>
                 ) : (
-                  <p className="text-xs text-zinc-500 italic">Foundational concept (No prior prerequisites)</p>
+                  <p className="text-xs text-zinc-500 italic">Foundational concept</p>
                 )}
               </div>
 
               {/* Connected Concepts */}
               <div>
-                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Connected Downstream Concepts</h4>
-                <div className="space-y-1.5">
+                <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2.5">Next Concepts</h4>
+                <div className="space-y-2">
                   {selectedNode.connections.map(cId => {
                     const cNode = nodes.find(n => n.id === cId);
                     if (!cNode) return null;
@@ -250,10 +251,10 @@ export const ConceptGraph: React.FC = () => {
                       <div
                         key={cId}
                         onClick={() => setSelectedNode(cNode)}
-                        className="flex items-center justify-between p-2.5 bg-zinc-950/60 hover:bg-zinc-800/80 rounded-lg text-xs text-zinc-300 cursor-pointer border border-zinc-800 transition-colors"
+                        className="flex items-center justify-between p-3 bg-zinc-950/60 hover:bg-zinc-800/80 rounded-xl text-xs text-zinc-300 cursor-pointer border border-zinc-800 transition-colors"
                       >
-                        <span>{cNode.label}</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                        <span className="font-medium">{cNode.label}</span>
+                        <ChevronRight className="w-4 h-4 text-zinc-500" />
                       </div>
                     );
                   })}
@@ -261,8 +262,8 @@ export const ConceptGraph: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center text-zinc-500">
-              <Network className="w-10 h-10 mb-3 text-zinc-700" />
+            <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-8 flex flex-col items-center justify-center text-center text-zinc-500 shadow-lg">
+              <Network className="w-12 h-12 mb-4 text-zinc-700" />
               <p className="text-sm">Click any node on the graph to inspect prerequisites and drill into concept mastery.</p>
             </div>
           )}

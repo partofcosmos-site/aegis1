@@ -56,16 +56,16 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 flex flex-col md:flex-row font-sans">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-zinc-900 border-b border-zinc-800">
+      <div className="md:hidden flex items-center justify-between p-4 bg-zinc-900/60 backdrop-blur-md border-b border-zinc-800/80">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <BrainCircuit className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-zinc-100">Savantix</h1>
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="p-2 text-zinc-400 hover:text-zinc-200 transition-colors bg-zinc-800 rounded-lg"
         >
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
@@ -73,11 +73,11 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
 
       {/* Sidebar */}
       <aside className={clsx(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-zinc-900/80 backdrop-blur-xl border-r border-zinc-800/80 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="hidden md:flex p-6 items-center gap-3 border-b border-zinc-800">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-md shadow-indigo-500/20">
+        <div className="hidden md:flex p-6 items-center gap-3 border-b border-zinc-800/80">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <BrainCircuit className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -86,7 +86,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
           </div>
         </div>
         
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -95,10 +95,10 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
                 setIsMobileMenuOpen(false);
               }}
               className={clsx(
-                "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-xs font-medium cursor-pointer",
+                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-xs font-medium cursor-pointer border border-transparent",
                 activeTab === tab.id 
-                  ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-semibold" 
-                  : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+                  ? "bg-indigo-600/10 text-indigo-400 border-indigo-500/30 shadow-inner font-semibold" 
+                  : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200 hover:border-zinc-700"
               )}
             >
               <tab.icon className={clsx("w-4 h-4", activeTab === tab.id ? "text-indigo-400" : "text-zinc-500")} />
@@ -108,15 +108,15 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
         </nav>
 
         {/* User Profile Footer */}
-        <div className="p-3 border-t border-zinc-800">
-          <div className="flex items-center justify-between px-3 py-2.5 bg-zinc-800/50 rounded-xl border border-zinc-800/80">
+        <div className="p-4 border-t border-zinc-800/80">
+          <div className="flex items-center justify-between px-4 py-3 bg-zinc-950/50 rounded-xl border border-zinc-800/80">
             <div className="flex flex-col truncate pr-2">
-              <span className="text-xs font-medium text-zinc-200 truncate">{user?.displayName || 'Scholar'}</span>
-              <span className="text-[10px] text-zinc-500 truncate font-mono">{user?.email || 'Offline Guest'}</span>
+              <span className="text-xs font-semibold text-zinc-200 truncate">{user?.displayName || 'Scholar'}</span>
+              <span className="text-[10px] text-zinc-500 truncate font-mono mt-0.5">{user?.email || 'Offline Guest'}</span>
             </div>
             <button 
               onClick={logout}
-              className="p-1.5 text-zinc-400 hover:text-red-400 transition-colors rounded-lg hover:bg-zinc-800 cursor-pointer"
+              className="p-2 text-zinc-400 hover:text-red-400 transition-colors rounded-lg hover:bg-zinc-800 cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
