@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, Save, Settings, Music } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
 
 export const Pomodoro = () => {
-  const { user } = useAppContext();
+  const { user, addLog } = useAppContext();
   
   // Settings
   const [focusDuration, setFocusDuration] = useState(25);
@@ -20,45 +19,98 @@ export const Pomodoro = () => {
   const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
 
+  const targetEndTimeRef = useRef<number | null>(null);
+
+  // Play pleasant tone on timer complete
+  const playNotificationSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+        setTimeout(() => {
+          try { ctx.close(); } catch {}
+        }, 1000);
+      }
+    } catch (e) {
+      console.warn("Timer notification tone skipped:", e);
+    }
+  };
+
   // Update time left if duration settings change while not active
   useEffect(() => {
     if (!isActive) {
       setTimeLeft(mode === 'focus' ? focusDuration * 60 : breakDuration * 60);
+      targetEndTimeRef.current = null;
     }
-  }, [focusDuration, breakDuration, mode]);
+  }, [focusDuration, breakDuration, mode, isActive]);
 
+  // Drift-free Wall-Clock Timer
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((time) => time - 1);
-      }, 1000);
-    } else if (isActive && timeLeft === 0) {
-      // Auto-transition
-      if (mode === 'focus') {
-        handleLogSession();
-        setMode('break');
-        setTimeLeft(breakDuration * 60);
-      } else {
-        setMode('focus');
-        setTimeLeft(focusDuration * 60);
+    if (isActive) {
+      if (!targetEndTimeRef.current) {
+        targetEndTimeRef.current = Date.now() + timeLeft * 1000;
       }
-      // Keep isActive true to automatically start the next phase
+
+      interval = setInterval(() => {
+        if (!targetEndTimeRef.current) return;
+        const remaining = Math.max(0, Math.ceil((targetEndTimeRef.current - Date.now()) / 1000));
+        setTimeLeft(remaining);
+
+        if (remaining <= 0) {
+          playNotificationSound();
+          if (mode === 'focus') {
+            handleLogSession(focusDuration);
+            setMode('break');
+            const nextSecs = breakDuration * 60;
+            setTimeLeft(nextSecs);
+            targetEndTimeRef.current = Date.now() + nextSecs * 1000;
+          } else {
+            setMode('focus');
+            const nextSecs = focusDuration * 60;
+            setTimeLeft(nextSecs);
+            targetEndTimeRef.current = Date.now() + nextSecs * 1000;
+          }
+        }
+      }, 250);
+    } else {
+      targetEndTimeRef.current = null;
     }
 
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, mode, focusDuration, breakDuration]);
+  }, [isActive, mode, focusDuration, breakDuration, timeLeft]);
 
-  const toggleTimer = () => setIsActive(!isActive);
+  const toggleTimer = () => {
+    if (!isActive) {
+      targetEndTimeRef.current = Date.now() + timeLeft * 1000;
+      setIsActive(true);
+    } else {
+      targetEndTimeRef.current = null;
+      setIsActive(false);
+    }
+  };
 
   const resetTimer = () => {
     setIsActive(false);
+    targetEndTimeRef.current = null;
     setTimeLeft(mode === 'focus' ? focusDuration * 60 : breakDuration * 60);
   };
 
   const switchMode = (newMode: 'focus' | 'break') => {
     setIsActive(false);
+    targetEndTimeRef.current = null;
     setMode(newMode);
     setTimeLeft(newMode === 'focus' ? focusDuration * 60 : breakDuration * 60);
   };
@@ -69,27 +121,25 @@ export const Pomodoro = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleLogSession = async () => {
+  const handleLogSession = async (explicitMinutes?: number) => {
     if (!user || mode !== 'focus') return;
     
     setMessage(null);
-    const durationMinutes = Math.round((focusDuration * 60 - timeLeft) / 60);
+    const durationMinutes = explicitMinutes ?? Math.round((focusDuration * 60 - timeLeft) / 60);
     if (durationMinutes <= 0) return;
 
     try {
-      await addDoc(collection(db, 'users', user.uid, 'logs'), {
-        uid: user.uid,
-        rawText: `Pomodoro session: ${subject} - ${topic}`,
-        subject: subject.substring(0, 99) || 'General',
-        topic: topic.substring(0, 199) || 'Pomodoro Session',
+      await addLog({
+        rawText: `Pomodoro session: ${subject.trim() || 'General'} - ${topic.trim() || 'Focus Session'}`,
+        subject: (subject.trim() || 'General').substring(0, 99),
+        topic: (topic.trim() || 'Pomodoro Session').substring(0, 199),
         subtopic: '',
         durationMinutes,
         problemsSolved: 0,
         mistakes: [],
-        efficiencyScore: 7,
-        focusScore: 8,
-        date: new Date().toISOString().split('T')[0],
-        createdAt: serverTimestamp()
+        efficiencyScore: 8,
+        focusScore: 9,
+        date: format(new Date(), 'yyyy-MM-dd')
       });
       setMessage({ type: 'success', text: 'Session logged successfully!' });
       setTimeout(() => setMessage(null), 3000);
@@ -229,7 +279,7 @@ export const Pomodoro = () => {
                 )}
                 {!isActive && timeLeft < focusDuration * 60 && (
                   <button
-                    onClick={handleLogSession}
+                    onClick={() => handleLogSession()}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg transition-colors"
                   >
                     <Save className="w-4 h-4" />

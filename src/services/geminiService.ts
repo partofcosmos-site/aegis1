@@ -1,12 +1,22 @@
 import { GoogleGenAI, Type, ThinkingLevel, FunctionDeclaration } from '@google/genai';
+import { AIVaultService } from './aiVaultService';
 
-const apiKey = 
-  (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-  (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
-  "MISSING_API_KEY";
-const ai = new GoogleGenAI({ apiKey });
+const getApiKey = () => {
+  const envKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
+    (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY);
+  if (envKey && envKey !== 'MISSING_API_KEY') return String(envKey).trim();
+  
+  try {
+    const googleProv = AIVaultService.getProviders().find(p => p.providerType === 'google' && p.apiKey?.trim());
+    if (googleProv && googleProv.apiKey?.trim()) return googleProv.apiKey.trim();
+  } catch {}
+  return "MISSING_API_KEY";
+};
 
-export const getGeminiInstance = () => ai;
+export const getGeminiInstance = () => {
+  const apiKey = getApiKey();
+  return new GoogleGenAI({ apiKey });
+};
 
 export const logStudySessionTool: FunctionDeclaration = {
   name: "logStudySession",
@@ -33,7 +43,7 @@ export const navigateAppTool: FunctionDeclaration = {
   parameters: {
     type: Type.OBJECT,
     properties: {
-      tab: { type: Type.STRING, enum: ['dashboard', 'analytics', 'chat'] }
+      tab: { type: Type.STRING, enum: ['dashboard', 'analytics', 'chat', 'flashcards', 'journal', 'goals', 'pomodoro', 'settings'] }
     },
     required: ["tab"]
   }
@@ -51,6 +61,7 @@ export interface ParsedLog {
 }
 
 export const parseStudyLog = async (rawText: string): Promise<ParsedLog> => {
+  const ai = getGeminiInstance();
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-flash-lite-preview',
     contents: `Parse the following study log into structured data. Extract subject, topic, subtopic, duration in minutes, problems solved, mistakes made, and infer an efficiency score (1-10) and focus score (1-10) based on the sentiment and output.
@@ -82,18 +93,17 @@ export const parseStudyLog = async (rawText: string): Promise<ParsedLog> => {
 
   const text = response.text;
   if (!text) throw new Error("Failed to parse log");
-  const parsed = JSON.parse(text) as ParsedLog;
+  const parsed = JSON.parse(text) as Partial<ParsedLog>;
   
   return {
-    ...parsed,
-    subject: (parsed.subject || 'General').substring(0, 99),
-    topic: (parsed.topic || '').substring(0, 199),
-    subtopic: (parsed.subtopic || '').substring(0, 199),
-    durationMinutes: parsed.durationMinutes || 0,
-    problemsSolved: parsed.problemsSolved || 0,
-    mistakes: (parsed.mistakes || []).slice(0, 50).map(m => m.substring(0, 200)),
-    efficiencyScore: parsed.efficiencyScore || 5,
-    focusScore: parsed.focusScore || 5
+    subject: (parsed.subject || 'General').substring(0, 99).trim() || 'General',
+    topic: (parsed.topic || '').substring(0, 199).trim(),
+    subtopic: (parsed.subtopic || '').substring(0, 199).trim(),
+    durationMinutes: Math.max(0, Math.round(Number(parsed.durationMinutes))) || 0,
+    problemsSolved: Math.max(0, Math.round(Number(parsed.problemsSolved))) || 0,
+    mistakes: Array.isArray(parsed.mistakes) ? parsed.mistakes.slice(0, 50).map(m => String(m).substring(0, 200)) : [],
+    efficiencyScore: Math.min(10, Math.max(1, Math.round(Number(parsed.efficiencyScore)))) || 5,
+    focusScore: Math.min(10, Math.max(1, Math.round(Number(parsed.focusScore)))) || 5
   };
 };
 
@@ -108,6 +118,7 @@ export interface DailyInsightData {
 }
 
 export const generateDailyInsights = async (logs: any[], constraints: any): Promise<DailyInsightData> => {
+  const ai = getGeminiInstance();
   const prompt = `Analyze the following study logs for the day and the user's constraints.
   
   Constraints:
@@ -165,6 +176,7 @@ export interface AIFlashcard {
 }
 
 export const generateFlashcardsWithAI = async (prompt: string, imageBase64?: string, mimeType?: string): Promise<AIFlashcard[]> => {
+  const ai = getGeminiInstance();
   const parts: any[] = [{ text: `Generate a comprehensive set of flashcards (aim for 10-20 cards if possible) based on the following request. 
   
   CRITICAL INSTRUCTIONS:
@@ -212,6 +224,7 @@ export const generateFlashcardsWithAI = async (prompt: string, imageBase64?: str
 };
 
 export const createChatSession = (logs: any[], insights: any[]) => {
+  const ai = getGeminiInstance();
   const context = `
   User's recent logs (last 10):
   ${JSON.stringify(logs.slice(0, 10), null, 2)}
@@ -228,6 +241,7 @@ export const createChatSession = (logs: any[], insights: any[]) => {
       
       You have access to the user's recent study logs and daily insights. Use this data to provide personalized, context-aware advice. If the user points out an error in your previous analysis or parsing, acknowledge it, note the correction, and adjust your advice accordingly.
       
+      Logs and Context:
       ${context}`
     }
   });

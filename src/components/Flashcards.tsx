@@ -25,20 +25,52 @@ interface Flashcard {
   svgDiagram?: string;
 }
 
+// Helper to sanitize SVG XML to prevent XSS
+export const sanitizeSvg = (svg?: string): string => {
+  if (!svg || typeof svg !== 'string') return '';
+  const trimmed = svg.trim();
+  if (!trimmed.toLowerCase().includes('<svg')) return '';
+  // Strip script tags
+  let clean = trimmed.replace(/<script[\s\S]*?<\/script>/gi, '');
+  // Strip inline event handlers
+  clean = clean.replace(/\s+on\w+\s*=\s*(["'])[\s\S]*?\1/gi, '');
+  clean = clean.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, '');
+  // Strip javascript: URLs
+  clean = clean.replace(/(?:href|xlink:href)\s*=\s*(["'])javascript:[\s\S]*?\1/gi, '');
+  return clean;
+};
+
 // Helper to fix LaTeX delimiters and parse Anki cloze deletions
-const formatCardText = (text: string) => {
-  if (!text) return '';
-  return text
-    .replace(/\\\\?\(\s*/g, () => '$')
-    .replace(/\s*\\\\?\)/g, () => '$')
-    .replace(/\\\\?\[\s*/g, () => '\n$$\n')
-    .replace(/\s*\\\\?\]/g, () => '\n$$\n')
-    .replace(/{{c\d+::(.*?)(?:::.*?)?}}/g, '<span class="text-indigo-400 font-bold bg-indigo-500/10 px-1 rounded">$1</span>');
+export const formatCardText = (text: string, isBackOrReviewAnswer = true) => {
+  if (!text || typeof text !== 'string') return '';
+  let formatted = text
+    // Replace LaTeX inline \( ... \) with $...$
+    .replace(/\\\\\(\s*/g, '$')
+    .replace(/\\\(\s*/g, '$')
+    .replace(/\s*\\\\\)/g, '$')
+    .replace(/\s*\\\)/g, '$')
+    // Replace LaTeX block \[ ... \] with \n$$\n (ensure we do NOT match raw markdown brackets `[`)
+    .replace(/\\\\\[\s*/g, '\n$$\n')
+    .replace(/\\\[\s*/g, '\n$$\n')
+    .replace(/\s*\\\\\]/g, '\n$$\n')
+    .replace(/\s*\\\]/g, '\n$$\n');
+
+  // Cloze deletion parsing: {{c1::answer::hint}} or {{c1::answer}}
+  if (isBackOrReviewAnswer) {
+    formatted = formatted.replace(/{{c\d+::((?:(?!}}).)*?)(?:::(?:(?!}}).)*?)?}}/g, '<span class="text-indigo-400 font-bold bg-indigo-500/10 px-1.5 py-0.5 rounded">$1</span>');
+  } else {
+    formatted = formatted.replace(/{{c\d+::(?:(?:(?!}}).)*?)(?:::((?:(?!}}).)*?))?}}/g, (_match, hint) => {
+      return `<span class="text-indigo-400 font-semibold bg-indigo-500/20 px-2 py-0.5 rounded">[${hint ? hint.trim() : '...'}]</span>`;
+    });
+  }
+  return formatted;
 };
 
 const FlashcardListItem = ({ card, onEdit, onDelete }: { card: Flashcard, onEdit: (card: Flashcard) => void, onDelete: (id: string) => void }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const isDue = card.nextReview <= new Date().toISOString();
+
+  const safeSvg = sanitizeSvg(card.svgDiagram);
 
   return (
     <div 
@@ -69,12 +101,12 @@ const FlashcardListItem = ({ card, onEdit, onDelete }: { card: Flashcard, onEdit
             p: ({node, ...props}) => <p {...props} className="break-words" />
           }}
         >
-          {formatCardText(isFlipped ? card.back : card.front)}
+          {formatCardText(isFlipped ? card.back : card.front, isFlipped)}
         </Markdown>
-        {isFlipped && card.svgDiagram && (
+        {isFlipped && safeSvg && (
           <div 
             className="mt-4 w-full flex justify-center bg-zinc-800/50 rounded-lg p-2"
-            dangerouslySetInnerHTML={{ __html: card.svgDiagram }}
+            dangerouslySetInnerHTML={{ __html: safeSvg }}
           />
         )}
       </div>
@@ -89,7 +121,7 @@ const FlashcardListItem = ({ card, onEdit, onDelete }: { card: Flashcard, onEdit
 };
 
 export const Flashcards = () => {
-  const { user } = useAppContext();
+  const { user, isGuest } = useAppContext();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [decks, setDecks] = useState<string[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<string | null>(null);
@@ -121,10 +153,24 @@ export const Flashcards = () => {
     if (user) {
       loadFlashcards();
     }
-  }, [user]);
+  }, [user, isGuest]);
 
   const loadFlashcards = async () => {
     if (!user) return;
+    if (isGuest) {
+      try {
+        const raw = localStorage.getItem('savantix_guest_flashcards');
+        const cards = raw ? JSON.parse(raw) : [];
+        setFlashcards(cards);
+        const uniqueDecks = Array.from(new Set(cards.map((c: Flashcard) => c.deck))).filter(Boolean) as string[];
+        setDecks(uniqueDecks);
+      } catch {
+        setFlashcards([]);
+        setDecks([]);
+      }
+      return;
+    }
+
     try {
       const q = query(collection(db, 'users', user.uid, 'flashcards'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
@@ -134,7 +180,7 @@ export const Flashcards = () => {
       const uniqueDecks = Array.from(new Set(cards.map(c => c.deck))).filter(Boolean);
       setDecks(uniqueDecks);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, 'flashcards');
+      console.error("Failed to load flashcards:", error);
     }
   };
 
@@ -142,16 +188,33 @@ export const Flashcards = () => {
     e.preventDefault();
     if (!user || !front.trim() || !back.trim() || !deck.trim()) return;
 
+    const newCard: Flashcard = {
+      id: 'fc_' + Date.now(),
+      front: front.trim().substring(0, 499),
+      back: back.trim().substring(0, 1999),
+      deck: deck.trim().substring(0, 99),
+      nextReview: new Date().toISOString(),
+      interval: 0,
+      easeFactor: 2.5,
+      repetitions: 0
+    };
+
+    if (isGuest) {
+      const updated = [newCard, ...flashcards];
+      setFlashcards(updated);
+      localStorage.setItem('savantix_guest_flashcards', JSON.stringify(updated));
+      const uniqueDecks = Array.from(new Set(updated.map(c => c.deck))).filter(Boolean);
+      setDecks(uniqueDecks);
+      setFront('');
+      setBack('');
+      setIsCreating(false);
+      return;
+    }
+
     try {
       await addDoc(collection(db, 'users', user.uid, 'flashcards'), {
         uid: user.uid,
-        front: front.trim().substring(0, 499),
-        back: back.trim().substring(0, 1999),
-        deck: deck.trim().substring(0, 99),
-        nextReview: new Date().toISOString(),
-        interval: 0,
-        easeFactor: 2.5,
-        repetitions: 0,
+        ...newCard,
         createdAt: serverTimestamp()
       });
       
@@ -182,19 +245,11 @@ export const Flashcards = () => {
 
     setIsAIGenerating(true);
     try {
-      let base64Data: string | undefined;
-      let mimeType: string | undefined;
-
-      if (aiImage) {
-        mimeType = aiImage.type;
-        base64Data = aiImagePreview?.split(',')[1];
-      }
-
       const generatedCards = await UniversalAIService.generateFlashcardsWithAI(aiPrompt);
       
-      const batchPromises = generatedCards.map(card => {
-        const cardData: any = {
-          uid: user.uid,
+      if (isGuest) {
+        const newFlashcards: Flashcard[] = generatedCards.map((card, idx) => ({
+          id: `fc_gen_${Date.now()}_${idx}`,
           front: card.front.substring(0, 499),
           back: card.back.substring(0, 1999),
           deck: card.deck.substring(0, 99),
@@ -202,26 +257,45 @@ export const Flashcards = () => {
           interval: 0,
           easeFactor: 2.5,
           repetitions: 0,
-          createdAt: serverTimestamp()
-        };
-        if (card.svgDiagram) {
-          cardData.svgDiagram = card.svgDiagram;
-        }
-        return addDoc(collection(db, 'users', user.uid, 'flashcards'), cardData);
-      });
+          svgDiagram: sanitizeSvg(card.svgDiagram)
+        }));
+        const updated = [...newFlashcards, ...flashcards];
+        setFlashcards(updated);
+        localStorage.setItem('savantix_guest_flashcards', JSON.stringify(updated));
+        const uniqueDecks = Array.from(new Set(updated.map(c => c.deck))).filter(Boolean);
+        setDecks(uniqueDecks);
+      } else {
+        const batchPromises = generatedCards.map(card => {
+          const cardData: any = {
+            uid: user.uid,
+            front: card.front.substring(0, 499),
+            back: card.back.substring(0, 1999),
+            deck: card.deck.substring(0, 99),
+            nextReview: new Date().toISOString(),
+            interval: 0,
+            easeFactor: 2.5,
+            repetitions: 0,
+            createdAt: serverTimestamp()
+          };
+          if (card.svgDiagram) {
+            cardData.svgDiagram = sanitizeSvg(card.svgDiagram);
+          }
+          return addDoc(collection(db, 'users', user.uid, 'flashcards'), cardData);
+        });
 
-      await Promise.all(batchPromises);
+        await Promise.all(batchPromises);
+        loadFlashcards();
+      }
       
       setShowAIModal(false);
       setAiPrompt('');
       setAiImage(null);
       setAiImagePreview(null);
-      loadFlashcards();
-      setMessage({ type: 'success', text: `Successfully generated flashcards!` });
+      setMessage({ type: 'success', text: `Successfully generated ${generatedCards.length} flashcards!` });
       setTimeout(() => setMessage(null), 5000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Generation Error:", error);
-      setMessage({ type: 'error', text: "Failed to generate flashcards. Please try again." });
+      setMessage({ type: 'error', text: error.message || "Failed to generate flashcards. Please try again." });
     } finally {
       setIsAIGenerating(false);
     }
@@ -230,15 +304,24 @@ export const Flashcards = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !editingCard) return;
+
+    const sanitizedSvg = sanitizeSvg(editingCard.svgDiagram);
+    const updateData: any = {
+      front: editingCard.front.trim().substring(0, 499),
+      back: editingCard.back.trim().substring(0, 1999),
+      deck: editingCard.deck.trim().substring(0, 99),
+      svgDiagram: sanitizedSvg || undefined
+    };
+
+    if (isGuest) {
+      const updated = flashcards.map(c => c.id === editingCard.id ? { ...c, ...updateData } : c);
+      setFlashcards(updated);
+      localStorage.setItem('savantix_guest_flashcards', JSON.stringify(updated));
+      setEditingCard(null);
+      return;
+    }
+
     try {
-      const updateData: any = {
-        front: editingCard.front.trim().substring(0, 499),
-        back: editingCard.back.trim().substring(0, 1999),
-        deck: editingCard.deck.trim().substring(0, 99),
-      };
-      if (editingCard.svgDiagram) {
-        updateData.svgDiagram = editingCard.svgDiagram;
-      }
       await updateDoc(doc(db, 'users', user.uid, 'flashcards', editingCard.id), updateData);
       setEditingCard(null);
       loadFlashcards();
@@ -249,6 +332,15 @@ export const Flashcards = () => {
 
   const handleDelete = async (id: string) => {
     if (!user) return;
+    if (isGuest) {
+      const updated = flashcards.filter(c => c.id !== id);
+      setFlashcards(updated);
+      localStorage.setItem('savantix_guest_flashcards', JSON.stringify(updated));
+      setMessage({ type: 'success', text: "Flashcard deleted." });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'flashcards', id));
       loadFlashcards();
@@ -268,24 +360,19 @@ export const Flashcards = () => {
       const text = event.target?.result as string;
       if (!text) return;
 
-      // Detect separator (tab or comma)
       const isTabSeparated = text.includes('\t');
-      const separator = isTabSeparated ? '\t' : ',';
-      
       const lines = text.split('\n');
-      const newCards = [];
+      const newCards: any[] = [];
 
       for (const line of lines) {
         if (!line.trim()) continue;
         
-        // Basic CSV/TSV parsing (doesn't handle complex quotes perfectly, but good enough for basic Anki exports)
         let parts = [];
         if (isTabSeparated) {
-           parts = line.split('\t');
+          parts = line.split('\t');
         } else {
-           // Simple comma split that ignores commas inside quotes
-           const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-           parts = matches ? matches.map(m => m.replace(/^"|"$/g, '')) : line.split(',');
+          const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+          parts = matches ? matches.map(m => m.replace(/^"|"$/g, '')) : line.split(',');
         }
 
         if (parts.length >= 2) {
@@ -303,21 +390,39 @@ export const Flashcards = () => {
       }
 
       try {
-        const batchPromises = newCards.map(card => 
-          addDoc(collection(db, 'users', user.uid, 'flashcards'), {
-            uid: user.uid,
+        if (isGuest) {
+          const importedFlashcards: Flashcard[] = newCards.map((card, idx) => ({
+            id: `fc_imp_${Date.now()}_${idx}`,
             front: card.front.substring(0, 499),
             back: card.back.substring(0, 1999),
             deck: card.deck.substring(0, 99),
             nextReview: new Date().toISOString(),
             interval: 0,
             easeFactor: 2.5,
-            repetitions: 0,
-            createdAt: serverTimestamp()
-          })
-        );
-        await Promise.all(batchPromises);
-        loadFlashcards();
+            repetitions: 0
+          }));
+          const updated = [...importedFlashcards, ...flashcards];
+          setFlashcards(updated);
+          localStorage.setItem('savantix_guest_flashcards', JSON.stringify(updated));
+          const uniqueDecks = Array.from(new Set(updated.map(c => c.deck))).filter(Boolean);
+          setDecks(uniqueDecks);
+        } else {
+          const batchPromises = newCards.map(card => 
+            addDoc(collection(db, 'users', user.uid, 'flashcards'), {
+              uid: user.uid,
+              front: card.front.substring(0, 499),
+              back: card.back.substring(0, 1999),
+              deck: card.deck.substring(0, 99),
+              nextReview: new Date().toISOString(),
+              interval: 0,
+              easeFactor: 2.5,
+              repetitions: 0,
+              createdAt: serverTimestamp()
+            })
+          );
+          await Promise.all(batchPromises);
+          loadFlashcards();
+        }
         setMessage({ type: 'success', text: `Successfully imported ${newCards.length} flashcards!` });
         setTimeout(() => setMessage(null), 5000);
       } catch (error) {
@@ -326,7 +431,6 @@ export const Flashcards = () => {
       }
     };
     reader.readAsText(file);
-    // Reset input
     e.target.value = '';
   };
 
@@ -358,7 +462,9 @@ export const Flashcards = () => {
     if (!user) return;
     
     const card = studyCards[currentCardIndex];
-    let { interval, easeFactor, repetitions } = card;
+    let interval = Number(card.interval) || 0;
+    let easeFactor = Number(card.easeFactor) || 2.5;
+    let repetitions = Number(card.repetitions) || 0;
 
     // SuperMemo-2 Algorithm
     if (quality >= 3) {
@@ -367,7 +473,7 @@ export const Flashcards = () => {
       } else if (repetitions === 1) {
         interval = 6;
       } else {
-        interval = Math.round(interval * easeFactor);
+        interval = Math.max(1, Math.round(interval * easeFactor));
       }
       repetitions += 1;
     } else {
@@ -376,18 +482,30 @@ export const Flashcards = () => {
     }
 
     easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-    if (easeFactor < 1.3) easeFactor = 1.3;
+    easeFactor = Math.max(1.3, Math.min(3.0, Number(easeFactor.toFixed(3))));
 
     const nextReviewDate = new Date();
     nextReviewDate.setDate(nextReviewDate.getDate() + interval);
 
     try {
-      await updateDoc(doc(db, 'users', user.uid, 'flashcards', card.id), {
-        interval,
-        easeFactor,
-        repetitions,
-        nextReview: nextReviewDate.toISOString()
-      });
+      if (isGuest) {
+        const updated = flashcards.map(c => c.id === card.id ? {
+          ...c,
+          interval,
+          easeFactor,
+          repetitions,
+          nextReview: nextReviewDate.toISOString()
+        } : c);
+        setFlashcards(updated);
+        localStorage.setItem('savantix_guest_flashcards', JSON.stringify(updated));
+      } else {
+        await updateDoc(doc(db, 'users', user.uid, 'flashcards', card.id), {
+          interval,
+          easeFactor,
+          repetitions,
+          nextReview: nextReviewDate.toISOString()
+        });
+      }
 
       setCurrentCardIndex(prev => {
         if (prev < studyCards.length - 1) {
@@ -395,14 +513,13 @@ export const Flashcards = () => {
           return prev + 1;
         } else {
           setIsStudying(false);
-          loadFlashcards(); // Reload to update due counts
+          loadFlashcards();
           return prev;
         }
       });
     } catch (error) {
       console.error("Review Error:", error);
       setMessage({ type: 'error', text: `Failed to save review: ${error instanceof Error ? error.message : String(error)}` });
-      handleFirestoreError(error, OperationType.UPDATE, `flashcards/${card.id}`);
     }
   };
 
@@ -425,16 +542,6 @@ export const Flashcards = () => {
         </div>
       );
     }
-
-    // Helper to fix LaTeX delimiters for remark-math
-    const formatMath = (text: string) => {
-      if (!text) return '';
-      return text
-        .replace(/\\\\?\(\s*/g, '$')
-        .replace(/\s*\\\\?\)/g, '$')
-        .replace(/\\\\?\[\s*/g, '$$')
-        .replace(/\s*\\\\?\]/g, '$$');
-    };
 
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 bg-zinc-950">
@@ -463,7 +570,7 @@ export const Flashcards = () => {
                       p: ({node, ...props}) => <p {...props} className="break-words" />
                     }}
                   >
-                    {formatCardText(currentCard.front)}
+                    {formatCardText(currentCard.front, false)}
                   </Markdown>
                 </div>
               </div>
@@ -479,12 +586,12 @@ export const Flashcards = () => {
                       p: ({node, ...props}) => <p {...props} className="break-words" />
                     }}
                   >
-                    {formatCardText(currentCard.back)}
+                    {formatCardText(currentCard.back, true)}
                   </Markdown>
                   {currentCard.svgDiagram && (
                     <div 
                       className="mt-6 w-full flex justify-center bg-zinc-900/50 rounded-xl p-4"
-                      dangerouslySetInnerHTML={{ __html: currentCard.svgDiagram }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeSvg(currentCard.svgDiagram) }}
                     />
                   )}
                 </div>

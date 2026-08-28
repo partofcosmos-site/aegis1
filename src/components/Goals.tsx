@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Plus, Trash2, CheckCircle2, Circle } from 'lucide-react';
 
 export const Goals = () => {
-  const { user, goals } = useAppContext();
+  const { user, goals, addGoal, updateGoal, deleteGoal } = useAppContext();
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -15,13 +13,11 @@ export const Goals = () => {
     if (!user || !title.trim()) return;
 
     try {
-      await addDoc(collection(db, 'users', user.uid, 'goals'), {
-        uid: user.uid,
-        title: title.substring(0, 199),
-        description: description.substring(0, 999),
-        targetDate: targetDate.trim() || "",
-        completed: false,
-        createdAt: serverTimestamp()
+      await addGoal({
+        title: title.trim().substring(0, 199),
+        description: description.trim().substring(0, 999),
+        targetDate: targetDate.trim() || null,
+        completed: false
       });
       setIsAdding(false);
       setTitle('');
@@ -33,9 +29,8 @@ export const Goals = () => {
   };
 
   const toggleComplete = async (goal: any) => {
-    if (!user) return;
     try {
-      await updateDoc(doc(db, 'users', user.uid, 'goals', goal.id), {
+      await updateGoal(goal.id, {
         completed: !goal.completed
       });
     } catch (error) {
@@ -44,9 +39,8 @@ export const Goals = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!user) return;
     try {
-      await deleteDoc(doc(db, 'users', user.uid, 'goals', id));
+      await deleteGoal(id);
     } catch (error) {
       console.error('Error deleting goal:', error);
     }

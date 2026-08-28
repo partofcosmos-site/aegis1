@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { UniversalAIService } from '../services/universalAIService';
-import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
 import { Brain, AlertTriangle, Target, TrendingUp, Zap, Loader2 } from 'lucide-react';
 
 export const InsightsPanel = ({ selectedDate }: { selectedDate: string }) => {
-  const { user, profile, logs, insights } = useAppContext();
+  const { user, profile, logs, insights, addInsight } = useAppContext();
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -24,16 +23,14 @@ export const InsightsPanel = ({ selectedDate }: { selectedDate: string }) => {
       };
       const insightData = await UniversalAIService.generateDailyInsights(todayLogs, constraints);
       
-      const insightsRef = collection(db, 'users', user.uid, 'daily_insights');
-      await addDoc(insightsRef, {
-        uid: user.uid,
-        date: selectedDate || new Date().toISOString().split('T')[0],
-        ...insightData,
-        createdAt: serverTimestamp()
+      const effectiveDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
+      await addInsight({
+        date: effectiveDate,
+        ...insightData
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to generate insights", error);
-      setErrorMsg("Failed to generate insights. Please try again.");
+      setErrorMsg(error.message || "Failed to generate insights. Please try again.");
     } finally {
       setIsGenerating(false);
     }

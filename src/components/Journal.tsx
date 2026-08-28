@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { format } from 'date-fns';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 
 export const Journal = () => {
-  const { user, journalEntries } = useAppContext();
+  const { user, journalEntries, addJournalEntry, updateJournalEntry, deleteJournalEntry } = useAppContext();
   const [isAdding, setIsAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -16,17 +15,15 @@ export const Journal = () => {
 
     try {
       if (editingId) {
-        await updateDoc(doc(db, 'users', user.uid, 'journal_entries', editingId), {
-          title: title.substring(0, 199),
-          content: content.substring(0, 9999),
+        await updateJournalEntry(editingId, {
+          title: title.trim().substring(0, 199),
+          content: content.trim().substring(0, 9999),
         });
       } else {
-        await addDoc(collection(db, 'users', user.uid, 'journal_entries'), {
-          uid: user.uid,
-          title: title.substring(0, 199),
-          content: content.substring(0, 9999),
-          date: new Date().toISOString().split('T')[0],
-          createdAt: serverTimestamp()
+        await addJournalEntry({
+          title: title.trim().substring(0, 199),
+          content: content.trim().substring(0, 9999),
+          date: format(new Date(), 'yyyy-MM-dd')
         });
       }
       setIsAdding(false);
@@ -46,9 +43,8 @@ export const Journal = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!user) return;
     try {
-      await deleteDoc(doc(db, 'users', user.uid, 'journal_entries', id));
+      await deleteJournalEntry(id);
     } catch (error) {
       console.error('Error deleting journal entry:', error);
     }
