@@ -303,7 +303,7 @@ export const ConceptGraph: React.FC = () => {
 
   // Storage key based on user or guest
   const storageKey = useMemo(() => {
-    return `savantix_concept_graph_${user?.uid || 'guest'}`;
+    return `savantix_concept_graph_v2_${user?.uid || 'guest'}`;
   }, [user?.uid]);
 
   // Main Nodes State
