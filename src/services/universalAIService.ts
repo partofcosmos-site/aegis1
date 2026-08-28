@@ -771,12 +771,12 @@ Rules:
       };
       if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
       if (config.providerType === 'openrouter') {
-        headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://savantix.app';
-        headers['X-Title'] = 'Aegis Chat';
+        headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://savantix.vercel.app';
+        headers['X-Title'] = 'Savantix Chat';
       }
 
       const messages = [
-        { role: 'system', content: 'You are Aegis, an elite AI study and time-management advisor for serious competitive STEM students.' },
+        { role: 'system', content: 'You are Savantix, an elite AI study and decision-support advisor for serious competitive STEM students.' },
         ...history.map(h => ({ role: h.role === 'model' ? 'assistant' : h.role, content: h.content || '' })),
         { role: 'user', content: message }
       ];

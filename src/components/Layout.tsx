@@ -117,8 +117,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
                 {user?.displayName || 'Scholar'}
                 {isFounder && <Crown className="w-3 h-3 text-amber-400 fill-amber-400" />}
               </span>
-              <span className="text-[10px] text-zinc-500 truncate font-mono mt-0.5">{user?.email || 'Offline Guest'}</span>
-              {isFounder && <span className="text-[9px] text-amber-400 font-bold uppercase mt-1">👑 Bidu (Founder)</span>}
+              {isFounder && <span className="text-[9px] text-amber-400 font-bold uppercase mt-0.5">Founder</span>}
             </div>
             <button 
               onClick={logout}
