@@ -1,6 +1,6 @@
 # 🛡️ Savantix (Aegis) — Universal AI Study Optimization & Decision-Support System
 
-[![Vercel Deployment](https://img.shields.io/badge/Vercel-Live%20Deployment-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://aegis1-blond.vercel.app/)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Live%20Deployment-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://savantix.vercel.app/)
 [![React 19](https://img.shields.io/badge/React-19.0.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4.1-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Firebase](https://img.shields.io/badge/Firebase-Cloud%20Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
@@ -15,7 +15,7 @@ Keeping a physical study logbook or navigating complex productivity tools drains
 
 ## 🌐 Live Production Access
 
-* **Production URL:** [https://aegis1-blond.vercel.app/](https://aegis1-blond.vercel.app/)
+* **Production URL:** [https://savantix.vercel.app/](https://savantix.vercel.app/)
 * **GitHub Repository:** [https://github.com/partofcosmos-site/aegis1](https://github.com/partofcosmos-site/aegis1)
 * **Access Modes:**
   * **Google One-Tap Cloud Sync:** Instant synchronization across phone, tablet, and PC via Cloud Firestore.
