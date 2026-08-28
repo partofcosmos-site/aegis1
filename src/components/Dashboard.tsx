@@ -122,7 +122,7 @@ export const Dashboard = () => {
 
         {/* 52-Week Study Streak Heatmap */}
         <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
-          <StudyHeatmap logs={logs} />
+          <StudyHeatmap logs={logs} selectedDate={selectedDate} onSelectDate={handleDateChange} />
         </div>
 
         {/* Dynamic Exam Countdowns & Velocity Forecast */}
