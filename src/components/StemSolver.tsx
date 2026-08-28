@@ -85,6 +85,7 @@ export interface SolvedProblemItem {
   difficulty: Difficulty;
   problemStatement: string;
   solution: ProblemSolution;
+  canvasDrawing?: string;
 }
 
 // --------------------------------------------------------------------------
@@ -442,12 +443,25 @@ export const StemSolver: React.FC = () => {
     }
   }, []);
 
-  // Save current solution to history
+  // Save current solution to history (including canvas diagram if present)
   const saveToHistory = useCallback((sol: ProblemSolution) => {
     try {
       const raw = localStorage.getItem('savantix_solved_problems');
       const list: SolvedProblemItem[] = raw ? JSON.parse(raw) : [];
       const filtered = list.filter(item => item.id !== sol.id && item.problemStatement !== sol.problemStatement);
+      
+      let canvasDrawing: string | undefined = undefined;
+      const canvas = canvasRef.current;
+      if (canvas && canvas.width > 0 && canvas.height > 0) {
+        try {
+          canvasDrawing = canvas.toDataURL('image/png');
+        } catch {}
+      } else if (memoryCanvasRef.current && memoryCanvasRef.current.width > 0 && memoryCanvasRef.current.height > 0) {
+        try {
+          canvasDrawing = memoryCanvasRef.current.toDataURL('image/png');
+        } catch {}
+      }
+
       const newItem: SolvedProblemItem = {
         id: sol.id || `solved_${Date.now()}`,
         timestamp: new Date().toISOString(),
@@ -455,7 +469,8 @@ export const StemSolver: React.FC = () => {
         topic: sol.topic || 'Problem Solving',
         difficulty: sol.difficulty || 'JEE Advanced',
         problemStatement: sol.problemStatement,
-        solution: sol
+        solution: sol,
+        canvasDrawing
       };
       const updated = [newItem, ...filtered].slice(0, 50);
       localStorage.setItem('savantix_solved_problems', JSON.stringify(updated));
@@ -711,16 +726,32 @@ export const StemSolver: React.FC = () => {
     ctx.putImageData(nextImg, 0, 0);
   };
 
-  // Clear Canvas
-  const handleClearCanvas = () => {
+  // Clear Canvas & Memory Canvas Buffer Completely
+  const handleClearCanvas = useCallback(() => {
+    // 1. Clear offscreen memory canvas completely
+    if (memoryCanvasRef.current) {
+      const memCanvas = memoryCanvasRef.current;
+      const memCtx = memCanvas.getContext('2d');
+      if (memCtx && memCanvas.width > 0 && memCanvas.height > 0) {
+        memCtx.clearRect(0, 0, memCanvas.width, memCanvas.height);
+      }
+      memCanvas.width = 0;
+      memCanvas.height = 0;
+    }
+
+    // 2. Clear on-screen display canvas if mounted
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    pushCanvasState();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    drawBackgroundGrid(ctx, canvas.width, canvas.height, canvasGridStyle);
-  };
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        pushCanvasState();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        drawBackgroundGrid(ctx, canvas.width, canvas.height, canvasGridStyle);
+      }
+    }
+    setUndoStack([]);
+    setRedoStack([]);
+  }, [canvasGridStyle, drawBackgroundGrid]);
 
   // Download Scratchpad as PNG
   const handleDownloadScratchpad = () => {
@@ -1021,6 +1052,9 @@ You must return a valid JSON object matching this schema precisely:
   // Load Benchmark Problem
   const handleLoadBenchmark = (benchmark: ProblemSolution) => {
     setProblemText(benchmark.problemStatement);
+    if (textareaRef.current) {
+      textareaRef.current.value = benchmark.problemStatement;
+    }
     setSubject(benchmark.subject);
     setDifficulty(benchmark.difficulty);
     setSolution(benchmark);
@@ -1035,17 +1069,52 @@ You must return a valid JSON object matching this schema precisely:
   const handleLoadHistoryItem = (item: SolvedProblemItem) => {
     setSolution(item.solution);
     setProblemText(item.problemStatement);
+    if (textareaRef.current) {
+      textareaRef.current.value = item.problemStatement;
+    }
     setSubject(item.subject);
     setDifficulty(item.difficulty);
     setRevealedTier(4);
     setActiveView('solver');
     handleClearCanvas();
+
+    // If this saved problem had a sketch, restore it cleanly
+    if (item.canvasDrawing) {
+      const img = new Image();
+      img.onload = () => {
+        if (!memoryCanvasRef.current) {
+          memoryCanvasRef.current = document.createElement('canvas');
+        }
+        const memCanvas = memoryCanvasRef.current;
+        memCanvas.width = img.width;
+        memCanvas.height = img.height;
+        const memCtx = memCanvas.getContext('2d');
+        if (memCtx) {
+          memCtx.drawImage(img, 0, 0);
+        }
+
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            drawBackgroundGrid(ctx, canvas.width, canvas.height, canvasGridStyle);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+        }
+      };
+      img.src = item.canvasDrawing;
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Start Fresh / New Problem Workspace
   const handleStartFresh = () => {
     setProblemText('');
+    if (textareaRef.current) {
+      textareaRef.current.value = '';
+    }
     setSolution(null);
     setRevealedTier(1);
     handleClearCanvas();
