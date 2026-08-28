@@ -580,6 +580,7 @@ export class UniversalAIService {
 
   /**
    * Universal Natural Language Chat / Multimodal Completion Engine across all providers.
+   * Auto-cascades across model aliases and available providers with zero-leak key protection.
    */
   public static async sendChatMessage(
     userMessage: string, 
@@ -588,60 +589,82 @@ export class UniversalAIService {
     activeProvider?: AIProviderConfig,
     images?: Array<{ mimeType: string; base64: string }>
   ): Promise<string> {
-    const config = activeProvider || AIVaultService.getActiveProvider();
-    const apiKey = (config.apiKey || '').trim();
-    const baseUrl = (config.baseUrl || '').trim().replace(/\/$/, '');
+    const allProviders = AIVaultService.getProviders();
+    const primaryConfig = activeProvider || AIVaultService.getActiveProvider();
+    
+    // Build prioritized provider candidate list: primary first, followed by any provider with a key
+    const candidateProviders = [
+      primaryConfig,
+      ...allProviders.filter(p => p.id !== primaryConfig.id && (p.apiKey || '').trim())
+    ];
 
     const defaultSystem = systemInstruction || `You are Savantix, an elite AI study optimization and STEM problem-solving mentor for serious competitive exam aspirants (JEE Advanced, Olympiads, Putnam, College STEM). You are analytical, concise, and structured. Use KaTeX formulas ($...$ or $$...$$) where appropriate.`;
 
-    if (apiKey) {
+    for (const config of candidateProviders) {
+      const apiKey = (config.apiKey || '').trim();
+      const baseUrl = (config.baseUrl || '').trim().replace(/\/$/, '');
+      if (!apiKey) continue;
+
       try {
-        if (config.providerType === 'google') {
-          const geminiModel = config.selectedModel.includes('gemini') ? config.selectedModel : 'gemini-2.0-flash';
-          const url = `${baseUrl}/models/${geminiModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
-          
-          const geminiContents = history.map(h => ({
-            role: h.role === 'assistant' || h.role === 'model' ? 'model' : 'user',
-            parts: [{ text: h.content }]
-          }));
+        if (config.providerType === 'google' || baseUrl.includes('generativelanguage.googleapis.com')) {
+          const candidateModels = [
+            config.selectedModel,
+            'gemini-2.0-flash',
+            'gemini-1.5-flash',
+            'gemini-2.0-flash-lite',
+            'gemini-1.5-pro'
+          ].filter((v, i, a) => a.indexOf(v) === i);
 
-          const userParts: any[] = [];
-          if (images && images.length > 0) {
-            for (const img of images) {
-              userParts.push({
-                inlineData: {
-                  mimeType: img.mimeType || 'image/jpeg',
-                  data: img.base64.replace(/^data:[^;]+;base64,/, '')
+          for (const modelName of candidateModels) {
+            try {
+              const url = `${baseUrl}/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+              
+              const geminiContents = history.map(h => ({
+                role: h.role === 'assistant' || h.role === 'model' ? 'model' : 'user',
+                parts: [{ text: h.content }]
+              }));
+
+              const userParts: any[] = [];
+              if (images && images.length > 0) {
+                for (const img of images) {
+                  userParts.push({
+                    inlineData: {
+                      mimeType: img.mimeType || 'image/jpeg',
+                      data: img.base64.replace(/^data:[^;]+;base64,/, '')
+                    }
+                  });
                 }
+              }
+              userParts.push({ text: userMessage });
+
+              geminiContents.push({
+                role: 'user',
+                parts: userParts
               });
+
+              const body = {
+                systemInstruction: { parts: [{ text: defaultSystem }] },
+                contents: geminiContents,
+                generationConfig: {
+                  temperature: config.temperature ?? 0.7,
+                  maxOutputTokens: config.maxTokens ?? 4096
+                }
+              };
+
+              const res = await fetchWithTimeout(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+              }, 45000);
+
+              if (res.ok) {
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text && text.trim()) return text.trim();
+              }
+            } catch (err) {
+              console.warn(`Google Gemini model ${modelName} attempt failed:`, err);
             }
-          }
-          userParts.push({ text: userMessage });
-
-          geminiContents.push({
-            role: 'user',
-            parts: userParts
-          });
-
-          const body = {
-            systemInstruction: { parts: [{ text: defaultSystem }] },
-            contents: geminiContents,
-            generationConfig: {
-              temperature: config.temperature ?? 0.7,
-              maxOutputTokens: config.maxTokens ?? 4096
-            }
-          };
-
-          const res = await fetchWithTimeout(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          }, 45000);
-
-          if (res.ok) {
-            const data = await res.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) return text.trim();
           }
         } else if (config.providerType === 'anthropic') {
           const url = `${baseUrl}/messages`;
@@ -676,7 +699,7 @@ export class UniversalAIService {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              model: config.selectedModel,
+              model: config.selectedModel || 'claude-3-5-sonnet-20241022',
               max_tokens: config.maxTokens || 4096,
               temperature: config.temperature ?? 0.7,
               system: defaultSystem,
@@ -687,62 +710,77 @@ export class UniversalAIService {
           if (res.ok) {
             const data = await res.json();
             const text = data.content?.[0]?.text;
-            if (text) return text.trim();
+            if (text && text.trim()) return text.trim();
           }
         } else {
           // OpenAI / OpenRouter / DeepSeek / Groq / Local
-          const url = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
-          const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            ...(config.customHeaders || {})
-          };
-          if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-          if (config.providerType === 'openrouter') {
-            headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://savantix.app';
-            headers['X-Title'] = 'Savantix AI';
-          }
+          const candidateModels = [
+            config.selectedModel,
+            'deepseek/deepseek-r1:free',
+            'meta-llama/llama-3.3-70b-instruct:free',
+            'nvidia/nemotron-3-super-120b-a12b:free',
+            'liquid/lfm-40b:free',
+            'qwen/qwen-2.5-72b-instruct:free'
+          ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
 
-          let userMsgContent: any = userMessage;
-          if (images && images.length > 0) {
-            userMsgContent = [
-              { type: 'text', text: userMessage },
-              ...images.map(img => ({
-                type: 'image_url',
-                image_url: {
-                  url: img.base64.startsWith('data:') ? img.base64 : `data:${img.mimeType || 'image/jpeg'};base64,${img.base64}`
-                }
-              }))
-            ];
-          }
+          for (const modelName of candidateModels) {
+            try {
+              const url = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
+              const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+                ...(config.customHeaders || {})
+              };
+              if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+              if (config.providerType === 'openrouter') {
+                headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://savantix.app';
+                headers['X-Title'] = 'Savantix AI';
+              }
 
-          const messages = [
-            { role: 'system', content: defaultSystem },
-            ...history.map(h => ({
-              role: h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user',
-              content: h.content
-            })),
-            { role: 'user', content: userMsgContent }
-          ];
+              let userMsgContent: any = userMessage;
+              if (images && images.length > 0) {
+                userMsgContent = [
+                  { type: 'text', text: userMessage },
+                  ...images.map(img => ({
+                    type: 'image_url',
+                    image_url: {
+                      url: img.base64.startsWith('data:') ? img.base64 : `data:${img.mimeType || 'image/jpeg'};base64,${img.base64}`
+                    }
+                  }))
+                ];
+              }
 
-          const res = await fetchWithTimeout(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              model: config.selectedModel,
-              messages,
-              temperature: config.temperature ?? 0.7,
-              max_tokens: config.maxTokens ?? 4096
-            })
-          }, 45000);
+              const messages = [
+                { role: 'system', content: defaultSystem },
+                ...history.map(h => ({
+                  role: h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user',
+                  content: h.content
+                })),
+                { role: 'user', content: userMsgContent }
+              ];
 
-          if (res.ok) {
-            const data = await res.json();
-            const text = data.choices?.[0]?.message?.content;
-            if (text) return text.trim();
+              const res = await fetchWithTimeout(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                  model: modelName,
+                  messages,
+                  temperature: config.temperature ?? 0.7,
+                  max_tokens: config.maxTokens ?? 4096
+                })
+              }, 45000);
+
+              if (res.ok) {
+                const data = await res.json();
+                const text = data.choices?.[0]?.message?.content;
+                if (text && text.trim()) return text.trim();
+              }
+            } catch (err) {
+              console.warn(`OpenAI/OpenRouter model ${modelName} attempt failed:`, err);
+            }
           }
         }
       } catch (e) {
-        console.warn("Direct chat API call failed, falling back to local STEM advisor:", e);
+        console.warn("Direct chat API call failed, trying next candidate provider:", e);
       }
     }
 

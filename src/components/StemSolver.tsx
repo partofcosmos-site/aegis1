@@ -1026,7 +1026,29 @@ You must return a valid JSON object matching this schema precisely:
     setSolution(benchmark);
     setRevealedTier(4);
     setActiveView('solver');
+    handleClearCanvas();
     saveToHistory(benchmark);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Load Problem from Solved History
+  const handleLoadHistoryItem = (item: SolvedProblemItem) => {
+    setSolution(item.solution);
+    setProblemText(item.problemStatement);
+    setSubject(item.subject);
+    setDifficulty(item.difficulty);
+    setRevealedTier(4);
+    setActiveView('solver');
+    handleClearCanvas();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Start Fresh / New Problem Workspace
+  const handleStartFresh = () => {
+    setProblemText('');
+    setSolution(null);
+    setRevealedTier(1);
+    handleClearCanvas();
   };
 
   // Delete problem from history
@@ -1192,6 +1214,18 @@ You must return a valid JSON object matching this schema precisely:
                     <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
                     Load Sample Olympiad
                   </button>
+
+                  {(problemText || solution) && (
+                    <button
+                      type="button"
+                      onClick={handleStartFresh}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800/60 hover:bg-red-950/40 border border-zinc-700/60 text-zinc-300 hover:text-red-300 transition-colors"
+                      title="Clear workspace and start a clean problem"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Start Fresh
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -2144,14 +2178,7 @@ You must return a valid JSON object matching this schema precisely:
                   {filteredHistory.map(item => (
                     <div
                       key={item.id}
-                      onClick={() => {
-                        setSolution(item.solution);
-                        setProblemText(item.problemStatement);
-                        setSubject(item.subject);
-                        setDifficulty(item.difficulty);
-                        setRevealedTier(4);
-                        setActiveView('solver');
-                      }}
+                      onClick={() => handleLoadHistoryItem(item)}
                       className="bg-zinc-950/80 border border-zinc-800 hover:border-indigo-500/40 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer transition-all hover:bg-zinc-900/60 group"
                     >
                       <div className="space-y-1.5 flex-1">

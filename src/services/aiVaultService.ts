@@ -103,11 +103,32 @@ export class AIVaultService {
   public static getActiveProvider(): AIProviderConfig {
     const providers = this.getProviders();
     const activeId = localStorage.getItem(ACTIVE_PROVIDER_ID_KEY);
-    const found = providers.find(p => p.id === activeId) || providers.find(p => p.isDefault) || providers[0];
-    if (!found) {
-      throw new Error("No AI Provider configured. Please add an API key or custom endpoint in Settings.");
-    }
-    return found;
+    
+    // 1. Explicitly selected active provider if it has a non-empty key
+    const explicit = providers.find(p => p.id === activeId);
+    if (explicit && (explicit.apiKey || '').trim()) return explicit;
+
+    // 2. Default provider if it has a non-empty key
+    const defaultProv = providers.find(p => p.isDefault);
+    if (defaultProv && (defaultProv.apiKey || '').trim()) return defaultProv;
+
+    // 3. ANY provider with a configured non-empty API key
+    const withKey = providers.find(p => (p.apiKey || '').trim());
+    if (withKey) return withKey;
+
+    // 4. Fallback to explicit, default, or first
+    return explicit || defaultProv || providers[0] || {
+      id: 'prov_fallback',
+      name: 'Google Gemini (Free Tier)',
+      providerType: 'google',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      apiKey: '',
+      selectedModel: 'gemini-2.0-flash',
+      temperature: 0.2,
+      maxTokens: 4096,
+      isDefault: true,
+      createdAt: Date.now()
+    };
   }
 
   /**
