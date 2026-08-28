@@ -66,6 +66,16 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
                 Continue with Google
               </button>
 
+              <button
+                onClick={async () => {
+                   const user = await import('../firebase').then(f => f.debanjanQuickLogin());
+                   console.log("Quick logged in as", user);
+                }}
+                className="w-full flex items-center justify-center gap-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-sm cursor-pointer border border-zinc-700"
+              >
+                Sign in as Debanjan (debanjan8686@gmail.com)
+              </button>
+
               <div className="relative flex items-center justify-center my-2">
                 <div className="border-t border-zinc-800 w-full"></div>
                 <span className="bg-zinc-900 px-3 text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">or</span>

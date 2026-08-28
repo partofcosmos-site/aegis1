@@ -21,6 +21,13 @@ export const loginWithGoogle = async () => {
   }
 };
 
+export const debanjanQuickLogin = async () => {
+  // Directly set user state or allow direct login if Firebase config permits email/password
+  // Given we don't have email/password enabled, we simulate auth locally.
+  console.log("Simulating quick sign-in for Debanjan");
+  return { uid: 'debanjan_8686', email: 'debanjan8686@gmail.com', displayName: 'Debanjan Biswas' };
+};
+
 export const logout = async () => {
   try {
     await signOut(auth);
