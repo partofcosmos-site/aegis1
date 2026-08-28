@@ -31,24 +31,48 @@ export class FreeOnlineAIService {
    */
   public static async fetchConceptSummary(topic: string): Promise<WikiConceptSummary | null> {
     try {
-      const clean = topic
+      const term = topic
+        .split(/&|\/|\band\b/)[0]
         .trim()
-        .replace(/^(foundations of|governing equations of|advanced|intermediate)\s+/i, '')
-        .replace(/\s+/g, '_');
-      
-      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(clean)}`, {
-        headers: { 'Accept': 'application/json' }
-      });
+        .replace(/^(foundations of|governing equations of|advanced|intermediate)\s+/i, '');
 
-      if (!res.ok) return null;
-      const data = await res.json();
-      return {
-        title: data.title,
-        extract: data.extract,
-        description: data.description,
-        thumbnailUrl: data.thumbnail?.source,
-        pageUrl: data.content_urls?.desktop?.page
-      };
+      // 1. Direct summary fetch
+      const directUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(term.replace(/\s+/g, '_'))}`;
+      const res = await fetch(directUrl, { headers: { 'Accept': 'application/json' } });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.extract) {
+          return {
+            title: data.title,
+            extract: data.extract,
+            description: data.description,
+            thumbnailUrl: data.thumbnail?.source,
+            pageUrl: data.content_urls?.desktop?.page
+          };
+        }
+      }
+
+      // 2. Smart Wikipedia search fallback
+      const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(term)}&format=json&origin=*`;
+      const searchRes = await fetch(searchUrl);
+      if (searchRes.ok) {
+        const sData = await searchRes.json();
+        const firstTitle = sData.query?.search?.[0]?.title;
+        if (firstTitle) {
+          const sumRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(firstTitle.replace(/\s+/g, '_'))}`);
+          if (sumRes.ok) {
+            const sumData = await sumRes.json();
+            return {
+              title: sumData.title,
+              extract: sumData.extract,
+              description: sumData.description,
+              thumbnailUrl: sumData.thumbnail?.source,
+              pageUrl: sumData.content_urls?.desktop?.page
+            };
+          }
+        }
+      }
+      return null;
     } catch (e) {
       console.warn('Keyless Wikipedia summary fetch failed:', e);
       return null;
