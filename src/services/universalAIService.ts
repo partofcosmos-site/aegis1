@@ -444,9 +444,12 @@ export class UniversalAIService {
   /**
    * Universal Structured JSON Requester with Multi-Model Parallel Router consensus.
    */
+  /**
+   * Universal Structured JSON Requester with Multi-Model Parallel Router consensus.
+   */
   public static async executeJsonRequest<T>(
     prompt: string, 
-    schemaDescription: string, 
+    schemaDescription = "Valid JSON Array or Object", 
     activeProvider?: AIProviderConfig,
     useParallelConsensus = true
   ): Promise<T> {
@@ -475,35 +478,42 @@ export class UniversalAIService {
     const apiKey = (config.apiKey || '').trim();
     const baseUrl = (config.baseUrl || '').trim().replace(/\/$/, '');
 
-    if (config.providerType === 'google') {
-      const url = `${baseUrl}/models/${config.selectedModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const body: any = {
-        contents: [{ parts: [{ text: `${prompt}\n\nStrict requirement: Output strictly valid JSON matching this schema without any markdown wrapping or commentary:\n${schemaDescription}` }] }],
-        generationConfig: {
-          temperature: config.temperature ?? 0.2,
-          responseMimeType: 'application/json'
-        }
-      };
+    if (config.providerType === 'google' || baseUrl.includes('generativelanguage.googleapis.com')) {
+      const candidateModels = [
+        config.selectedModel,
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-2.0-flash-lite'
+      ].filter((v, i, a) => a.indexOf(v) === i);
 
-      const res = await fetchWithTimeout(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      }, 35000);
-
-      if (!res.ok) {
-        let errMessage = `Gemini API error ${res.status}`;
+      for (const modelName of candidateModels) {
         try {
-          const err = await res.json();
-          errMessage = err.error?.message || err.message || errMessage;
-        } catch {}
-        throw new Error(AIVaultService.scrubError(errMessage));
-      }
+          const url = `${baseUrl}/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          const body: any = {
+            contents: [{ parts: [{ text: `${prompt}\n\nStrict requirement: Output strictly valid JSON matching this schema without any markdown wrapping or commentary:\n${schemaDescription}` }] }],
+            generationConfig: {
+              temperature: config.temperature ?? 0.2,
+              responseMimeType: 'application/json'
+            }
+          };
 
-      const data = await res.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error("Empty response from Gemini API");
-      return extractJsonFromText<T>(text);
+          const res = await fetchWithTimeout(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }, 35000);
+
+          if (res.ok) {
+            const data = await res.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawText) {
+              return extractJsonFromText<T>(rawText);
+            }
+          }
+        } catch (mErr) {
+          console.warn(`Gemini model ${modelName} JSON request failed, trying next:`, mErr);
+        }
+      }
     } else if (config.providerType === 'anthropic') {
       const url = `${baseUrl}/messages`;
       const res = await fetchWithTimeout(url, {
