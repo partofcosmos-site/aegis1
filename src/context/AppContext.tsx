@@ -23,6 +23,7 @@ interface AppContextType {
   loading: boolean;
   isGuest: boolean;
   login: () => Promise<void>;
+  loginWithEmail: (email: string) => Promise<void>;
   continueAsGuest: () => void;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<UserProfile>) => Promise<void>;
@@ -75,6 +76,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Check if custom authenticated session was saved
+    const savedSession = localStorage.getItem('savantix_user_session');
+    if (savedSession) {
+      try {
+        const parsed = JSON.parse(savedSession);
+        setUser(parsed);
+        setProfile({
+          uid: parsed.uid,
+          email: parsed.email,
+          displayName: parsed.displayName,
+          schoolHours: 6,
+          targetExams: ['JEE Advanced 2026'],
+          createdAt: Date.now()
+        });
+        setIsGuest(false);
+        setLoading(false);
+        return;
+      } catch {}
+    }
+
     // Check if guest mode was previously selected
     const savedGuest = localStorage.getItem('savantix_is_guest');
     if (savedGuest === 'true') {
@@ -177,6 +198,49 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [user]);
 
+  const loginWithEmail = async (emailInput: string) => {
+    const cleanEmail = emailInput.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Please enter a valid email address.');
+    const uid = 'usr_' + btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
+    const namePart = cleanEmail.split('@')[0];
+    const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1).replace(/[._]/g, ' ');
+    const sessionUser = { uid, email: cleanEmail, displayName };
+    
+    localStorage.setItem('savantix_user_session', JSON.stringify(sessionUser));
+    localStorage.removeItem('savantix_is_guest');
+    setIsGuest(false);
+    setUser(sessionUser);
+    
+    try {
+      const profileRef = doc(db, 'users', uid);
+      const profileSnap = await getDoc(profileRef);
+      if (!profileSnap.exists()) {
+        const newProfile = {
+          uid,
+          email: cleanEmail,
+          displayName,
+          schoolHours: 6,
+          targetExams: ['JEE Advanced 2026'],
+          createdAt: serverTimestamp(),
+        };
+        await setDoc(profileRef, newProfile);
+        setProfile(newProfile as UserProfile);
+      } else {
+        setProfile(profileSnap.data() as UserProfile);
+      }
+    } catch (e) {
+      console.warn("Firestore profile init:", e);
+      setProfile({
+        uid,
+        email: cleanEmail,
+        displayName,
+        schoolHours: 6,
+        targetExams: ['JEE Advanced 2026'],
+        createdAt: Date.now()
+      });
+    }
+  };
+
   const continueAsGuest = () => {
     const guestUser = { uid: 'guest_user', email: 'guest@savantix.app', displayName: 'Guest Scholar' };
     setUser(guestUser);
@@ -194,19 +258,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleLogout = async () => {
-    if (isGuest) {
-      localStorage.removeItem('savantix_is_guest');
-      setIsGuest(false);
-      setUser(null);
-      setProfile(null);
-      setLogs([]);
-      setInsights([]);
-      setGoals([]);
-      setJournalEntries([]);
-      setChatSessions([]);
-    } else {
+    localStorage.removeItem('savantix_user_session');
+    localStorage.removeItem('savantix_is_guest');
+    setIsGuest(false);
+    setUser(null);
+    setProfile(null);
+    setLogs([]);
+    setInsights([]);
+    setGoals([]);
+    setJournalEntries([]);
+    setChatSessions([]);
+    try {
       await firebaseLogout();
-    }
+    } catch {}
   };
 
   const updateProfile = async (data: Partial<UserProfile>) => {
@@ -386,6 +450,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       loading,
       isGuest,
       login: loginWithGoogle,
+      loginWithEmail,
       continueAsGuest,
       logout: handleLogout,
       updateProfile,
