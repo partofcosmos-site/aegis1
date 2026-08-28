@@ -26,6 +26,16 @@ interface AppContextType {
   continueAsGuest: () => void;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<UserProfile>) => Promise<void>;
+  addLog: (log: any) => Promise<any>;
+  updateLog: (id: string, data: any) => Promise<void>;
+  deleteLog: (id: string) => Promise<void>;
+  addInsight: (insight: any) => Promise<any>;
+  addGoal: (goal: any) => Promise<any>;
+  updateGoal: (id: string, data: any) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
+  addJournalEntry: (entry: any) => Promise<any>;
+  updateJournalEntry: (id: string, data: any) => Promise<void>;
+  deleteJournalEntry: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -43,6 +53,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
 
+  const loadGuestData = () => {
+    try {
+      const gLogs = JSON.parse(localStorage.getItem(`${GUEST_STORAGE_PREFIX}logs`) || '[]');
+      const gInsights = JSON.parse(localStorage.getItem(`${GUEST_STORAGE_PREFIX}insights`) || '[]');
+      const gGoals = JSON.parse(localStorage.getItem(`${GUEST_STORAGE_PREFIX}goals`) || '[]');
+      const gJournal = JSON.parse(localStorage.getItem(`${GUEST_STORAGE_PREFIX}journal`) || '[]');
+      const gChat = JSON.parse(localStorage.getItem(`${GUEST_STORAGE_PREFIX}chat_sessions`) || '[]');
+      setLogs(gLogs);
+      setInsights(gInsights);
+      setGoals(gGoals);
+      setJournalEntries(gJournal);
+      setChatSessions(gChat);
+    } catch {
+      setLogs([]);
+      setInsights([]);
+      setGoals([]);
+      setJournalEntries([]);
+      setChatSessions([]);
+    }
+  };
+
   useEffect(() => {
     // Check if guest mode was previously selected
     const savedGuest = localStorage.getItem('savantix_is_guest');
@@ -58,6 +89,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         createdAt: Date.now()
       });
       setIsGuest(true);
+      loadGuestData();
       setLoading(false);
       return;
     }
@@ -76,6 +108,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               uid: currentUser.uid,
               email: currentUser.email || '',
               displayName: currentUser.displayName || '',
+              schoolHours: 6,
+              targetExams: ['JEE Advanced 2026'],
               createdAt: serverTimestamp(),
             };
             await setDoc(profileRef, newProfile);
@@ -156,6 +190,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
     setIsGuest(true);
     localStorage.setItem('savantix_is_guest', 'true');
+    loadGuestData();
   };
 
   const handleLogout = async () => {
@@ -164,6 +199,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setIsGuest(false);
       setUser(null);
       setProfile(null);
+      setLogs([]);
+      setInsights([]);
+      setGoals([]);
+      setJournalEntries([]);
+      setChatSessions([]);
     } else {
       await firebaseLogout();
     }
@@ -172,7 +212,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const updateProfile = async (data: Partial<UserProfile>) => {
     if (!user) return;
     if (isGuest) {
-      setProfile(prev => prev ? { ...prev, ...data } : null);
+      setProfile(prev => {
+        const next = prev ? { ...prev, ...data } : null;
+        if (next) localStorage.setItem(`${GUEST_STORAGE_PREFIX}profile`, JSON.stringify(next));
+        return next;
+      });
       return;
     }
     try {
@@ -181,6 +225,152 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setProfile(prev => prev ? { ...prev, ...data } : null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    }
+  };
+
+  // CRUD Helpers
+  const addLog = async (logData: any) => {
+    if (!user) return;
+    if (isGuest) {
+      const newLog = { id: 'log_' + Date.now(), createdAt: new Date().toISOString(), ...logData };
+      const updated = [newLog, ...logs];
+      setLogs(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}logs`, JSON.stringify(updated));
+      return newLog;
+    } else {
+      const logsRef = collection(db, 'users', user.uid, 'logs');
+      const docRef = await import('firebase/firestore').then(f => f.addDoc(logsRef, {
+        uid: user.uid,
+        ...logData,
+        createdAt: serverTimestamp()
+      }));
+      return docRef;
+    }
+  };
+
+  const updateLog = async (id: string, data: any) => {
+    if (!user) return;
+    if (isGuest) {
+      const updated = logs.map(l => l.id === id ? { ...l, ...data } : l);
+      setLogs(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}logs`, JSON.stringify(updated));
+    } else {
+      const logRef = doc(db, 'users', user.uid, 'logs', id);
+      await import('firebase/firestore').then(f => f.updateDoc(logRef, data));
+    }
+  };
+
+  const deleteLog = async (id: string) => {
+    if (!user) return;
+    if (isGuest) {
+      const updated = logs.filter(l => l.id !== id);
+      setLogs(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}logs`, JSON.stringify(updated));
+    } else {
+      const logRef = doc(db, 'users', user.uid, 'logs', id);
+      await import('firebase/firestore').then(f => f.deleteDoc(logRef));
+    }
+  };
+
+  const addInsight = async (insightData: any) => {
+    if (!user) return;
+    if (isGuest) {
+      const newInsight = { id: 'ins_' + Date.now(), createdAt: new Date().toISOString(), ...insightData };
+      const updated = [newInsight, ...insights.filter(i => i.date !== insightData.date)];
+      setInsights(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}insights`, JSON.stringify(updated));
+      return newInsight;
+    } else {
+      const ref = collection(db, 'users', user.uid, 'daily_insights');
+      return await import('firebase/firestore').then(f => f.addDoc(ref, {
+        uid: user.uid,
+        ...insightData,
+        createdAt: serverTimestamp()
+      }));
+    }
+  };
+
+  const addGoal = async (goalData: any) => {
+    if (!user) return;
+    if (isGuest) {
+      const newGoal = { id: 'goal_' + Date.now(), createdAt: new Date().toISOString(), ...goalData };
+      const updated = [newGoal, ...goals];
+      setGoals(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}goals`, JSON.stringify(updated));
+      return newGoal;
+    } else {
+      const ref = collection(db, 'users', user.uid, 'goals');
+      return await import('firebase/firestore').then(f => f.addDoc(ref, {
+        uid: user.uid,
+        ...goalData,
+        createdAt: serverTimestamp()
+      }));
+    }
+  };
+
+  const updateGoal = async (id: string, data: any) => {
+    if (!user) return;
+    if (isGuest) {
+      const updated = goals.map(g => g.id === id ? { ...g, ...data } : g);
+      setGoals(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}goals`, JSON.stringify(updated));
+    } else {
+      const ref = doc(db, 'users', user.uid, 'goals', id);
+      await import('firebase/firestore').then(f => f.updateDoc(ref, data));
+    }
+  };
+
+  const deleteGoal = async (id: string) => {
+    if (!user) return;
+    if (isGuest) {
+      const updated = goals.filter(g => g.id !== id);
+      setGoals(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}goals`, JSON.stringify(updated));
+    } else {
+      const ref = doc(db, 'users', user.uid, 'goals', id);
+      await import('firebase/firestore').then(f => f.deleteDoc(ref));
+    }
+  };
+
+  const addJournalEntry = async (entryData: any) => {
+    if (!user) return;
+    if (isGuest) {
+      const newEntry = { id: 'jour_' + Date.now(), createdAt: new Date().toISOString(), ...entryData };
+      const updated = [newEntry, ...journalEntries];
+      setJournalEntries(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}journal`, JSON.stringify(updated));
+      return newEntry;
+    } else {
+      const ref = collection(db, 'users', user.uid, 'journal_entries');
+      return await import('firebase/firestore').then(f => f.addDoc(ref, {
+        uid: user.uid,
+        ...entryData,
+        createdAt: serverTimestamp()
+      }));
+    }
+  };
+
+  const updateJournalEntry = async (id: string, data: any) => {
+    if (!user) return;
+    if (isGuest) {
+      const updated = journalEntries.map(j => j.id === id ? { ...j, ...data } : j);
+      setJournalEntries(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}journal`, JSON.stringify(updated));
+    } else {
+      const ref = doc(db, 'users', user.uid, 'journal_entries', id);
+      await import('firebase/firestore').then(f => f.updateDoc(ref, data));
+    }
+  };
+
+  const deleteJournalEntry = async (id: string) => {
+    if (!user) return;
+    if (isGuest) {
+      const updated = journalEntries.filter(j => j.id !== id);
+      setJournalEntries(updated);
+      localStorage.setItem(`${GUEST_STORAGE_PREFIX}journal`, JSON.stringify(updated));
+    } else {
+      const ref = doc(db, 'users', user.uid, 'journal_entries', id);
+      await import('firebase/firestore').then(f => f.deleteDoc(ref));
     }
   };
 
@@ -198,7 +388,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       login: loginWithGoogle,
       continueAsGuest,
       logout: handleLogout,
-      updateProfile
+      updateProfile,
+      addLog,
+      updateLog,
+      deleteLog,
+      addInsight,
+      addGoal,
+      updateGoal,
+      deleteGoal,
+      addJournalEntry,
+      updateJournalEntry,
+      deleteJournalEntry
     }}>
       {children}
     </AppContext.Provider>

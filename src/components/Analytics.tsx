@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid } from 'recharts';
-import { format, subDays, parseISO, eachDayOfInterval, startOfToday, endOfToday } from 'date-fns';
+import { format, parseISO, isValid, eachDayOfInterval, startOfToday, endOfToday } from 'date-fns';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#3b82f6'];
 
@@ -9,20 +9,41 @@ export const Analytics = () => {
   const { logs } = useAppContext();
 
   const analyticsData = useMemo(() => {
-    if (!logs.length) return null;
+    if (!logs || !logs.length) return null;
 
     // Calculate total time per subject
     const subjectTime: Record<string, number> = {};
     let totalMinutes = 0;
     let totalProblems = 0;
 
-    // Create a map of all dates with logs
-    const datesWithLogs = logs.map(log => log.date).filter(Boolean).sort();
-    const firstDate = datesWithLogs.length > 0 ? parseISO(datesWithLogs[0]) : startOfToday();
-    const lastDate = endOfToday();
+    // Validate and collect all log dates
+    const validDates = logs
+      .map(log => log.date)
+      .filter(d => typeof d === 'string' && d.trim() !== '')
+      .map(d => parseISO(d))
+      .filter(d => isValid(d));
 
-    // Generate all days from the first log to today
-    const allDays = eachDayOfInterval({ start: firstDate, end: lastDate });
+    const today = startOfToday();
+    let firstDate = today;
+    let lastDate = endOfToday();
+
+    if (validDates.length > 0) {
+      const minTimestamp = Math.min(...validDates.map(d => d.getTime()), today.getTime());
+      const maxTimestamp = Math.max(...validDates.map(d => d.getTime()), today.getTime());
+      firstDate = new Date(minTimestamp);
+      lastDate = new Date(maxTimestamp);
+    }
+
+    // Ensure interval start <= end
+    const safeStart = firstDate <= lastDate ? firstDate : lastDate;
+    const safeEnd = lastDate >= firstDate ? lastDate : firstDate;
+
+    let allDays: Date[] = [];
+    try {
+      allDays = eachDayOfInterval({ start: safeStart, end: safeEnd });
+    } catch {
+      allDays = [today];
+    }
     
     // Initialize daily data with 0
     const dailyDataMap: Record<string, number> = {};
@@ -31,11 +52,12 @@ export const Analytics = () => {
     });
 
     logs.forEach(log => {
-      const duration = log.durationMinutes || 0;
+      const duration = Math.max(0, Number(log.durationMinutes)) || 0;
+      const problems = Math.max(0, Number(log.problemsSolved)) || 0;
       totalMinutes += duration;
-      totalProblems += log.problemsSolved || 0;
+      totalProblems += problems;
 
-      const rawSubject = log.subject || 'Uncategorized';
+      const rawSubject = String(log.subject || 'Uncategorized');
       // Split by comma, 'and', or '&', then normalize casing
       const subjects = rawSubject.split(/,| and | & /i).map(s => s.trim()).filter(Boolean);
       
@@ -56,17 +78,22 @@ export const Analytics = () => {
     });
 
     const pieData = Object.entries(subjectTime)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ name, value: Math.round(value) }))
+      .filter(entry => entry.value > 0)
       .sort((a, b) => b.value - a.value);
 
     const timelineData = Object.entries(dailyDataMap)
-      .map(([date, minutes]) => ({
-        date: format(parseISO(date), 'MMM dd'),
-        minutes,
-        hours: (minutes / 60).toFixed(1)
-      }));
+      .map(([date, minutes]) => {
+        const parsed = parseISO(date);
+        return {
+          date: isValid(parsed) ? format(parsed, 'MMM dd') : date,
+          minutes,
+          hours: ((minutes || 0) / 60).toFixed(1)
+        };
+      });
 
     const formatTime = (mins: number) => {
+      if (isNaN(mins) || mins <= 0) return '0m';
       const h = Math.floor(mins / 60);
       const m = Math.round(mins % 60);
       if (h > 0 && m > 0) return `${h}h ${m}m`;
@@ -74,19 +101,21 @@ export const Analytics = () => {
       return `${m}m`;
     };
 
+    const avgDailyMinutes = allDays.length > 0 ? (totalMinutes / allDays.length) : totalMinutes;
+
     return {
       pieData,
       timelineData,
       totalFormatted: formatTime(totalMinutes),
       totalProblems,
-      avgDailyFormatted: formatTime(totalMinutes / Math.max(1, allDays.length))
+      avgDailyFormatted: formatTime(avgDailyMinutes)
     };
   }, [logs]);
 
-  if (!analyticsData) {
+  if (!analyticsData || (analyticsData.pieData.length === 0 && analyticsData.totalProblems === 0)) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-500">
-        No data available yet. Start logging your study sessions!
+      <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-500 p-6 text-center">
+        No study logs available yet. Start logging sessions to see your analytics!
       </div>
     );
   }
@@ -174,7 +203,13 @@ export const Analytics = () => {
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '0.5rem' }}
                     itemStyle={{ color: '#e4e4e7' }}
-                    formatter={(value: number) => [`${Math.round(value / 60)} hrs ${value % 60} mins`, 'Time']}
+                    formatter={(value: any) => {
+                      const num = Number(value) || 0;
+                      const h = Math.floor(num / 60);
+                      const m = Math.round(num % 60);
+                      const timeStr = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+                      return [timeStr, 'Time'];
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>

@@ -89,11 +89,11 @@ export const Settings = () => {
     const parsed = AIVaultService.parseSnippetToConfig(snippetText);
     const newConfig: AIProviderConfig = {
       id: 'prov_' + Date.now(),
-      name: parsed.name || 'Imported Custom Model',
+      name: (parsed.name || 'Imported Custom Model').trim(),
       providerType: 'openai-compatible',
-      baseUrl: parsed.baseUrl || 'https://api.openai.com/v1',
-      apiKey: parsed.apiKey || '',
-      selectedModel: parsed.selectedModel || 'custom-model',
+      baseUrl: (parsed.baseUrl || 'https://api.openai.com/v1').trim(),
+      apiKey: (parsed.apiKey || '').trim(),
+      selectedModel: (parsed.selectedModel || 'custom-model').trim(),
       temperature: 0.2,
       maxTokens: 4096,
       thinkingLevel: 'high',
@@ -106,16 +106,24 @@ export const Settings = () => {
   };
 
   const handleSaveProvider = (config: AIProviderConfig) => {
-    const index = providers.findIndex(p => p.id === config.id);
+    const cleanedConfig: AIProviderConfig = {
+      ...config,
+      name: (config.name || 'AI Provider').trim(),
+      baseUrl: (config.baseUrl || '').trim(),
+      apiKey: (config.apiKey || '').trim(),
+      selectedModel: (config.selectedModel || '').trim()
+    };
+
+    const index = providers.findIndex(p => p.id === cleanedConfig.id);
     let updated: AIProviderConfig[];
     if (index >= 0) {
       updated = [...providers];
-      updated[index] = config;
+      updated[index] = cleanedConfig;
     } else {
-      updated = [...providers, config];
+      updated = [...providers, cleanedConfig];
     }
-    if (config.isDefault) {
-      updated = updated.map(p => ({ ...p, isDefault: p.id === config.id }));
+    if (cleanedConfig.isDefault) {
+      updated = updated.map(p => ({ ...p, isDefault: p.id === cleanedConfig.id }));
     }
     AIVaultService.saveProviders(updated);
     setProviders(updated);

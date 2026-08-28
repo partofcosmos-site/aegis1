@@ -2,19 +2,17 @@ import React, { useState } from 'react';
 import { LogInput } from './LogInput';
 import { InsightsPanel } from './InsightsPanel';
 import { useAppContext } from '../context/AppContext';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { Clock, BookOpen, CheckCircle2, Edit2, Check, X, Trash2 } from 'lucide-react';
 
 export const Dashboard = () => {
-  const { user, logs } = useAppContext();
+  const { logs, updateLog, deleteLog } = useAppContext();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   
   const todayLogs = logs.filter(l => l.date === selectedDate);
 
-  const totalMinutes = todayLogs.reduce((acc, log) => acc + (log.durationMinutes || 0), 0);
-  const totalProblems = todayLogs.reduce((acc, log) => acc + (log.problemsSolved || 0), 0);
+  const totalMinutes = todayLogs.reduce((acc, log) => acc + (Math.max(0, Number(log.durationMinutes)) || 0), 0);
+  const totalProblems = todayLogs.reduce((acc, log) => acc + (Math.max(0, Number(log.problemsSolved)) || 0), 0);
   
   const subjects = Array.from(new Set(
     todayLogs.flatMap(l => (l.subject || 'Uncategorized').split(/,| and | & /i).map(s => {
@@ -26,40 +24,44 @@ export const Dashboard = () => {
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
 
+  const handleDateChange = (newDate: string) => {
+    setSelectedDate(newDate);
+    setEditingLogId(null);
+  };
+
   const handleEditClick = (log: any) => {
     setEditingLogId(log.id);
     setEditForm({
       subject: log.subject || '',
       topic: log.topic || '',
-      durationMinutes: log.durationMinutes || 0,
-      problemsSolved: log.problemsSolved || 0,
+      durationMinutes: Number(log.durationMinutes) || 0,
+      problemsSolved: Number(log.problemsSolved) || 0,
     });
   };
 
   const handleSaveEdit = async (logId: string) => {
-    if (!user) return;
     try {
-      const logRef = doc(db, 'users', user.uid, 'logs', logId);
-      await updateDoc(logRef, {
-        subject: (editForm.subject || 'General').substring(0, 99),
-        topic: (editForm.topic || '').substring(0, 199),
-        durationMinutes: Number(editForm.durationMinutes) || 0,
-        problemsSolved: Number(editForm.problemsSolved) || 0,
+      await updateLog(logId, {
+        subject: (editForm.subject || 'General').trim().substring(0, 99) || 'General',
+        topic: (editForm.topic || '').trim().substring(0, 199),
+        durationMinutes: Math.max(0, Math.round(Number(editForm.durationMinutes))) || 0,
+        problemsSolved: Math.max(0, Math.round(Number(editForm.problemsSolved))) || 0,
       });
       setEditingLogId(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/logs/${logId}`);
+      console.error("Failed to update log:", error);
     }
   };
 
   const handleDeleteLog = async (logId: string) => {
-    if (!user) return;
     if (window.confirm("Are you sure you want to delete this log?")) {
       try {
-        const logRef = doc(db, 'users', user.uid, 'logs', logId);
-        await deleteDoc(logRef);
+        await deleteLog(logId);
+        if (editingLogId === logId) {
+          setEditingLogId(null);
+        }
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/logs/${logId}`);
+        console.error("Failed to delete log:", error);
       }
     }
   };
@@ -76,7 +78,7 @@ export const Dashboard = () => {
           <input 
             type="date" 
             value={selectedDate} 
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => handleDateChange(e.target.value)}
             className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 w-full sm:w-auto"
           />
         </header>

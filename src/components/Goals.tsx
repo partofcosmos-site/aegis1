@@ -19,7 +19,7 @@ export const Goals = () => {
         uid: user.uid,
         title: title.substring(0, 199),
         description: description.substring(0, 999),
-        targetDate: targetDate || null,
+        targetDate: targetDate.trim() || "",
         completed: false,
         createdAt: serverTimestamp()
       });

@@ -81,10 +81,10 @@ export class AIVaultService {
     if (text.startsWith('{') && text.endsWith('}')) {
       try {
         const json = JSON.parse(text);
-        if (json.baseUrl || json.base_url || json.url) result.baseUrl = json.baseUrl || json.base_url || json.url;
-        if (json.model || json.model_id || json.modelId) result.selectedModel = json.model || json.model_id || json.modelId;
-        if (json.apiKey || json.api_key || json.key) result.apiKey = json.apiKey || json.api_key || json.key;
-        if (json.name || json.label) result.name = json.name || json.label;
+        if (json.baseUrl || json.base_url || json.url) result.baseUrl = String(json.baseUrl || json.base_url || json.url).trim();
+        if (json.model || json.model_id || json.modelId) result.selectedModel = String(json.model || json.model_id || json.modelId).trim();
+        if (json.apiKey || json.api_key || json.key) result.apiKey = String(json.apiKey || json.api_key || json.key).trim();
+        if (json.name || json.label) result.name = String(json.name || json.label).trim();
         return result;
       } catch (e) {}
     }
@@ -92,7 +92,7 @@ export class AIVaultService {
     // 2. Extract Base URL
     const urlMatch = text.match(/https?:\/\/[^\s"'\)\,\}]+/i);
     if (urlMatch) {
-      let u = urlMatch[0];
+      let u = urlMatch[0].trim();
       // Clean trailing /chat/completions or /models from URL
       u = u.replace(/\/chat\/completions\/?$/, '').replace(/\/models\/?$/, '');
       result.baseUrl = u;
@@ -103,14 +103,14 @@ export class AIVaultService {
                        text.match(/"model"\s*:\s*"([^"]+)"/i) ||
                        text.match(/--model\s+([^\s]+)/i);
     if (modelMatch) {
-      result.selectedModel = modelMatch[1];
+      result.selectedModel = modelMatch[1].trim();
     }
 
     // 4. Extract API Key (Bearer or api_key)
     const keyMatch = text.match(/(?:Bearer|api_key|apiKey|key)\s*[:= ]\s*["']?([a-zA-Z0-9_\-]{15,})["']?/i) ||
                      text.match(/Authorization:\s*Bearer\s+([^\s"']+)/i);
     if (keyMatch && !keyMatch[1].includes('$') && !keyMatch[1].includes('<')) {
-      result.apiKey = keyMatch[1];
+      result.apiKey = keyMatch[1].trim();
     }
 
     // 5. Inferred Name
@@ -131,36 +131,47 @@ export class AIVaultService {
    * Dynamically fetch live model list from ANY endpoint (GET /models)
    */
   public static async fetchRemoteModels(baseUrl: string, apiKey?: string): Promise<AIModelPreset[]> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
     try {
-      const cleanUrl = baseUrl.replace(/\/$/, '');
+      const cleanUrl = baseUrl.trim().replace(/\/$/, '');
       const modelsUrl = cleanUrl.endsWith('/v1') ? `${cleanUrl}/models` : `${cleanUrl}/v1/models`;
       const headers: Record<string, string> = {};
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      const trimmedKey = (apiKey || '').trim();
+      if (trimmedKey) headers['Authorization'] = `Bearer ${trimmedKey}`;
 
-      const res = await fetch(modelsUrl, { headers });
+      const res = await fetch(modelsUrl, { headers, signal: controller.signal });
       if (!res.ok) return [];
       const data = await res.json();
       const list: any[] = Array.isArray(data) ? data : data.data || [];
       return list.map(m => ({
-        id: m.id || m.name,
-        name: m.name || m.id,
-        contextWindow: m.context_length || 128000,
-        isFree: m.id?.includes(':free') || false
-      }));
+        id: String(m.id || m.name || ''),
+        name: String(m.name || m.id || ''),
+        contextWindow: Number(m.context_length) || 128000,
+        isFree: String(m.id || '').includes(':free') || false
+      })).filter(m => m.id);
     } catch {
       return [];
+    } finally {
+      clearTimeout(timer);
     }
   }
 
   public static async testConnection(config: AIProviderConfig): Promise<{ success: boolean; latencyMs: number; message: string }> {
     const start = performance.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    const apiKey = (config.apiKey || '').trim();
+    const baseUrl = (config.baseUrl || '').trim().replace(/\/$/, '');
+
     try {
       if (config.providerType === 'google') {
-        const url = `${config.baseUrl.replace(/\/$/, '')}/models/${config.selectedModel}:generateContent?key=${config.apiKey}`;
+        const url = `${baseUrl}/models/${config.selectedModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] })
+          body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] }),
+          signal: controller.signal
         });
         const latencyMs = Math.round(performance.now() - start);
         if (!res.ok) {
@@ -169,11 +180,11 @@ export class AIVaultService {
         }
         return { success: true, latencyMs, message: `Connected (${latencyMs}ms)` };
       } else if (config.providerType === 'anthropic') {
-        const url = `${config.baseUrl.replace(/\/$/, '')}/messages`;
+        const url = `${baseUrl}/messages`;
         const res = await fetch(url, {
           method: 'POST',
           headers: {
-            'x-api-key': config.apiKey,
+            'x-api-key': apiKey,
             'anthropic-version': '2023-06-01',
             'anthropic-dangerous-direct-browser-access': 'true',
             'Content-Type': 'application/json'
@@ -182,7 +193,8 @@ export class AIVaultService {
             model: config.selectedModel,
             max_tokens: 5,
             messages: [{ role: 'user', content: 'ping' }]
-          })
+          }),
+          signal: controller.signal
         });
         const latencyMs = Math.round(performance.now() - start);
         if (!res.ok) {
@@ -192,15 +204,14 @@ export class AIVaultService {
         return { success: true, latencyMs, message: `Connected (${latencyMs}ms)` };
       } else {
         // Universal OpenAI Compatible / OpenRouter / Groq / DeepSeek / Ollama / Custom Endpoint
-        const cleanBase = config.baseUrl.replace(/\/$/, '');
-        const url = cleanBase.endsWith('/chat/completions') ? cleanBase : `${cleanBase}/chat/completions`;
+        const url = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           ...(config.customHeaders || {})
         };
-        if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
+        if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
         if (config.providerType === 'openrouter') {
-          headers['HTTP-Referer'] = window.location.origin;
+          headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://savantix.app';
           headers['X-Title'] = 'Aegis Study Engine';
         }
 
@@ -211,7 +222,8 @@ export class AIVaultService {
             model: config.selectedModel,
             messages: [{ role: 'user', content: 'ping' }],
             max_tokens: 5
-          })
+          }),
+          signal: controller.signal
         });
         const latencyMs = Math.round(performance.now() - start);
         if (!res.ok) {
@@ -221,7 +233,13 @@ export class AIVaultService {
         return { success: true, latencyMs, message: `Connected (${latencyMs}ms)` };
       }
     } catch (e: any) {
-      return { success: false, latencyMs: Math.round(performance.now() - start), message: e.message || 'Connection failed' };
+      const latencyMs = Math.round(performance.now() - start);
+      if (e.name === 'AbortError') {
+        return { success: false, latencyMs, message: 'Connection timed out (>12s)' };
+      }
+      return { success: false, latencyMs, message: e.message || 'Connection failed' };
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

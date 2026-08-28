@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { Send, Loader2, Mic } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { UniversalAIService } from '../services/universalAIService';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
 
 export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
   const [text, setText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const { user } = useAppContext();
+  const { user, addLog } = useAppContext();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,22 +20,28 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
       // 1. Parse with Universal AI
       const parsedData = await UniversalAIService.parseStudyLog(text);
       
-      // 2. Save to Firestore
-      const logsRef = collection(db, 'users', user.uid, 'logs');
-      await addDoc(logsRef, {
-        uid: user.uid,
+      const effectiveDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
+
+      // 2. Save via AppContext
+      await addLog({
         rawText: text.substring(0, 1999),
-        ...parsedData,
-        date: selectedDate || new Date().toISOString().split('T')[0],
-        createdAt: serverTimestamp()
+        subject: (parsedData.subject || 'General').trim().substring(0, 99) || 'General',
+        topic: (parsedData.topic || '').trim().substring(0, 199),
+        subtopic: (parsedData.subtopic || '').trim().substring(0, 199),
+        durationMinutes: Math.max(0, Math.round(Number(parsedData.durationMinutes))) || 0,
+        problemsSolved: Math.max(0, Math.round(Number(parsedData.problemsSolved))) || 0,
+        mistakes: Array.isArray(parsedData.mistakes) ? parsedData.mistakes : [],
+        efficiencyScore: Math.min(10, Math.max(1, Math.round(Number(parsedData.efficiencyScore)))) || 5,
+        focusScore: Math.min(10, Math.max(1, Math.round(Number(parsedData.focusScore)))) || 5,
+        date: effectiveDate
       });
 
       setText('');
       setMessage({ type: 'success', text: 'Log saved successfully!' });
       setTimeout(() => setMessage(null), 3000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to parse or save log", error);
-      setMessage({ type: 'error', text: "Failed to process log. Please try again." });
+      setMessage({ type: 'error', text: error.message || "Failed to process log. Please try again." });
     } finally {
       setIsSubmitting(false);
     }
