@@ -629,10 +629,32 @@ export class UniversalAIService {
             try {
               const url = `${baseUrl}/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
               
-              const geminiContents = history.map(h => ({
-                role: h.role === 'assistant' || h.role === 'model' ? 'model' : 'user',
-                parts: [{ text: h.content }]
-              }));
+              // Format & sanitize contents strictly for Google Gemini API requirements:
+              // 1. Must start with role: 'user' (drop leading assistant greetings)
+              // 2. Must strictly alternate user <-> model
+              // 3. Must not have empty text parts
+              const geminiContents: Array<{ role: string; parts: any[] }> = [];
+
+              for (const h of history) {
+                const role = (h.role === 'assistant' || h.role === 'model') ? 'model' : 'user';
+                const text = (h.content || '').trim();
+                if (!text) continue;
+
+                // Gemini API rejects contents starting with 'model'
+                if (geminiContents.length === 0 && role === 'model') {
+                  continue;
+                }
+
+                // If consecutive role is identical, merge the text into the previous message
+                if (geminiContents.length > 0 && geminiContents[geminiContents.length - 1].role === role) {
+                  const lastPart = geminiContents[geminiContents.length - 1].parts[0];
+                  if (lastPart && typeof lastPart.text === 'string') {
+                    lastPart.text += '\n\n' + text;
+                  }
+                } else {
+                  geminiContents.push({ role, parts: [{ text }] });
+                }
+              }
 
               const userParts: any[] = [];
               if (images && images.length > 0) {
@@ -647,10 +669,15 @@ export class UniversalAIService {
               }
               userParts.push({ text: userMessage });
 
-              geminiContents.push({
-                role: 'user',
-                parts: userParts
-              });
+              // Append current user message (or merge if last was user)
+              if (geminiContents.length > 0 && geminiContents[geminiContents.length - 1].role === 'user') {
+                geminiContents[geminiContents.length - 1].parts = userParts;
+              } else {
+                geminiContents.push({
+                  role: 'user',
+                  parts: userParts
+                });
+              }
 
               const body = {
                 systemInstruction: { parts: [{ text: defaultSystem }] },
@@ -869,6 +896,15 @@ To maximize problem-solving velocity and achieve top-percentile consistency:
 3. **Error Analysis & Active Spaced Recall (7:30 PM – 9:30 PM)**:
    - Review your **Concept Mastery Graph** and review flashcard decks using the SM-2 scheduler.
    - Log today's study metrics in the **Quick Logger** to update your 52-week streak!`;
+    }
+
+    if (/^(hi|hello|hey|greetings|hola|good morning|good evening|sup|yo|test)\b/i.test(prompt.trim())) {
+      return `Hello! I'm **Savantix**, your AI mentor for STEM mastery and competitive problem-solving.
+
+How can I assist you right now? You can:
+* Ask any physics, mathematics, or chemistry question with $\\LaTeX$ derivations.
+* Paste or upload a problem diagram/image (Ctrl+V) for multimodal step-by-step solutions.
+* Explore learning pathways or analyze your study velocity across exam milestones.`;
     }
 
     return `### 🧠 Savantix Strategic Recommendation
