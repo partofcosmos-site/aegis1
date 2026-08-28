@@ -17,7 +17,7 @@ interface ChatbotProps {
 }
 
 export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
-  const { user, logs, insights, chatSessions } = useAppContext();
+  const { user, isGuest, logs, insights, chatSessions, addLog } = useAppContext();
   const [useSearch, setUseSearch] = useState(false);
   const [history, setHistory] = useState<any[]>([
     { role: 'user', parts: [{ text: "Hello" }] },
@@ -38,6 +38,9 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
   const ttsAbortControllerRef = useRef<AbortController | null>(null);
 
   const stopTTS = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     if (ttsAbortControllerRef.current) {
       ttsAbortControllerRef.current.abort();
       ttsAbortControllerRef.current = null;
@@ -50,7 +53,20 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     });
     activeSourcesRef.current = [];
     setPlayingMsgIndex(null);
+    setIsTtsLoading(false);
   };
+
+  useEffect(() => {
+    return () => {
+      stopTTS();
+      if (audioCtxRef.current) {
+        try {
+          audioCtxRef.current.close();
+        } catch {}
+        audioCtxRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -60,20 +76,27 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     if (!user) return;
     setIsTyping(true);
     try {
-      const messagesRef = collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages');
-      const q = query(messagesRef, orderBy('createdAt', 'asc'));
-      const snapshot = await getDocs(q);
-      const loadedHistory = snapshot.docs.map(doc => ({
-        role: doc.data().role,
-        parts: [{ text: doc.data().text }]
-      }));
-      if (loadedHistory.length > 0) {
-        setHistory(loadedHistory);
+      if (isGuest) {
+        const guestData = localStorage.getItem(`savantix_guest_session_${sessionId}`);
+        if (guestData) {
+          setHistory(JSON.parse(guestData));
+        }
       } else {
-        setHistory([
-          { role: 'user', parts: [{ text: "Hello" }] },
-          { role: 'model', parts: [{ text: "I'm Savantix. How can we optimize your study plan today?" }] }
-        ]);
+        const messagesRef = collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages');
+        const q = query(messagesRef, orderBy('createdAt', 'asc'));
+        const snapshot = await getDocs(q);
+        const loadedHistory = snapshot.docs.map(doc => ({
+          role: doc.data().role,
+          parts: [{ text: doc.data().text }]
+        }));
+        if (loadedHistory.length > 0) {
+          setHistory(loadedHistory);
+        } else {
+          setHistory([
+            { role: 'user', parts: [{ text: "Hello" }] },
+            { role: 'model', parts: [{ text: "I'm Savantix. How can we optimize your study plan today?" }] }
+          ]);
+        }
       }
       setCurrentSessionId(sessionId);
     } catch (error) {
@@ -108,117 +131,69 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     try {
       let sessionId = currentSessionId;
       
-      // Create new session if none exists
-      if (!sessionId) {
-        const sessionRef = await addDoc(collection(db, 'users', user.uid, 'chat_sessions'), {
-          uid: user.uid,
-          title: userMsg.substring(0, 50) + (userMsg.length > 50 ? '...' : ''),
-          updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp()
-        });
-        sessionId = sessionRef.id;
-        setCurrentSessionId(sessionId);
-        
-        // Save initial greeting if it's a new session
-        if (history.length === 2 && history[0].parts[0].text === "Hello") {
-           await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
+      // Save session metadata if not guest
+      if (!isGuest) {
+        if (!sessionId) {
+          const sessionRef = await addDoc(collection(db, 'users', user.uid, 'chat_sessions'), {
             uid: user.uid,
-            role: 'user',
-            text: history[0].parts[0].text,
+            title: userMsg.substring(0, 50) + (userMsg.length > 50 ? '...' : ''),
+            updatedAt: serverTimestamp(),
             createdAt: serverTimestamp()
           });
-          await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
-            uid: user.uid,
-            role: 'model',
-            text: history[1].parts[0].text,
-            createdAt: serverTimestamp()
-          });
-        }
-      } else {
-        // Update existing session timestamp
-        await updateDoc(doc(db, 'users', user.uid, 'chat_sessions', sessionId), {
-          updatedAt: serverTimestamp()
-        });
-      }
-
-      // Save user message
-      await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
-        uid: user.uid,
-        role: 'user',
-        text: userMsg.substring(0, 9999),
-        createdAt: serverTimestamp()
-      });
-
-      const ai = getGeminiInstance();
-      const tools: any[] = [{ functionDeclarations: [logStudySessionTool, navigateAppTool] }];
-      if (useSearch) {
-        tools.push({ googleSearch: {} });
-      }
-
-      const systemInstruction = `You are Savantix, an elite AI study optimization assistant for serious students. You are highly analytical, concise, and strategic.
-      Today is ${format(new Date(), 'yyyy-MM-dd')}.
-      User's recent logs: ${JSON.stringify(logs.slice(0, 5))}
-      User's recent insights: ${JSON.stringify(insights.slice(0, 3))}
-      
-      You can log study sessions for the user or navigate the app using the provided tools. If the user asks for real-time information and the Google Search tool is enabled, use it.`;
-
-      let response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
-        contents: currentHistory,
-        config: { 
-          systemInstruction,
-          tools: tools,
-          toolConfig: { includeServerSideToolInvocations: true }
-        }
-      });
-
-      let responseContent = response.candidates?.[0]?.content;
-      if (responseContent) {
-        currentHistory.push(responseContent);
-      }
-
-      let finalModelText = responseContent?.parts?.find(p => p.text)?.text || '';
-
-      if (response.functionCalls && response.functionCalls.length > 0) {
-        const call = response.functionCalls[0];
-        let functionResponseData: any = { success: false };
-
-        if (call.name === 'logStudySession') {
-          const args = call.args as any;
-          if (user) {
-            await addDoc(collection(db, 'users', user.uid, 'logs'), {
+          sessionId = sessionRef.id;
+          setCurrentSessionId(sessionId);
+          
+          if (history.length === 2 && history[0].parts[0].text === "Hello") {
+             await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
               uid: user.uid,
-              rawText: "Logged via Assistant",
-              subject: (args.subject || 'General').substring(0, 99),
-              topic: (args.topic || '').substring(0, 199),
-              durationMinutes: args.durationMinutes || 0,
-              problemsSolved: args.problemsSolved || 0,
-              mistakes: (args.mistakes || []).slice(0, 50),
-              efficiencyScore: args.efficiencyScore || 5,
-              focusScore: args.focusScore || 5,
-              date: args.date || new Date().toISOString().split('T')[0],
+              role: 'user',
+              text: history[0].parts[0].text,
               createdAt: serverTimestamp()
             });
-            functionResponseData = { success: true, message: "Log saved successfully." };
+            await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
+              uid: user.uid,
+              role: 'model',
+              text: history[1].parts[0].text,
+              createdAt: serverTimestamp()
+            });
           }
-        } else if (call.name === 'navigateApp') {
-          const args = call.args as any;
-          setActiveTab(args.tab);
-          functionResponseData = { success: true, message: `Navigated to ${args.tab}` };
+        } else {
+          await updateDoc(doc(db, 'users', user.uid, 'chat_sessions', sessionId), {
+            updatedAt: serverTimestamp()
+          });
         }
 
-        const funcRespContent = {
+        await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
+          uid: user.uid,
           role: 'user',
-          parts: [{
-            functionResponse: {
-              name: call.name,
-              response: functionResponseData
-            }
-          }]
-        };
-        currentHistory.push(funcRespContent);
+          text: userMsg.substring(0, 9999),
+          createdAt: serverTimestamp()
+        });
+      } else {
+        if (!sessionId) {
+          sessionId = 'guest_sess_' + Date.now();
+          setCurrentSessionId(sessionId);
+        }
+      }
 
-        response = await ai.models.generateContent({
+      let finalModelText = '';
+
+      // Try with Universal AI Service or Gemini Instance
+      try {
+        const ai = getGeminiInstance();
+        const tools: any[] = [{ functionDeclarations: [logStudySessionTool, navigateAppTool] }];
+        if (useSearch) {
+          tools.push({ googleSearch: {} });
+        }
+
+        const systemInstruction = `You are Savantix, an elite AI study optimization assistant for serious students. You are highly analytical, concise, and strategic.
+        Today is ${format(new Date(), 'yyyy-MM-dd')}.
+        User's recent logs: ${JSON.stringify(logs.slice(0, 5))}
+        User's recent insights: ${JSON.stringify(insights.slice(0, 3))}
+        
+        You can log study sessions for the user or navigate the app using the provided tools. If the user asks for real-time information and the Google Search tool is enabled, use it.`;
+
+        let response = await ai.models.generateContent({
           model: 'gemini-3.1-pro-preview',
           contents: currentHistory,
           config: { 
@@ -228,17 +203,91 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
           }
         });
 
-        responseContent = response.candidates?.[0]?.content;
+        let responseContent = response.candidates?.[0]?.content;
         if (responseContent) {
           currentHistory.push(responseContent);
-          finalModelText = responseContent?.parts?.find(p => p.text)?.text || finalModelText;
         }
+
+        finalModelText = responseContent?.parts?.find(p => p.text)?.text || '';
+
+        if (response.functionCalls && response.functionCalls.length > 0) {
+          const call = response.functionCalls[0];
+          let functionResponseData: any = { success: false };
+
+          if (call.name === 'logStudySession') {
+            try {
+              const args = call.args as any;
+              await addLog({
+                rawText: "Logged via Assistant",
+                subject: (args.subject || 'General').trim().substring(0, 99) || 'General',
+                topic: (args.topic || '').trim().substring(0, 199),
+                subtopic: '',
+                durationMinutes: Math.max(0, Math.round(Number(args.durationMinutes))) || 0,
+                problemsSolved: Math.max(0, Math.round(Number(args.problemsSolved))) || 0,
+                mistakes: Array.isArray(args.mistakes) ? args.mistakes.slice(0, 50) : [],
+                efficiencyScore: Math.min(10, Math.max(1, Math.round(Number(args.efficiencyScore)))) || 5,
+                focusScore: Math.min(10, Math.max(1, Math.round(Number(args.focusScore)))) || 5,
+                date: args.date || format(new Date(), 'yyyy-MM-dd')
+              });
+              functionResponseData = { success: true, message: "Log saved successfully." };
+            } catch (err: any) {
+              functionResponseData = { success: false, error: err.message || "Failed to save log" };
+            }
+          } else if (call.name === 'navigateApp') {
+            try {
+              const args = call.args as any;
+              setActiveTab(args.tab);
+              functionResponseData = { success: true, message: `Navigated to ${args.tab}` };
+            } catch (err: any) {
+              functionResponseData = { success: false, error: err.message || "Failed to navigate" };
+            }
+          }
+
+          const funcRespContent = {
+            role: 'user',
+            parts: [{
+              functionResponse: {
+                name: call.name,
+                response: functionResponseData
+              }
+            }]
+          };
+          currentHistory.push(funcRespContent);
+
+          response = await ai.models.generateContent({
+            model: 'gemini-3.1-pro-preview',
+            contents: currentHistory,
+            config: { 
+              systemInstruction,
+              tools: tools,
+              toolConfig: { includeServerSideToolInvocations: true }
+            }
+          });
+
+          responseContent = response.candidates?.[0]?.content;
+          if (responseContent) {
+            currentHistory.push(responseContent);
+            finalModelText = responseContent?.parts?.find(p => p.text)?.text || finalModelText;
+          }
+        }
+      } catch (geminiError) {
+        console.warn("Primary Gemini call failed, falling back to Universal AI Service:", geminiError);
+        const formattedHistory = currentHistory
+          .filter(h => h.parts?.some((p: any) => p.text))
+          .map(h => ({
+            role: h.role === 'model' ? 'assistant' : 'user',
+            content: h.parts.find((p: any) => p.text)?.text || ''
+          }));
+        
+        finalModelText = await UniversalAIService.sendChatMessage(userMsg, formattedHistory);
+        currentHistory.push({ role: 'model', parts: [{ text: finalModelText }] });
       }
 
       setHistory([...currentHistory]);
 
-      // Save model message
-      if (finalModelText) {
+      if (isGuest && sessionId) {
+        localStorage.setItem(`savantix_guest_session_${sessionId}`, JSON.stringify(currentHistory));
+      } else if (!isGuest && sessionId && finalModelText) {
         await addDoc(collection(db, 'users', user.uid, 'chat_sessions', sessionId, 'messages'), {
           uid: user.uid,
           role: 'model',
@@ -249,10 +298,39 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
 
     } catch (error) {
       console.error("Chat error", error);
-      setHistory(prev => [...prev, { role: 'model', parts: [{ text: "I encountered an error analyzing that. Please try again." }] }]);
+      setHistory(prev => [...prev, { role: 'model', parts: [{ text: "I encountered an error analyzing that. Please check your AI endpoint or API key in Settings." }] }]);
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const speakWithBrowserSynthesis = (text: string, voiceName: string, speed: number) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      setPlayingMsgIndex(null);
+      setIsTtsLoading(false);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const cleanText = text.replace(/```[\s\S]*?```/g, '').replace(/[\*\_#`]/g, '').trim();
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = Math.max(0.5, Math.min(2, speed));
+    
+    const isFemale = ['Kore', 'Zephyr', 'Aoede'].includes(voiceName);
+    const voices = window.speechSynthesis.getVoices();
+    const matchedVoice = voices.find(v => isFemale ? /female|zira|samantha|karen|victoria/i.test(v.name) : /male|david|george|alex/i.test(v.name));
+    if (matchedVoice) utterance.voice = matchedVoice;
+
+    utterance.onend = () => {
+      setPlayingMsgIndex(null);
+      setIsTtsLoading(false);
+    };
+    utterance.onerror = () => {
+      setPlayingMsgIndex(null);
+      setIsTtsLoading(false);
+    };
+
+    setIsTtsLoading(false);
+    window.speechSynthesis.speak(utterance);
   };
 
   const handlePlayTTS = async (text: string, index: number) => {
@@ -264,7 +342,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     // Stop any currently playing TTS
     stopTTS();
 
-    const selection = window.getSelection()?.toString();
+    const selection = typeof window !== 'undefined' ? window.getSelection()?.toString() : '';
     const textToRead = selection && selection.trim().length > 0 ? selection : text;
 
     setIsTtsLoading(true);
@@ -274,22 +352,35 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     const signal = ttsAbortControllerRef.current.signal;
     
     try {
-      const ai = getGeminiInstance();
-      
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtxClass) {
+        speakWithBrowserSynthesis(textToRead, ttsVoice, ttsSpeed);
+        return;
+      }
+
       if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioCtxRef.current = new AudioCtxClass();
       }
       const audioCtx = audioCtxRef.current;
+
+      // Handle suspended audio context (browser autoplay policy)
+      if (audioCtx.state === 'suspended') {
+        try {
+          await audioCtx.resume();
+        } catch (e) {
+          console.warn("AudioContext resume failed:", e);
+        }
+      }
+
       let nextStartTime = audioCtx.currentTime;
       let isFirstChunk = true;
 
-      // Split text into manageable chunks (by sentences) to drastically reduce time-to-first-byte
+      // Split text into manageable chunks
       const textChunks = textToRead.match(/[^.!?\n]+[.!?\n]+/g) || [textToRead];
       const processedChunks: string[] = [];
       let currentChunk = "";
       for (const chunk of textChunks) {
         currentChunk += chunk;
-        // Group short sentences together, but split when we reach ~100 chars
         if (currentChunk.length > 100) {
           processedChunks.push(currentChunk.trim());
           currentChunk = "";
@@ -298,6 +389,8 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
       if (currentChunk.trim()) {
         processedChunks.push(currentChunk.trim());
       }
+
+      const ai = getGeminiInstance();
 
       for (let i = 0; i < processedChunks.length; i++) {
         if (signal.aborted) break;
@@ -363,16 +456,16 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
         }
       }
       
-      // Clear abort controller when stream finishes naturally
       ttsAbortControllerRef.current = null;
       
     } catch (error: any) {
       if (error.name !== 'AbortError') {
-        console.error("TTS Error:", error);
+        console.warn("Gemini TTS failed, falling back to Browser Speech Synthesis:", error);
+        speakWithBrowserSynthesis(textToRead, ttsVoice, ttsSpeed);
+      } else {
+        setPlayingMsgIndex(null);
+        setIsTtsLoading(false);
       }
-      setPlayingMsgIndex(null);
-    } finally {
-      setIsTtsLoading(false);
     }
   };
 
