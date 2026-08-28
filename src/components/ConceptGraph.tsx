@@ -242,8 +242,116 @@ const DEFAULT_CONCEPTS: ConceptNode[] = [
     x: 740,
     y: 740,
     prerequisites: ['c2', 'p6'],
-    description: 'Galvanic cells, standard reduction potentials, Nernst equation, electrolytic cells, and Faraday laws of electrolysis.',
-    keyFormulas: 'E_cell = E°_cell - (0.0591/n) log Q, ΔG° = -nFE°'
+  }
+];
+
+export interface TrajectoryPathway {
+  id: string;
+  name: string;
+  subject: SubjectType;
+  badge: string;
+  description: string;
+  nodes: ConceptNode[];
+}
+
+export const CURATED_TRAJECTORIES: TrajectoryPathway[] = [
+  {
+    id: 'default',
+    name: 'Unified Core STEM Constellation (All)',
+    subject: 'General',
+    badge: 'Core STEM',
+    description: 'Foundational 16-node cross-disciplinary graph spanning Physics, Mathematics, and Chemistry.',
+    nodes: DEFAULT_CONCEPTS
+  },
+  {
+    id: 'jee_physics',
+    name: 'JEE Advanced Physics Mastery Road',
+    subject: 'Physics',
+    badge: 'JEE Physics',
+    description: 'Comprehensive 14-node competitive physics trajectory from Kinematics to Modern Physics.',
+    nodes: [
+      { id: 'jp1', label: 'Kinematics & 2D Motion', subject: 'Physics', mastery: 0, status: 'Not Started', x: 150, y: 150, prerequisites: [], description: 'Vector trajectories, projectile motion on incline, relative velocity.', keyFormulas: 'v = u + at, s = ut + 0.5at^2, v_rel = v_A - v_B' },
+      { id: 'jp2', label: "Newton's Laws & Constraints", subject: 'Physics', mastery: 0, status: 'Not Started', x: 350, y: 150, prerequisites: ['jp1'], description: 'Free-body diagrams, pseudo-forces, wedge-pulley constraints, friction cones.', keyFormulas: 'ΣF = ma, f_s ≤ μ_s N, F_pseudo = -m a_frame' },
+      { id: 'jp3', label: 'Work, Energy & Power', subject: 'Physics', mastery: 0, status: 'Not Started', x: 550, y: 150, prerequisites: ['jp2'], description: 'Work-energy theorem, potential energy curves, vertical circular loops.', keyFormulas: 'W_net = ΔK, F = -dU/dx, P = F · v' },
+      { id: 'jp4', label: 'Rotational Mechanics & Rolling', subject: 'Physics', mastery: 0, status: 'Not Started', x: 750, y: 150, prerequisites: ['jp2', 'jp3'], description: 'Moment of inertia, torque equilibrium, pure rolling without slipping, angular momentum.', keyFormulas: 'τ = Iα, L = Iω, K = 0.5mv^2 + 0.5Iω^2' },
+      { id: 'jp5', label: 'Gravitation & Kepler Laws', subject: 'Physics', mastery: 0, status: 'Not Started', x: 150, y: 340, prerequisites: ['jp3'], description: 'Gravitational potential, escape velocity, satellite orbital energy.', keyFormulas: 'U = -GMm/r, v_esc = √(2GM/R), T^2 ∝ r^3' },
+      { id: 'jp6', label: 'Fluids & Surface Tension', subject: 'Physics', mastery: 0, status: 'Not Started', x: 350, y: 340, prerequisites: ['jp2'], description: 'Archimedes buoyancy, Bernoulli continuity, Poiseuille viscosity flow, capillary ascent.', keyFormulas: 'P + 0.5ρv^2 + ρgh = const, ΔP = 2T/R' },
+      { id: 'jp7', label: 'SHM & Mechanical Waves', subject: 'Physics', mastery: 0, status: 'Not Started', x: 550, y: 340, prerequisites: ['jp4'], description: 'Linear/angular simple harmonic motion, damped oscillations, Doppler acoustic shift.', keyFormulas: 'T = 2π√(m/k), y = A sin(kx - ωt), f_obs = f_src (v ± v_o)/(v ∓ v_s)' },
+      { id: 'jp8', label: 'Thermodynamics & Heat Cycles', subject: 'Physics', mastery: 0, status: 'Not Started', x: 750, y: 340, prerequisites: ['jp3'], description: 'First & Second Laws, Carnot efficiency, polytropic processes, kinetic theory.', keyFormulas: 'ΔQ = ΔU + W, η = 1 - T_C/T_H, PV^γ = const' },
+      { id: 'jp9', label: 'Electrostatics & Gauss Law', subject: 'Physics', mastery: 0, status: 'Not Started', x: 150, y: 530, prerequisites: ['jp1'], description: 'Electric flux, Coulomb force, conductors in equilibrium, dielectrics & capacitance.', keyFormulas: '∮ E · dA = Q/ε_0, C = ε_0 A/d, U = 0.5CV^2' },
+      { id: 'jp10', label: 'Current Electricity & RC Circuits', subject: 'Physics', mastery: 0, status: 'Not Started', x: 350, y: 530, prerequisites: ['jp9'], description: 'Kirchhoff node/loop rules, RC charging/discharging transients, meter bridges.', keyFormulas: 'V = IR, q(t) = Q_0(1 - e^(-t/RC)), P = I^2 R' },
+      { id: 'jp11', label: 'Magnetism & Lorentz Force', subject: 'Physics', mastery: 0, status: 'Not Started', x: 550, y: 530, prerequisites: ['jp10'], description: 'Biot-Savart law, Ampere circuital law, magnetic dipole moments, cyclotron motion.', keyFormulas: 'F = q(E + v × B), dB = (μ_0/4π) I dl × r / r^3' },
+      { id: 'jp12', label: 'Electromagnetic Induction (EMI)', subject: 'Physics', mastery: 0, status: 'Not Started', x: 750, y: 530, prerequisites: ['jp11'], description: 'Faraday flux induction, Lenz law, motional EMF, mutual inductance, AC circuits.', keyFormulas: 'ε = -dΦ/dt, ε = Blv, L = Φ/I, I_rms = I_0/√2' },
+      { id: 'jp13', label: 'Ray & Wave Optics', subject: 'Physics', mastery: 0, status: 'Not Started', x: 350, y: 700, prerequisites: ['jp7', 'jp12'], description: 'Snell refraction, lens maker equation, Young double-slit interference, diffraction.', keyFormulas: '1/f = (μ-1)(1/R1 - 1/R2), β = λD/d, I = I_0 cos^2(δ/2)' },
+      { id: 'jp14', label: 'Modern Physics & Quantum Atoms', subject: 'Physics', mastery: 0, status: 'Not Started', x: 550, y: 700, prerequisites: ['jp9', 'jp13'], description: 'Photoelectric effect, Bohr orbital radii, de Broglie matter waves, radioactive decay.', keyFormulas: 'K_max = hν - Φ, λ = h/p, N(t) = N_0 e^(-λt)' }
+    ]
+  },
+  {
+    id: 'jee_math',
+    name: 'JEE Advanced Mathematics Roadmap',
+    subject: 'Math',
+    badge: 'JEE Math',
+    description: 'Comprehensive 10-node mathematics pathway covering Calculus, Conics, Algebra, and Vectors.',
+    nodes: [
+      { id: 'jm1', label: 'Functions & Inverse Relations', subject: 'Math', mastery: 0, status: 'Not Started', x: 160, y: 150, prerequisites: [], description: 'Domain, range, injective/surjective mappings, functional equations.', keyFormulas: 'f(g(x)), sin^-1(x) + cos^-1(x) = π/2' },
+      { id: 'jm2', label: 'Limits, Continuity & Derivations', subject: 'Math', mastery: 0, status: 'Not Started', x: 380, y: 150, prerequisites: ['jm1'], description: 'Indeterminate limit evaluation, L-Hopital rule, differentiability criteria.', keyFormulas: 'lim (sin x)/x = 1, f\'(x) = lim [f(x+h)-f(x)]/h' },
+      { id: 'jm3', label: 'Application of Derivatives (AOD)', subject: 'Math', mastery: 0, status: 'Not Started', x: 600, y: 150, prerequisites: ['jm2'], description: 'Tangents, normals, Rolle theorem, Lagrange MVT, concavity, optimization.', keyFormulas: 'y - y_0 = m(x - x_0), f\'\'(x) > 0 (Minima)' },
+      { id: 'jm4', label: 'Definite & Indefinite Integrals', subject: 'Math', mastery: 0, status: 'Not Started', x: 800, y: 150, prerequisites: ['jm3'], description: 'Integration by parts, partial fractions, King property, Leibniz parameter rule.', keyFormulas: '∫ u dv = uv - ∫ v du, ∫_0^a f(x) dx = ∫_0^a f(a-x) dx' },
+      { id: 'jm5', label: 'Differential Equations & Area', subject: 'Math', mastery: 0, status: 'Not Started', x: 160, y: 350, prerequisites: ['jm4'], description: 'First order linear ODEs, integrating factors, homogeneous equations, area under curve.', keyFormulas: 'dy/dx + Py = Q → IF = e^(∫P dx), A = ∫ |y_1 - y_2| dx' },
+      { id: 'jm6', label: 'Complex Numbers & De Moivre', subject: 'Math', mastery: 0, status: 'Not Started', x: 380, y: 350, prerequisites: ['jm1'], description: 'Argand planes, geometry of rotations, nth roots of unity, triangle inequalities.', keyFormulas: 'z = r e^(iθ), (cos θ + i sin θ)^n = cos nθ + i sin nθ' },
+      { id: 'jm7', label: 'Matrices & Determinants', subject: 'Math', mastery: 0, status: 'Not Started', x: 600, y: 350, prerequisites: [], description: 'Matrix multiplication, Cayley-Hamilton theorem, Cramer rule, orthogonal matrices.', keyFormulas: 'det(AB) = det(A)det(B), A^-1 = adj(A)/det(A)' },
+      { id: 'jm8', label: 'Vectors & 3D Geometry', subject: 'Math', mastery: 0, status: 'Not Started', x: 800, y: 350, prerequisites: ['jm7'], description: 'Dot and cross products, shortest distance between skew lines, plane equations.', keyFormulas: 'a · (b × c), d = |(a_2 - a_1) · (b_1 × b_2)| / |b_1 × b_2|' },
+      { id: 'jm9', label: 'Conic Sections (Parabola, Ellipse)', subject: 'Math', mastery: 0, status: 'Not Started', x: 380, y: 540, prerequisites: ['jm1'], description: 'Focus-directrix, parametric equations, director circle, focal chord properties.', keyFormulas: 'y^2 = 4ax, x^2/a^2 + y^2/b^2 = 1, e = √(1 - b^2/a^2)' },
+      { id: 'jm10', label: 'Probability & Combinatorics', subject: 'Math', mastery: 0, status: 'Not Started', x: 600, y: 540, prerequisites: [], description: 'Inclusion-exclusion, derangements, Bayes conditional theorem, Poisson/Binomial.', keyFormulas: 'P(A|B) = P(B|A)P(A)/P(B), E(X) = Σ x P(x)' }
+    ]
+  },
+  {
+    id: 'jee_chem',
+    name: 'JEE Advanced Chemistry Roadmap',
+    subject: 'Chemistry',
+    badge: 'JEE Chem',
+    description: 'Complete physical, organic, and coordination chemistry roadmap with 10 master nodes.',
+    nodes: [
+      { id: 'jc1', label: 'Quantum Atomic Structure', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 160, y: 150, prerequisites: [], description: 'Quantum numbers, orbital radial/angular nodes, Aufbau principle, photoelectric effect.', keyFormulas: 'E_n = -13.6 Z^2 / n^2 eV, λ = h/mv' },
+      { id: 'jc2', label: 'Chemical Bonding & MOT', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 380, y: 150, prerequisites: ['jc1'], description: 'VSEPR geometries, hybridization, Molecular Orbital Theory energy diagrams.', keyFormulas: 'Bond Order = 0.5(N_b - N_a), μ = q × d' },
+      { id: 'jc3', label: 'Chemical Thermodynamics', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 600, y: 150, prerequisites: [], description: 'First & Second Laws, Hess enthalpy cycles, entropy, Gibbs free energy criterion.', keyFormulas: 'ΔG = ΔH - TΔS, ΔG° = -RT ln K' },
+      { id: 'jc4', label: 'Chemical & Ionic Equilibrium', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 800, y: 150, prerequisites: ['jc3'], description: 'Le Chatelier shifts, Henderson buffer equation, solubility product Ksp, salt hydrolysis.', keyFormulas: 'pH = pKa + log([A-]/[HA]), K_p = K_c (RT)^Δn' },
+      { id: 'jc5', label: 'Electrochemistry & Nernst', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 160, y: 350, prerequisites: ['jc3', 'jc4'], description: 'Galvanic cells, standard EMF potentials, Nernst equation, Kohlrausch conductivity.', keyFormulas: 'E = E° - (0.0591/n) log Q, Λ_m = κ × 1000 / M' },
+      { id: 'jc6', label: 'Chemical Kinetics & Arrhenius', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 380, y: 350, prerequisites: ['jc3'], description: 'Differential & integrated rate laws, activation energy, steady-state approximations.', keyFormulas: 'k = A e^(-E_a/RT), ln(k_2/k_1) = (E_a/R)(1/T_1 - 1/T_2)' },
+      { id: 'jc7', label: 'General Organic Chemistry (GOC)', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 600, y: 350, prerequisites: ['jc2'], description: 'Inductive, mesomeric, resonance & hyperconjugation effects; carbocation stability.', keyFormulas: 'Aromaticity (4n+2 π electrons), Carbocation 3° > 2° > 1°' },
+      { id: 'jc8', label: 'Reaction Mechanisms (SN/E)', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 800, y: 350, prerequisites: ['jc7'], description: 'SN1/SN2 nucleophilic substitution kinetics, E1/E2 elimination, Saytzeff alkenes.', keyFormulas: 'Walden inversion (SN2), Anti-periplanar geometry (E2)' },
+      { id: 'jc9', label: 'Carbonyl Chemistry (Aldol/Cannizzaro)', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 380, y: 540, prerequisites: ['jc8'], description: 'Enolate chemistry, Aldol condensation, Cannizzaro redox, Grignard reagents.', keyFormulas: 'RCHO + R\'MgX → 2° Alcohol, Enolization equilibrium' },
+      { id: 'jc10', label: 'Coordination Chemistry & CFT', subject: 'Chemistry', mastery: 0, status: 'Not Started', x: 600, y: 540, prerequisites: ['jc1', 'jc2'], description: 'IUPAC nomenclature, Werner theory, Crystal Field Splitting (Δ_o, Δ_t), isomerism.', keyFormulas: 'CFSE = -0.4 Δ_o (t_2g) + 0.6 Δ_o (e_g), μ_eff = √(n(n+2)) BM' }
+    ]
+  },
+  {
+    id: 'ipho_physics',
+    name: 'IPhO Physics Olympiad Theoretical Roadmap',
+    subject: 'Physics',
+    badge: 'IPhO Theo',
+    description: 'Advanced Lagrangian mechanics, Coriolis dynamics, relativistic spacetime, and quantum operators.',
+    nodes: [
+      { id: 'ip1', label: 'Variational Mechanics & Lagrangians', subject: 'Physics', mastery: 0, status: 'Not Started', x: 200, y: 160, prerequisites: [], description: 'Principle of stationary action, Euler-Lagrange equations, generalized momentum.', keyFormulas: 'd/dt(∂L/∂q̇) - ∂L/∂q = 0, H = Σ p_i q̇_i - L' },
+      { id: 'ip2', label: 'Non-Inertial & Coriolis Dynamics', subject: 'Physics', mastery: 0, status: 'Not Started', x: 480, y: 160, prerequisites: ['ip1'], description: 'Rotating coordinate frames, Coriolis and centrifugal force tensors, Foucault pendulum.', keyFormulas: 'F_coriolis = -2m(ω × v_rot), a_inertial = a_rot + 2ω × v + ω × (ω × r)' },
+      { id: 'ip3', label: 'Inertia Tensors & Gyroscopes', subject: 'Physics', mastery: 0, status: 'Not Started', x: 760, y: 160, prerequisites: ['ip2'], description: 'Moment of inertia tensors, principal axes, Euler equations of rigid body motion.', keyFormulas: 'I_ij = ∫ (r^2 δ_ij - x_i x_j) dm, I_1 ω̇_1 + (I_3 - I_2)ω_2 ω_3 = τ_1' },
+      { id: 'ip4', label: 'Relativistic Spacetime & 4-Vectors', subject: 'Physics', mastery: 0, status: 'Not Started', x: 200, y: 380, prerequisites: ['ip1'], description: 'Lorentz boosts, Minkowski metric, energy-momentum 4-vector conservation.', keyFormulas: 'P^μ = (E/c, p), E^2 = (pc)^2 + (mc^2)^2, s^2 = c^2 Δt^2 - Δx^2' },
+      { id: 'ip5', label: 'Relativistic Electrodynamics', subject: 'Physics', mastery: 0, status: 'Not Started', x: 480, y: 380, prerequisites: ['ip4'], description: 'Electromagnetic field tensor F^μν, covariant Maxwell equations, Lienard-Wiechert fields.', keyFormulas: '∂_μ F^μν = μ_0 J^ν, F^μν = ∂^μ A^ν - ∂^ν A^μ' },
+      { id: 'ip6', label: 'Quantum Wavepackets & Wells', subject: 'Physics', mastery: 0, status: 'Not Started', x: 760, y: 380, prerequisites: ['ip1'], description: 'Time-independent Schrodinger equation, quantum tunneling, harmonic oscillator ladder operators.', keyFormulas: '[-ℏ^2/(2m) ∇^2 + V]ψ = Eψ, T ≈ e^(-2γL)' }
+    ]
+  },
+  {
+    id: 'cs_algo',
+    name: 'Computer Science & Competitive Programming',
+    subject: 'Computer Science',
+    badge: 'CS Algo',
+    description: 'Asymptotic complexity, dynamic programming, graph algorithms, and segment trees.',
+    nodes: [
+      { id: 'cs1', label: 'Asymptotic Bounds & Recurrences', subject: 'Computer Science', mastery: 0, status: 'Not Started', x: 200, y: 160, prerequisites: [], description: 'Big-O notation, Master theorem, divide-and-conquer analysis.', keyFormulas: 'T(n) = aT(n/b) + O(n^d), log_b(a) vs d' },
+      { id: 'cs2', label: 'Dynamic Programming (DP)', subject: 'Computer Science', mastery: 0, status: 'Not Started', x: 480, y: 160, prerequisites: ['cs1'], description: 'Optimal substructure, state transitions, knapsack, bitmask DP, digit DP.', keyFormulas: 'dp[i][w] = max(dp[i-1][w], dp[i-1][w-wt[i]] + val[i])' },
+      { id: 'cs3', label: 'Graph Algorithms & Shortest Path', subject: 'Computer Science', mastery: 0, status: 'Not Started', x: 760, y: 160, prerequisites: ['cs1'], description: 'Dijkstra, Bellman-Ford, Floyd-Warshall, Tarjan SCC, Maximum Flow.', keyFormulas: 'd[v] = min(d[v], d[u] + w(u,v)), O((V+E)log V)' },
+      { id: 'cs4', label: 'Segment Trees & Fenwick Trees', subject: 'Computer Science', mastery: 0, status: 'Not Started', x: 200, y: 380, prerequisites: ['cs2'], description: 'Point update, range sum/min queries, lazy propagation.', keyFormulas: 'tree[node] = tree[2*node] + tree[2*node+1], O(log N)' },
+      { id: 'cs5', label: 'Number Theory & Fast Fourier (FFT)', subject: 'Computer Science', mastery: 0, status: 'Not Started', x: 480, y: 380, prerequisites: ['cs1'], description: 'Extended Euclidean, modular inverse, Miller-Rabin primality, NTT polynomial multiplication.', keyFormulas: 'ax + by = gcd(a,b), A(x)B(x) in O(N log N)' }
+    ]
   }
 ];
 
@@ -345,6 +453,13 @@ export const ConceptGraph: React.FC = () => {
   const [decomposeTopicInput, setDecomposeTopicInput] = useState('');
   const [decomposeSubject, setDecomposeSubject] = useState<SubjectType>('Physics');
   const [feedbackToast, setFeedbackToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+
+  // Active Trajectory State & AI Generation
+  const [activeTrajectoryId, setActiveTrajectoryId] = useState<string>('default');
+  const [isTrajectoryModalOpen, setIsTrajectoryModalOpen] = useState(false);
+  const [isGeneratingTrajectory, setIsGeneratingTrajectory] = useState(false);
+  const [customTrajectoryTopic, setCustomTrajectoryTopic] = useState('');
+  const [customTrajectorySubject, setCustomTrajectorySubject] = useState<SubjectType>('Physics');
 
   // New Concept Form state
   const [newConceptForm, setNewConceptForm] = useState<{
@@ -452,6 +567,60 @@ export const ConceptGraph: React.FC = () => {
 
     return { total, mastered, practicing, needsReview, notStarted, avgMastery };
   }, [nodes]);
+
+  // Handle Trajectory Selection
+  const handleSelectTrajectory = (pathwayId: string) => {
+    setActiveTrajectoryId(pathwayId);
+    const pathway = CURATED_TRAJECTORIES.find(p => p.id === pathwayId);
+    if (pathway) {
+      setNodes(pathway.nodes);
+      setSelectedNodeId(pathway.nodes[0]?.id || null);
+      showToast(`Loaded ${pathway.name} (${pathway.nodes.length} concepts)`, 'info');
+    }
+  };
+
+  // AI Trajectory Generator
+  const handleGenerateAITrajectory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customTrajectoryTopic.trim()) return;
+
+    setIsGeneratingTrajectory(true);
+    try {
+      const prompt = `You are an elite academic curriculum architect. Generate a complete, ordered learning trajectory for mastering "${customTrajectoryTopic.trim()}" in ${customTrajectorySubject}.
+Return a JSON array of 6 to 10 concept nodes with id, label, subject ("${customTrajectorySubject}"), mastery (always 0), status ("Not Started"), x (spread from 150 to 850), y (spread from 150 to 650), prerequisites (array of prerequisite node ids), description, and keyFormulas (KaTeX formulas).
+Return ONLY the raw JSON array.`;
+
+      const generated = await UniversalAIService.executeJsonRequest<any[]>(prompt);
+      if (Array.isArray(generated) && generated.length > 0) {
+        const mappedNodes: ConceptNode[] = generated.map((n, idx) => ({
+          id: n.id || `custom_${Date.now()}_${idx}`,
+          label: n.label || `Concept ${idx + 1}`,
+          subject: customTrajectorySubject,
+          mastery: 0,
+          status: 'Not Started',
+          x: typeof n.x === 'number' ? n.x : 150 + (idx % 4) * 200,
+          y: typeof n.y === 'number' ? n.y : 150 + Math.floor(idx / 4) * 180,
+          prerequisites: Array.isArray(n.prerequisites) ? n.prerequisites : [],
+          description: n.description || '',
+          keyFormulas: n.keyFormulas || ''
+        }));
+
+        setNodes(mappedNodes);
+        setSelectedNodeId(mappedNodes[0].id);
+        setActiveTrajectoryId('custom');
+        setIsTrajectoryModalOpen(false);
+        setCustomTrajectoryTopic('');
+        showToast(`AI generated trajectory with ${mappedNodes.length} concepts!`, 'success');
+      } else {
+        showToast("Couldn't parse AI trajectory, using heuristic fallback.", 'info');
+      }
+    } catch (err: any) {
+      console.error("AI Trajectory Error:", err);
+      showToast("Error generating custom trajectory.", 'error');
+    } finally {
+      setIsGeneratingTrajectory(false);
+    }
+  };
 
   // Visual color scheme based on mastery / status
   const getStatusVisuals = (node: ConceptNode) => {
@@ -1025,6 +1194,32 @@ export const ConceptGraph: React.FC = () => {
           ))}
         </div>
 
+        {/* Trajectory Pathways Dropdown */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/90 rounded-xl border border-indigo-500/30">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <span className="text-[11px] text-zinc-400 font-medium whitespace-nowrap">Trajectory:</span>
+          <select
+            value={activeTrajectoryId}
+            onChange={e => {
+              if (e.target.value === 'ai_new') {
+                setIsTrajectoryModalOpen(true);
+              } else {
+                handleSelectTrajectory(e.target.value);
+              }
+            }}
+            className="bg-transparent text-xs text-indigo-300 font-semibold focus:outline-none cursor-pointer pr-1"
+          >
+            {CURATED_TRAJECTORIES.map(path => (
+              <option key={path.id} value={path.id} className="bg-zinc-900 text-zinc-200">
+                {path.name}
+              </option>
+            ))}
+            <option value="ai_new" className="bg-zinc-900 text-amber-300 font-bold">
+              ✨ + AI Build Custom Trajectory...
+            </option>
+          </select>
+        </div>
+
         {/* Search Bar */}
         <div className="relative min-w-[200px] flex-1 max-w-xs">
           <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1589,6 +1784,50 @@ export const ConceptGraph: React.FC = () => {
                 </div>
               </div>
 
+              {/* Free Curated Web References & Resources */}
+              <div className="p-3.5 bg-zinc-950/60 rounded-xl border border-zinc-800 space-y-2">
+                <div className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Free Web Resources
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-normal">MIT OCW • 3B1B • LibreTexts</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <a
+                    href={`https://www.google.com/search?q=${encodeURIComponent(selectedNode.label + ' ' + selectedNode.subject + ' MIT OpenCourseWare lecture notes')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-1"
+                  >
+                    <span>🎓 MIT OCW</span>
+                  </a>
+                  <a
+                    href={`https://www.google.com/search?q=${encodeURIComponent(selectedNode.label + ' ' + selectedNode.subject + ' 3Blue1Brown visual intuition')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-purple-300 hover:text-purple-200 transition-colors flex items-center gap-1"
+                  >
+                    <span>📺 3Blue1Brown</span>
+                  </a>
+                  <a
+                    href={`https://www.google.com/search?q=${encodeURIComponent(selectedNode.label + ' ' + selectedNode.subject + ' LibreTexts comprehensive derivation')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-emerald-300 hover:text-emerald-200 transition-colors flex items-center gap-1"
+                  >
+                    <span>📚 LibreTexts</span>
+                  </a>
+                  <a
+                    href={`https://www.google.com/search?q=${encodeURIComponent(selectedNode.label + ' ' + selectedNode.subject + ' Olympiad problems Irodov Krotov')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-amber-300 hover:text-amber-200 transition-colors flex items-center gap-1"
+                  >
+                    <span>🚀 Irodov / Olympiad</span>
+                  </a>
+                </div>
+              </div>
+
               {/* Connected Unlocked Next Concepts */}
               <div>
                 <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -1854,6 +2093,88 @@ export const ConceptGraph: React.FC = () => {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Custom Trajectory Architect Modal */}
+      {isTrajectoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl space-y-4 p-6">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-100">AI Trajectory & Curriculum Architect</h3>
+                  <p className="text-xs text-zinc-400">Generate a custom learning roadmap with prerequisite links & formulas</p>
+                </div>
+              </div>
+              <button onClick={() => setIsTrajectoryModalOpen(false)} className="text-zinc-500 hover:text-zinc-300">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGenerateAITrajectory} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  Target Topic / Exam Ambition
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Quantum Computing, Relativistic Mechanics, Organic Synthesis, AP Calculus BC..."
+                  value={customTrajectoryTopic}
+                  onChange={e => setCustomTrajectoryTopic(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
+                  Subject Category
+                </label>
+                <select
+                  value={customTrajectorySubject}
+                  onChange={e => setCustomTrajectorySubject(e.target.value as SubjectType)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                >
+                  <option value="Physics">Physics</option>
+                  <option value="Math">Mathematics</option>
+                  <option value="Chemistry">Chemistry</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="General">General STEM</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsTrajectoryModalOpen(false)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isGeneratingTrajectory || !customTrajectoryTopic.trim()}
+                  className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/30 disabled:opacity-50"
+                >
+                  {isGeneratingTrajectory ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Architecting Roadmap...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Generate Roadmap with AI</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
