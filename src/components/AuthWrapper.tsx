@@ -21,11 +21,11 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
     try {
       await login();
     } catch (error: any) {
-      console.warn("Google Auth error:", error);
-      if (error?.code === 'auth/unauthorized-domain' || error?.code === 'auth/popup-blocked') {
-        setErrorMsg("Google popup restricted on this domain. Please enter your email below to continue instantly.");
-      } else {
-        setErrorMsg("Google sign-in encountered an issue. You can sign in with email or explore Demo Mode.");
+      console.warn("Google Auth popup fallback:", error);
+      // Focus email input seamlessly without displaying ugly restriction warnings
+      const emailEl = document.querySelector('input[type="email"]') as HTMLInputElement;
+      if (emailEl) {
+        emailEl.focus();
       }
     }
   };

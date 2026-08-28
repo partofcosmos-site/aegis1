@@ -13,11 +13,14 @@ export const loginWithGoogle = async () => {
     await signInWithPopup(auth, provider);
   } catch (error: any) {
     if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-      console.log('Sign-in popup closed by user.');
       return;
     }
-    console.warn("Popup failed, attempting redirect:", error.code);
-    await signInWithRedirect(auth, provider);
+    try {
+      await signInWithRedirect(auth, provider);
+    } catch (redirectErr) {
+      console.warn("Google redirect fallback:", redirectErr);
+      throw redirectErr;
+    }
   }
 };
 
