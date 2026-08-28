@@ -27,7 +27,9 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
     }
   }, []);
 
-  // Initialize Web Speech Recognition
+  const isListeningRef = useRef(false);
+
+  // Initialize Web Speech Recognition with auto-keepalive
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -53,12 +55,23 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
         console.warn('Speech recognition notice:', event.error);
         if (event.error === 'not-allowed') {
           setMessage({ type: 'error', text: 'Microphone access blocked. Please enable permissions in your browser.' });
+          isListeningRef.current = false;
+          setIsListening(false);
         }
-        setIsListening(false);
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        // Auto-restart if user has not explicitly stopped listening (prevents 1-second disconnect)
+        if (isListeningRef.current) {
+          try {
+            recognition.start();
+          } catch (e) {
+            isListeningRef.current = false;
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognitionRef.current = recognition;
@@ -67,17 +80,18 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
 
   const toggleVoiceInput = () => {
     if (!recognitionRef.current) {
-      // Fallback for unsupported browsers
       setMessage({ type: 'info', text: 'Voice recognition is not supported in this browser. Try Chrome/Edge or type directly.' });
       setTimeout(() => setMessage(null), 4000);
       return;
     }
 
     if (isListening) {
+      isListeningRef.current = false;
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
       try {
+        isListeningRef.current = true;
         setMessage({ type: 'info', text: 'Listening... Speak your study session details.' });
         recognitionRef.current.start();
         setIsListening(true);
@@ -92,6 +106,7 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
     if (!text.trim() || !user) return;
 
     if (isListening && recognitionRef.current) {
+      isListeningRef.current = false;
       recognitionRef.current.stop();
       setIsListening(false);
     }

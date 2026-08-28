@@ -48,6 +48,8 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     }
   }, []);
 
+  const isListeningRef = useRef(false);
+
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -70,11 +72,20 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
       };
 
       recognition.onerror = () => {
-        setIsListening(false);
+        // Don't abort on transient silence
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        if (isListeningRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            isListeningRef.current = false;
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognitionRef.current = recognition;
@@ -88,10 +99,12 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     }
 
     if (isListening) {
+      isListeningRef.current = false;
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
       try {
+        isListeningRef.current = true;
         recognitionRef.current.start();
         setIsListening(true);
       } catch (err) {
