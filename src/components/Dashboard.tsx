@@ -69,8 +69,8 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 lg:p-10 bg-zinc-950">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="w-full px-4 sm:px-6 py-8">
+      <div className="max-w-7xl mx-auto w-full space-y-8">
         
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

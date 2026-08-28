@@ -14,7 +14,8 @@ import {
   Menu, 
   X,
   Sparkles,
-  Network
+  Network,
+  Crown
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -39,6 +40,7 @@ interface LayoutProps {
 export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
   const { user, logout } = useAppContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isFounder = ['debanjan8686@gmail.com', 'partofcosmmos@gmail.com'].includes(user?.email || '');
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -111,8 +113,12 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
         <div className="p-4 border-t border-zinc-800/80">
           <div className="flex items-center justify-between px-4 py-3 bg-zinc-950/50 rounded-xl border border-zinc-800/80">
             <div className="flex flex-col truncate pr-2">
-              <span className="text-xs font-semibold text-zinc-200 truncate">{user?.displayName || 'Scholar'}</span>
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-200 truncate">
+                {user?.displayName || 'Scholar'}
+                {isFounder && <Crown className="w-3 h-3 text-amber-400 fill-amber-400" />}
+              </span>
               <span className="text-[10px] text-zinc-500 truncate font-mono mt-0.5">{user?.email || 'Offline Guest'}</span>
+              {isFounder && <span className="text-[9px] text-amber-400 font-bold uppercase mt-1">👑 Bidu (Founder)</span>}
             </div>
             <button 
               onClick={logout}
@@ -126,7 +132,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
       </aside>
 
       {/* Main Content Viewport */}
-      <main className="flex-1 flex flex-col h-[calc(100vh-65px)] md:h-screen overflow-hidden">
+      <main className="flex-1 overflow-y-auto min-h-0 h-screen scroll-smooth">
         {children}
       </main>
     </div>
