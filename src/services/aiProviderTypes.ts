@@ -231,9 +231,11 @@ export const PROVIDER_TEMPLATES: Record<ProviderType, ProviderTemplate> = {
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     requiresKey: true,
     defaultModels: [
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', specialization: 'speed' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', specialization: 'general' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', specialization: 'speed' },
       { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Reasoning)', specialization: 'deep_reasoning' },
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Ultra Fast)', specialization: 'speed' },
-      { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', specialization: 'deep_reasoning' }
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Ultra Fast)', specialization: 'speed' }
     ],
     setupGuideUrl: 'https://aistudio.google.com/app/apikey'
   },
@@ -277,8 +279,10 @@ export const PROVIDER_TEMPLATES: Record<ProviderType, ProviderTemplate> = {
     defaultBaseUrl: 'https://api.deepseek.com/v1',
     requiresKey: true,
     defaultModels: [
-      { id: 'deepseek-chat', name: 'DeepSeek V3', specialization: 'general' },
-      { id: 'deepseek-reasoner', name: 'DeepSeek R1', specialization: 'deep_reasoning' }
+      { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 Free', specialization: 'deep_reasoning' },
+      { id: 'deepseek/deepseek-chat:free', name: 'DeepSeek Chat Free', specialization: 'general' },
+      { id: 'deepseek-chat', name: 'DeepSeek Chat', specialization: 'general' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner', specialization: 'deep_reasoning' }
     ],
     setupGuideUrl: 'https://platform.deepseek.com/api_keys'
   },

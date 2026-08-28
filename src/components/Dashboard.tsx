@@ -116,6 +116,10 @@ export const Dashboard = () => {
           </div>
         </div>
 
+        <div className="w-full">
+          <LogInput selectedDate={selectedDate} />
+        </div>
+
         {/* 52-Week Study Streak Heatmap */}
         <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
           <StudyHeatmap logs={logs} />
@@ -129,7 +133,6 @@ export const Dashboard = () => {
             <InsightsPanel selectedDate={selectedDate} />
           </div>
           <div className="space-y-6">
-            <LogInput selectedDate={selectedDate} />
             
             {/* Recent Logs */}
             <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-lg">

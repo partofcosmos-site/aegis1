@@ -75,7 +75,7 @@ export const Settings = () => {
     if (!editingProvider || !editingProvider.baseUrl) return;
     setIsFetchingModels(true);
     try {
-      const models = await AIVaultService.fetchRemoteModels(editingProvider.baseUrl, editingProvider.apiKey);
+      const models = await AIVaultService.fetchRemoteModels(editingProvider.baseUrl, editingProvider.apiKey, editingProvider.providerType);
       setRemoteModels(models);
     } catch {
       setRemoteModels([]);

@@ -187,21 +187,39 @@ export class AIVaultService {
   }
 
   /**
-   * Dynamically queries `GET /v1/models` on any OpenAI-compatible custom endpoint to retrieve
-   * the live list of available models and context windows.
+   * Dynamically queries `GET /v1/models` on any OpenAI-compatible custom endpoint OR
+   * Google Gemini models endpoint to retrieve the live list of available models and context windows.
    * 
    * @param {string} baseUrl The root or /v1 Base URL of the endpoint.
    * @param {string} [apiKey] Optional authentication token.
+   * @param {ProviderType} [providerType] Optional provider type to force a specific lookup.
    * @returns {Promise<AIModelPreset[]>} Array of available models with metadata.
    */
-  public static async fetchRemoteModels(baseUrl: string, apiKey?: string): Promise<AIModelPreset[]> {
+  public static async fetchRemoteModels(baseUrl: string, apiKey?: string, providerType?: ProviderType): Promise<AIModelPreset[]> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
     try {
       const cleanUrl = baseUrl.trim().replace(/\/$/, '');
+      const trimmedKey = (apiKey || '').trim();
+
+      // Case 1: Google Gemini API
+      if (providerType === 'google' || cleanUrl.includes('generativelanguage.googleapis.com')) {
+        const modelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(trimmedKey)}`;
+        const res = await fetch(modelsUrl, { signal: controller.signal });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const models = data.models || [];
+        return models.map((m: any) => ({
+          id: String(m.name || '').replace('models/', ''),
+          name: String(m.displayName || m.name || '').replace('models/', ''),
+          contextWindow: Number(m.inputTokenLimit) || 128000,
+          isFree: false
+        }));
+      }
+
+      // Case 2: OpenAI / OpenRouter / DeepSeek / Compatible
       const modelsUrl = cleanUrl.endsWith('/v1') ? `${cleanUrl}/models` : `${cleanUrl}/v1/models`;
       const headers: Record<string, string> = {};
-      const trimmedKey = (apiKey || '').trim();
       if (trimmedKey) headers['Authorization'] = `Bearer ${trimmedKey}`;
 
       const res = await fetch(modelsUrl, { headers, signal: controller.signal });
