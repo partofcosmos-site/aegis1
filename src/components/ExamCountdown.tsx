@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, Target, Clock, AlertCircle, Plus, Trash2, CheckCircle2, ChevronRight, Edit2 } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
+import { useAppContext } from '../context/AppContext';
 
 interface ExamTarget {
   id: string;
