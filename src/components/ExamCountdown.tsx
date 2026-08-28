@@ -13,10 +13,10 @@ interface ExamTarget {
 }
 
 const DEFAULT_EXAMS: ExamTarget[] = [
-  { id: 'exam-1', name: 'JEE Advanced 2026', targetDate: '2026-05-24', targetHours: 1200, completedHours: 420, category: 'General' },
-  { id: 'exam-2', name: 'IPhO (International Physics Olympiad)', targetDate: '2026-07-12', targetHours: 800, completedHours: 310, category: 'Physics' },
-  { id: 'exam-3', name: 'NSEP (National Standard Exam in Physics)', targetDate: '2026-11-23', targetHours: 400, completedHours: 180, category: 'Physics' },
-  { id: 'exam-4', name: 'MIT SAT / Subject Test', targetDate: '2026-10-05', targetHours: 300, completedHours: 140, category: 'General' }
+  { id: 'exam-1', name: 'JEE Advanced 2026', targetDate: '2026-05-24', targetHours: 1200, completedHours: 0, category: 'General' },
+  { id: 'exam-2', name: 'IPhO (International Physics Olympiad)', targetDate: '2026-07-12', targetHours: 800, completedHours: 0, category: 'Physics' },
+  { id: 'exam-3', name: 'NSEP (National Standard Exam in Physics)', targetDate: '2026-11-23', targetHours: 400, completedHours: 0, category: 'Physics' },
+  { id: 'exam-4', name: 'MIT SAT / Subject Test', targetDate: '2026-10-05', targetHours: 300, completedHours: 0, category: 'General' }
 ];
 
 export const ExamCountdown: React.FC = () => {
@@ -29,7 +29,7 @@ export const ExamCountdown: React.FC = () => {
     if (user?.email === 'debanjan8686@gmail.com' || user?.email === 'partofcosmmos@gmail.com') {
       return DEFAULT_EXAMS;
     }
-    return [{ id: 'exam-1', name: 'JEE Advanced 2026', targetDate: '2026-05-24', targetHours: 1200, completedHours: 420, category: 'General' }];
+    return [{ id: 'exam-1', name: 'JEE Advanced 2026', targetDate: '2026-05-24', targetHours: 1200, completedHours: 0, category: 'General' }];
   };
 
   const [exams, setExams] = useState<ExamTarget[]>(getInitialExams());

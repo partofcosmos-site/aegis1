@@ -155,26 +155,7 @@ export const Pomodoro: React.FC = () => {
       const saved = localStorage.getItem(STORAGE_KEY_TASKS);
       if (saved) return JSON.parse(saved);
     } catch {}
-    return [
-      {
-        id: 't_demo_1',
-        title: 'Master Differential Equations & Laplacians',
-        subject: 'Mathematics',
-        estimatedPomodoros: 2,
-        completedPomodoros: 1,
-        isCompleted: false,
-        createdAt: Date.now() - 3600000
-      },
-      {
-        id: 't_demo_2',
-        title: 'Electromagnetic Wave Propagation Drills',
-        subject: 'Physics',
-        estimatedPomodoros: 3,
-        completedPomodoros: 0,
-        isCompleted: false,
-        createdAt: Date.now() - 1800000
-      }
-    ];
+    return [];
   });
 
   // New task form state
