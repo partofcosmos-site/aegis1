@@ -578,14 +578,98 @@ export class UniversalAIService {
     }
   }
 
+  public static parseStudyLogLocal(rawText: string): ParsedLog {
+    const textLower = rawText.toLowerCase();
+    
+    // 1. Duration extraction
+    let durationMinutes = 60; // default 1h
+    const hourMatch = textLower.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
+    const minMatch = textLower.match(/(\d+)\s*(?:minutes?|mins?|m)\b/);
+    if (hourMatch) {
+      durationMinutes = Math.round(parseFloat(hourMatch[1]) * 60);
+      if (minMatch) durationMinutes += parseInt(minMatch[1], 10);
+    } else if (minMatch) {
+      durationMinutes = parseInt(minMatch[1], 10);
+    }
+
+    // 2. Problems solved extraction
+    let problemsSolved = 0;
+    const probMatch = textLower.match(/(?:solved|did|completed|attempted)?\s*(\d+)\s*(?:questions?|problems?|numericals?|mcqs?|qs?|q)\b/);
+    if (probMatch) {
+      problemsSolved = parseInt(probMatch[1], 10);
+    }
+
+    // 3. Subject extraction
+    let subject = 'General';
+    if (/\b(?:physics|phy|mechanics|electromagnetism|thermodynamics|optics|kinematics)\b/.test(textLower)) {
+      subject = 'Physics';
+    } else if (/\b(?:chemistry|chem|organic|inorganic|electrochemistry|bonding)\b/.test(textLower)) {
+      subject = 'Chemistry';
+    } else if (/\b(?:math|mathematics|calculus|algebra|geometry|vectors|integration|trigonometry)\b/.test(textLower)) {
+      subject = 'Mathematics';
+    } else if (/\b(?:biology|bio|genetics|botany|zoology)\b/.test(textLower)) {
+      subject = 'Biology';
+    } else if (/\b(?:cs|computer|coding|programming|algorithms|dsa)\b/.test(textLower)) {
+      subject = 'Computer Science';
+    }
+
+    // 4. Topic extraction
+    let topic = '';
+    const knownTopics = [
+      'rotational motion', 'rotation', 'torque', 'kinematics', 'newton laws', 'work energy power',
+      'electrostatics', 'current electricity', 'magnetism', 'electromagnetic induction', 'optics',
+      'thermodynamics', 'waves', 'gravitation', 'fluid mechanics', 'modern physics',
+      'calculus', 'definite integration', 'indefinite integration', 'differential equations', 'continuity',
+      'matrices', 'determinants', 'complex numbers', 'vectors 3d', 'coordinate geometry', 'conics',
+      'organic reaction mechanisms', 'aldehydes ketones', 'hydrocarbons', 'chemical bonding', 'thermodynamics',
+      'equilibrium', 'coordination compounds', 'p block', 'd block', 'solutions'
+    ];
+    for (const kt of knownTopics) {
+      if (textLower.includes(kt)) {
+        topic = kt.charAt(0).toUpperCase() + kt.slice(1);
+        break;
+      }
+    }
+    if (!topic) {
+      // Extract first meaningful noun phrase
+      const parts = rawText.split(/[,;\.]/);
+      topic = (parts[0] || subject).replace(/did|solved|\d+h|\d+m|\d+\s*questions?/gi, '').trim() || subject;
+    }
+
+    // 5. Mistakes extraction
+    const mistakes: string[] = [];
+    const mistakeMatch = rawText.match(/(?:mistakes?|errors?|wrong|weakness|confused with)[:\s]+([^.]+)/i);
+    if (mistakeMatch && mistakeMatch[1]) {
+      mistakes.push(mistakeMatch[1].trim());
+    } else if (textLower.includes('mistake') || textLower.includes('error') || textLower.includes('torque mistakes')) {
+      const phrases = rawText.split(/[,;\.]/);
+      const mPhrase = phrases.find(p => /mistake|error|wrong/i.test(p));
+      if (mPhrase) mistakes.push(mPhrase.trim());
+    }
+
+    return {
+      subject,
+      topic: topic.substring(0, 199),
+      subtopic: '',
+      durationMinutes: Math.max(5, durationMinutes),
+      problemsSolved,
+      mistakes,
+      efficiencyScore: 8,
+      focusScore: 8
+    };
+  }
+
   public static async parseStudyLog(rawText: string): Promise<ParsedLog> {
-    const prompt = `Parse the following natural language study log into structured data:
+    try {
+      const activeProvider = AIVaultService.getActiveProvider();
+      if (activeProvider && activeProvider.apiKey) {
+        const prompt = `Parse the following natural language study log into structured data:
 - Distinguish between watching lectures and solving practice questions.
 - problemsSolved should ONLY be practice questions/numericals solved (0 if none mentioned).
 - Convert durations like "2h" to 120 minutes.
 Log: "${rawText}"`;
 
-    const schemaDesc = `{
+        const schemaDesc = `{
   "subject": "string (e.g. Physics, Chemistry, Math)",
   "topic": "string",
   "subtopic": "string",
@@ -596,27 +680,34 @@ Log: "${rawText}"`;
   "focusScore": number (1-10)
 }`;
 
-    const parsed = await this.executeJsonRequest<Partial<ParsedLog>>(prompt, schemaDesc);
-    
-    const durationMinutes = Math.max(0, Math.round(Number(parsed.durationMinutes))) || 0;
-    const problemsSolved = Math.max(0, Math.round(Number(parsed.problemsSolved))) || 0;
-    const efficiencyScore = Math.min(10, Math.max(1, Math.round(Number(parsed.efficiencyScore)))) || 5;
-    const focusScore = Math.min(10, Math.max(1, Math.round(Number(parsed.focusScore)))) || 5;
+        const parsed = await this.executeJsonRequest<Partial<ParsedLog>>(prompt, schemaDesc);
+        
+        const durationMinutes = Math.max(0, Math.round(Number(parsed.durationMinutes))) || 0;
+        const problemsSolved = Math.max(0, Math.round(Number(parsed.problemsSolved))) || 0;
+        const efficiencyScore = Math.min(10, Math.max(1, Math.round(Number(parsed.efficiencyScore)))) || 5;
+        const focusScore = Math.min(10, Math.max(1, Math.round(Number(parsed.focusScore)))) || 5;
 
-    const mistakes = Array.isArray(parsed.mistakes)
-      ? parsed.mistakes.filter(Boolean).map(m => String(m).substring(0, 200)).slice(0, 50)
-      : [];
+        const mistakes = Array.isArray(parsed.mistakes)
+          ? parsed.mistakes.filter(Boolean).map(m => String(m).substring(0, 200)).slice(0, 50)
+          : [];
 
-    return {
-      subject: (parsed.subject || 'General').substring(0, 99).trim() || 'General',
-      topic: (parsed.topic || '').substring(0, 199).trim(),
-      subtopic: (parsed.subtopic || '').substring(0, 199).trim(),
-      durationMinutes,
-      problemsSolved,
-      mistakes,
-      efficiencyScore,
-      focusScore
-    };
+        return {
+          subject: (parsed.subject || 'General').substring(0, 99).trim() || 'General',
+          topic: (parsed.topic || '').substring(0, 199).trim(),
+          subtopic: (parsed.subtopic || '').substring(0, 199).trim(),
+          durationMinutes: durationMinutes > 0 ? durationMinutes : 60,
+          problemsSolved,
+          mistakes,
+          efficiencyScore,
+          focusScore
+        };
+      }
+    } catch (err) {
+      console.warn("AI parseStudyLog fallback to intelligent local parser:", err);
+    }
+
+    // Zero-failure fallback
+    return this.parseStudyLogLocal(rawText);
   }
 
   public static async generateDailyInsights(logs: any[], constraints: any): Promise<DailyInsightData> {
