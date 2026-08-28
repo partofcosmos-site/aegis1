@@ -92,32 +92,34 @@ export class AIVaultService {
    */
   public static saveProviders(providers: AIProviderConfig[]): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(providers));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('aegis_ai_provider_changed'));
+    }
   }
 
   /**
    * Retrieves the active AI provider configuration designated for primary inference tasks.
    * 
    * @returns {AIProviderConfig} The active provider configuration.
-   * @throws {Error} If no valid provider is available.
    */
   public static getActiveProvider(): AIProviderConfig {
     const providers = this.getProviders();
     const activeId = localStorage.getItem(ACTIVE_PROVIDER_ID_KEY);
     
-    // 1. Explicitly selected active provider if it has a non-empty key
+    // 1. Explicitly selected active provider
     const explicit = providers.find(p => p.id === activeId);
-    if (explicit && (explicit.apiKey || '').trim()) return explicit;
+    if (explicit) return explicit;
 
-    // 2. Default provider if it has a non-empty key
+    // 2. Default provider
     const defaultProv = providers.find(p => p.isDefault);
-    if (defaultProv && (defaultProv.apiKey || '').trim()) return defaultProv;
+    if (defaultProv) return defaultProv;
 
     // 3. ANY provider with a configured non-empty API key
     const withKey = providers.find(p => (p.apiKey || '').trim());
     if (withKey) return withKey;
 
-    // 4. Fallback to explicit, default, or first
-    return explicit || defaultProv || providers[0] || {
+    // 4. Fallback to first or default template
+    return providers[0] || {
       id: 'prov_fallback',
       name: 'Google Gemini (Free Tier)',
       providerType: 'google',
@@ -141,8 +143,11 @@ export class AIVaultService {
       ...p,
       isDefault: p.id === id
     }));
-    this.saveProviders(providers);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(providers));
     localStorage.setItem(ACTIVE_PROVIDER_ID_KEY, id);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('aegis_ai_provider_changed'));
+    }
   }
 
   /**

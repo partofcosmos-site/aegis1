@@ -28,7 +28,10 @@ import {
   Target,
   Layers,
   Award,
-  ListTodo
+  ListTodo,
+  Search,
+  Youtube,
+  ExternalLink
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { format } from 'date-fns';
@@ -38,6 +41,11 @@ import {
   SoundPreset, 
   SoundPresetId 
 } from '../utils/pomodoroAudioEngine';
+import { 
+  YouTubeAudioService, 
+  CURATED_FOCUS_TRACKS, 
+  YouTubeTrack 
+} from '../services/youtubeAudioService';
 
 export interface PomodoroTask {
   id: string;
@@ -148,6 +156,64 @@ export const Pomodoro: React.FC = () => {
   const [audioVolume, setAudioVolume] = useState<number>(pomodoroAudio.getVolume());
   const [isMuted, setIsMuted] = useState<boolean>(pomodoroAudio.getIsMuted());
   const [isFallbackActive, setIsFallbackActive] = useState<boolean>(pomodoroAudio.isFallbackActive());
+
+  // --- DISTRACTION-FREE YOUTUBE AUDIO STATE ---
+  const [audioEngineType, setAudioEngineType] = useState<'synth' | 'youtube'>('synth');
+  const [ytTracks, setYtTracks] = useState<YouTubeTrack[]>(CURATED_FOCUS_TRACKS);
+  const [selectedYtTrack, setSelectedYtTrack] = useState<YouTubeTrack | null>(CURATED_FOCUS_TRACKS[0]);
+  const [ytSearchQuery, setYtSearchQuery] = useState<string>('');
+  const [isYtSearching, setIsYtSearching] = useState<boolean>(false);
+  const [ytCategoryFilter, setYtCategoryFilter] = useState<string>('all');
+  const [customYtInput, setCustomYtInput] = useState<string>('');
+  const [isYtPlaying, setIsYtPlaying] = useState<boolean>(false);
+
+  const handleYtSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsYtSearching(true);
+    try {
+      const results = await YouTubeAudioService.searchTracks(ytSearchQuery);
+      setYtTracks(results);
+    } catch {
+      setYtTracks(CURATED_FOCUS_TRACKS);
+    } finally {
+      setIsYtSearching(false);
+    }
+  };
+
+  const handleSelectYtTrack = (track: YouTubeTrack) => {
+    setSelectedYtTrack(track);
+    setIsYtPlaying(true);
+    if (isAudioPlaying) {
+      pomodoroAudio.pause();
+      setIsAudioPlaying(false);
+    }
+  };
+
+  const handleAddCustomYtTrack = (e: React.FormEvent) => {
+    e.preventDefault();
+    const vidId = YouTubeAudioService.extractVideoId(customYtInput);
+    if (!vidId) {
+      alert('Please enter a valid YouTube video link or 11-character video ID.');
+      return;
+    }
+    const newTrack: YouTubeTrack = {
+      id: `custom_${Date.now()}`,
+      title: 'Custom Focus Audio Stream',
+      artist: 'Distraction-Free Direct Stream',
+      category: 'custom',
+      youtubeId: vidId,
+      tag: 'Custom Link',
+      duration: 'Live Audio'
+    };
+    setYtTracks(prev => [newTrack, ...prev]);
+    setSelectedYtTrack(newTrack);
+    setIsYtPlaying(true);
+    setCustomYtInput('');
+    if (isAudioPlaying) {
+      pomodoroAudio.pause();
+      setIsAudioPlaying(false);
+    }
+  };
 
   // --- TASK LIST STATE ---
   const [tasks, setTasks] = useState<PomodoroTask[]>(() => {
@@ -710,14 +776,14 @@ export const Pomodoro: React.FC = () => {
         {/* Right Column: Audio Synth Suite + Task Checklist (5 cols on large) */}
         <div className="lg:col-span-5 space-y-6">
           
-          {/* Audio Synthesizer Suite Card */}
+          {/* Audio Synthesizer & Distraction-Free YouTube Suite Card */}
           <div className="bg-zinc-900/90 border border-zinc-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl space-y-5">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
                 <Headphones className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-100">Web Audio Synthesizer Suite</h3>
-                  <p className="text-[11px] text-zinc-400">Pure Oscillators, Noise Filters & Streams</p>
+                  <h3 className="text-sm font-bold text-zinc-100">Study Audio & Focus Engine</h3>
+                  <p className="text-[11px] text-zinc-400">Pure Synthesizers, Binaural Waves & YouTube Streams</p>
                 </div>
               </div>
               <button
@@ -730,114 +796,277 @@ export const Pomodoro: React.FC = () => {
               </button>
             </div>
 
-            {/* Real-time Visualizer Canvas */}
-            <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800/80 shadow-inner">
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-2 px-1">
-                <span className="flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${isAudioPlaying ? 'bg-cyan-400 animate-ping' : 'bg-zinc-600'}`} />
-                  {isAudioPlaying ? 'Real-Time Frequency Analyser' : 'Audio Engine Standby'}
-                </span>
-                <span className="font-mono text-zinc-500">64-FFT</span>
-              </div>
-              <AudioVisualizer isPlaying={isAudioPlaying} />
+            {/* Audio Engine Mode Switcher: Synth vs YouTube Focus */}
+            <div className="flex items-center p-1 bg-zinc-950 rounded-2xl border border-zinc-800">
+              <button
+                onClick={() => setAudioEngineType('synth')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  audioEngineType === 'synth'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Headphones className="w-3.5 h-3.5" />
+                Web Audio Synth
+              </button>
+              <button
+                onClick={() => {
+                  setAudioEngineType('youtube');
+                  if (isAudioPlaying) {
+                    pomodoroAudio.pause();
+                    setIsAudioPlaying(false);
+                  }
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  audioEngineType === 'youtube'
+                    ? 'bg-rose-600 text-white shadow-md'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Youtube className="w-3.5 h-3.5" />
+                YouTube Focus (0 Distractions)
+              </button>
             </div>
 
-            {/* Master Audio Controls Bar: Play/Pause, Volume, Mute */}
-            <div className="bg-zinc-950/60 p-3.5 rounded-2xl border border-zinc-800/60 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                {/* Play/Pause toggle */}
-                <button
-                  onClick={handleToggleAudioPlay}
-                  className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
-                    isAudioPlaying
-                      ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
-                  }`}
-                >
-                  {isAudioPlaying ? (
-                    <>
-                      <Pause className="w-4 h-4" /> Pause Sound
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 fill-current" /> Play Sound
-                    </>
-                  )}
-                </button>
+            {audioEngineType === 'synth' ? (
+              <>
+                {/* Real-time Visualizer Canvas */}
+                <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800/80 shadow-inner">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-2 px-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${isAudioPlaying ? 'bg-cyan-400 animate-ping' : 'bg-zinc-600'}`} />
+                      {isAudioPlaying ? 'Real-Time Frequency Analyser' : 'Audio Engine Standby'}
+                    </span>
+                    <span className="font-mono text-zinc-500">64-FFT</span>
+                  </div>
+                  <AudioVisualizer isPlaying={isAudioPlaying} />
+                </div>
 
-                {/* Mute Button */}
-                <button
-                  onClick={handleToggleMute}
-                  className={`p-2.5 rounded-xl border transition-colors ${
-                    isMuted 
-                      ? 'bg-red-950/80 border-red-800 text-red-400' 
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
-                  }`}
-                  title={isMuted ? "Unmute" : "Mute"}
-                >
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : audioVolume > 0.5 ? <Volume2 className="w-4 h-4" /> : <Volume1 className="w-4 h-4" />}
-                </button>
-              </div>
-
-              {/* Volume Slider */}
-              <div className="flex items-center gap-3 pt-1">
-                <span className="text-[11px] text-zinc-400 font-medium">Vol</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.02"
-                  value={isMuted ? 0 : audioVolume}
-                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="flex-1 accent-indigo-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
-                />
-                <span className="text-[11px] text-zinc-400 font-mono w-8 text-right">
-                  {isMuted ? '0%' : `${Math.round(audioVolume * 100)}%`}
-                </span>
-              </div>
-            </div>
-
-            {/* Sound Preset Grid Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                Soundscapes & Synthesizers
-              </label>
-              
-              <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
-                {SOUND_PRESETS.map((preset) => {
-                  const isSelected = activePreset === preset.id;
-                  return (
+                {/* Master Audio Controls Bar: Play/Pause, Volume, Mute */}
+                <div className="bg-zinc-950/60 p-3.5 rounded-2xl border border-zinc-800/60 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
                     <button
-                      key={preset.id}
-                      onClick={() => handleSelectPreset(preset.id)}
-                      className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
-                        isSelected
-                          ? 'bg-indigo-950/70 border-indigo-500/80 text-white shadow-lg shadow-indigo-500/10'
-                          : 'bg-zinc-950/60 hover:bg-zinc-800/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200'
+                      onClick={handleToggleAudioPlay}
+                      className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+                        isAudioPlaying
+                          ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                          : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg">{preset.icon}</span>
-                        {isSelected && isAudioPlaying && (
-                          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                        )}
-                      </div>
-                      <div className="mt-2">
-                        <div className="text-xs font-semibold text-zinc-100 truncate">{preset.name}</div>
-                        <div className="text-[10px] text-zinc-400 truncate mt-0.5">{preset.freqLabel}</div>
-                      </div>
+                      {isAudioPlaying ? (
+                        <>
+                          <Pause className="w-4 h-4" /> Pause Sound
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 fill-current" /> Play Sound
+                        </>
+                      )}
                     </button>
-                  );
-                })}
-              </div>
 
-              {isFallbackActive && (
-                <div className="p-2.5 rounded-xl bg-amber-950/60 border border-amber-800/60 text-amber-300 text-[11px] flex items-center gap-2">
-                  <Info className="w-4 h-4 flex-shrink-0 text-amber-400" />
-                  <span>Network stream unreachable; fallback Web Audio Brown Noise synth active.</span>
+                    <button
+                      onClick={handleToggleMute}
+                      className={`p-2.5 rounded-xl border transition-colors ${
+                        isMuted 
+                          ? 'bg-red-950/80 border-red-800 text-red-400' 
+                          : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
+                      }`}
+                      title={isMuted ? "Unmute" : "Mute"}
+                    >
+                      {isMuted ? <VolumeX className="w-4 h-4" /> : audioVolume > 0.5 ? <Volume2 className="w-4 h-4" /> : <Volume1 className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-1">
+                    <span className="text-[11px] text-zinc-400 font-medium">Vol</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.02"
+                      value={isMuted ? 0 : audioVolume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="flex-1 accent-indigo-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
+                    <span className="text-[11px] text-zinc-400 font-mono w-8 text-right">
+                      {isMuted ? '0%' : `${Math.round(audioVolume * 100)}%`}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {/* Sound Preset Grid Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                    Soundscapes & Synthesizers
+                  </label>
+                  
+                  <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+                    {SOUND_PRESETS.map((preset) => {
+                      const isSelected = activePreset === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          onClick={() => handleSelectPreset(preset.id)}
+                          className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-indigo-950/70 border-indigo-500/80 text-white shadow-lg shadow-indigo-500/10'
+                              : 'bg-zinc-950/60 hover:bg-zinc-800/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg">{preset.icon}</span>
+                            {isSelected && isAudioPlaying && (
+                              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                            )}
+                          </div>
+                          <div className="mt-2">
+                            <div className="text-xs font-semibold text-zinc-100 truncate">{preset.name}</div>
+                            <div className="text-[10px] text-zinc-400 truncate mt-0.5">{preset.freqLabel}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {isFallbackActive && (
+                    <div className="p-2.5 rounded-xl bg-amber-950/60 border border-amber-800/60 text-amber-300 text-[11px] flex items-center gap-2">
+                      <Info className="w-4 h-4 flex-shrink-0 text-amber-400" />
+                      <span>Network stream unreachable; fallback Web Audio Brown Noise synth active.</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* Distraction-Free YouTube Engine */
+              <div className="space-y-4">
+                {/* Active Embed Player */}
+                {selectedYtTrack && (
+                  <div className="space-y-2">
+                    <div className="w-full aspect-video rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 shadow-inner relative">
+                      <iframe
+                        src={YouTubeAudioService.getEmbedUrl(selectedYtTrack.youtubeId, isYtPlaying)}
+                        title={selectedYtTrack.title}
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                    <div className="flex items-center justify-between px-1">
+                      <div className="min-w-0 pr-2">
+                        <div className="text-xs font-bold text-zinc-100 truncate">{selectedYtTrack.title}</div>
+                        <div className="text-[10px] text-zinc-400 truncate">{selectedYtTrack.artist} • {selectedYtTrack.tag}</div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-rose-950/80 text-rose-300 border border-rose-800/60 uppercase tracking-wider flex-shrink-0">
+                        0 Shorts • 0 Feeds
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* YouTube Search Bar */}
+                <form onSubmit={handleYtSearch} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search songs, artists, or study vibes..."
+                      value={ytSearchQuery}
+                      onChange={(e) => setYtSearchQuery(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50 placeholder:text-zinc-600"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isYtSearching}
+                    className="px-3 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 shadow-md shadow-rose-600/20 cursor-pointer"
+                  >
+                    {isYtSearching ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Search'}
+                  </button>
+                </form>
+
+                {/* Category Filters */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-thin">
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'lofi', label: 'Lo-Fi' },
+                    { id: 'classical', label: 'Classical' },
+                    { id: 'cinematic', label: 'Cinematic' },
+                    { id: 'binaural', label: '40Hz Gamma' },
+                    { id: 'synthwave', label: 'Synthwave' },
+                    { id: 'ambient', label: 'Rain Café' }
+                  ].map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setYtCategoryFilter(cat.id)}
+                      className={`px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                        ytCategoryFilter === cat.id
+                          ? 'bg-rose-600/20 text-rose-300 border border-rose-500/40 font-semibold'
+                          : 'bg-zinc-950 text-zinc-400 hover:bg-zinc-800 border border-zinc-800'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Track Selection List */}
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {ytTracks
+                    .filter(t => ytCategoryFilter === 'all' || t.category === ytCategoryFilter)
+                    .map((track) => {
+                      const isSelected = selectedYtTrack?.youtubeId === track.youtubeId;
+                      return (
+                        <div
+                          key={track.id}
+                          onClick={() => handleSelectYtTrack(track)}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-rose-950/40 border-rose-500/70 shadow-md shadow-rose-600/10'
+                              : 'bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold text-zinc-200 truncate">{track.title}</div>
+                            <div className="text-[10px] text-zinc-400 truncate">{track.artist} • {track.tag}</div>
+                          </div>
+                          <button
+                            className={`p-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
+                              isSelected
+                                ? 'bg-rose-600 text-white'
+                                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                            }`}
+                          >
+                            <Play className="w-3 h-3 fill-current" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {/* Paste Custom YouTube Link / ID Form */}
+                <form onSubmit={handleAddCustomYtTrack} className="pt-2 border-t border-zinc-800/80 space-y-1.5">
+                  <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                    Paste Any YouTube URL or Video ID:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. https://youtu.be/... or ID"
+                      value={customYtInput}
+                      onChange={(e) => setCustomYtInput(e.target.value)}
+                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50 placeholder:text-zinc-600"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!customYtInput.trim()}
+                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-200 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      Stream
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
           </div>
 

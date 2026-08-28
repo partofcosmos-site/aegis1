@@ -53,7 +53,7 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
-  useEffect(() => {
+  const updateActiveModel = () => {
     try {
       const activeProvider = AIVaultService.getActiveProvider();
       const modelShort = activeProvider.selectedModel.split('/').pop()?.replace(':free', ' (Free)') || activeProvider.name;
@@ -61,6 +61,19 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     } catch {
       setActiveModelName('Savantix AI');
     }
+  };
+
+  useEffect(() => {
+    updateActiveModel();
+    const handler = () => updateActiveModel();
+    window.addEventListener('aegis_ai_provider_changed', handler);
+    window.addEventListener('storage', handler);
+    window.addEventListener('focus', handler);
+    return () => {
+      window.removeEventListener('aegis_ai_provider_changed', handler);
+      window.removeEventListener('storage', handler);
+      window.removeEventListener('focus', handler);
+    };
   }, []);
 
   const isListeningRef = useRef(false);

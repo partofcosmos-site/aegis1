@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Save, User as UserIcon, Cpu, Trash2, CheckCircle, AlertCircle, RefreshCw, Zap, ShieldCheck, Sparkles, Clipboard, DownloadCloud, Code } from 'lucide-react';
+import { Save, User as UserIcon, Cpu, Trash2, CheckCircle, AlertCircle, RefreshCw, Zap, ShieldCheck, Sparkles, Clipboard, DownloadCloud, Code, Youtube } from 'lucide-react';
 import { AIProviderConfig, ProviderType, PROVIDER_TEMPLATES, AIModelPreset } from '../services/aiProviderTypes';
 import { AIVaultService } from '../services/aiVaultService';
+import { YouTubeAudioService } from '../services/youtubeAudioService';
 
 export const Settings = () => {
   const { user, profile, updateProfile } = useAppContext();
@@ -11,6 +12,10 @@ export const Settings = () => {
   const [targetExams, setTargetExams] = useState(profile?.targetExams?.join(', ') || '');
   const [isSaving, setIsSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // YouTube API Key State
+  const [ytApiKey, setYtApiKey] = useState(() => YouTubeAudioService.getApiKey());
+  const [ytSavedMessage, setYtSavedMessage] = useState<string | null>(null);
 
   // Multi-Provider States
   const [providers, setProviders] = useState<AIProviderConfig[]>([]);
@@ -262,6 +267,61 @@ export const Settings = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Optional Google YouTube Data API v3 Section */}
+        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-rose-500/10 rounded-xl text-rose-400 border border-rose-500/20">
+                <Youtube className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">YouTube Focus Audio & Google Data API (Optional)</h3>
+                <p className="text-xs text-zinc-400">10,000 Free Daily Units via Google Cloud YouTube Data API v3</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-950/60 text-emerald-300 border border-emerald-800/60">
+              100% Free Forever
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 text-xs text-zinc-300 space-y-2">
+            <p>
+              <strong>Distraction-Free Mode:</strong> Savantix automatically streams study audio, lofi beats, and classical compositions in a clean sandbox with <strong>0 recommended videos, 0 comments, 0 shorts, and 0 sidebar distraction feeds</strong>.
+            </p>
+            <p className="text-zinc-400 text-[11px]">
+              Want live autocomplete search across all of YouTube? You can generate an optional free API Key from your Google Cloud Console (APIs & Services &rarr; Enable <em>YouTube Data API v3</em> &rarr; Credentials). Google provides 10,000 free search units daily with zero charges.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              type="password"
+              placeholder="Paste Google Cloud YouTube API Key (Optional)..."
+              value={ytApiKey}
+              onChange={(e) => setYtApiKey(e.target.value)}
+              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-rose-500 placeholder:text-zinc-600"
+            />
+            <button
+              onClick={() => {
+                YouTubeAudioService.setApiKey(ytApiKey);
+                setYtSavedMessage('✓ YouTube Data API v3 Key saved successfully.');
+                setTimeout(() => setYtSavedMessage(null), 3500);
+              }}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-rose-600/20"
+            >
+              <Save className="w-3.5 h-3.5" />
+              Save Key
+            </button>
+          </div>
+
+          {ytSavedMessage && (
+            <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-800/60 text-emerald-300 text-xs flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <span>{ytSavedMessage}</span>
+            </div>
+          )}
         </div>
 
         {/* User Profile Section */}
