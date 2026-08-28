@@ -405,8 +405,8 @@ export const StemSolver: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Active Solution & Tier Progression
-  const [solution, setSolution] = useState<ProblemSolution | null>(CURATED_BENCHMARKS[0]);
-  const [revealedTier, setRevealedTier] = useState<number>(4); // 1, 2, 3, 4
+  const [solution, setSolution] = useState<ProblemSolution | null>(null);
+  const [revealedTier, setRevealedTier] = useState<number>(1); // 1, 2, 3, 4
   const [expandedSelfChecks, setExpandedSelfChecks] = useState<Record<string, boolean>>({});
   const [copiedState, setCopiedState] = useState<string | null>(null);
   const [flashcardToast, setFlashcardToast] = useState<string | null>(null);
@@ -1172,6 +1172,47 @@ You must return a valid JSON object matching this schema precisely:
             {/* ----------------------------------------------------------- */}
             {/* SOLUTION DISPLAY: PROGRESSIVE 4-TIER SOCRATIC SYSTEM */}
             {/* ----------------------------------------------------------- */}
+            {!solution && (
+              <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 sm:p-8 space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-zinc-100">
+                      Socratic First-Principles Problem Engine
+                    </h3>
+                    <p className="text-xs text-zinc-400">
+                      Type your problem in LaTeX above or select an Olympiad benchmark below to experience 4-tier progressive hint revelation.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                  {CURATED_BENCHMARKS.map((bench) => (
+                    <button
+                      key={bench.id}
+                      onClick={() => handleLoadBenchmark(bench)}
+                      className="p-4 rounded-xl bg-zinc-950/70 hover:bg-zinc-800/70 border border-zinc-800 hover:border-indigo-500/40 text-left transition-all group cursor-pointer space-y-2 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                          {bench.subject}
+                        </span>
+                        <span className="text-[10px] text-zinc-500">{bench.difficulty}</span>
+                      </div>
+                      <h4 className="text-xs font-semibold text-zinc-200 group-hover:text-indigo-300 transition-colors line-clamp-1">
+                        {bench.title}
+                      </h4>
+                      <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed">
+                        {bench.topic}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {solution && (
               <div className="bg-zinc-900/70 backdrop-blur-md border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-8">
                 

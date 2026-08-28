@@ -579,13 +579,14 @@ export class UniversalAIService {
   }
 
   /**
-   * Universal Natural Language Chat / Completion Engine across all providers.
+   * Universal Natural Language Chat / Multimodal Completion Engine across all providers.
    */
   public static async sendChatMessage(
     userMessage: string, 
     history: Array<{ role: string; content: string }> = [], 
     systemInstruction?: string,
-    activeProvider?: AIProviderConfig
+    activeProvider?: AIProviderConfig,
+    images?: Array<{ mimeType: string; base64: string }>
   ): Promise<string> {
     const config = activeProvider || AIVaultService.getActiveProvider();
     const apiKey = (config.apiKey || '').trim();
@@ -603,9 +604,23 @@ export class UniversalAIService {
             role: h.role === 'assistant' || h.role === 'model' ? 'model' : 'user',
             parts: [{ text: h.content }]
           }));
+
+          const userParts: any[] = [];
+          if (images && images.length > 0) {
+            for (const img of images) {
+              userParts.push({
+                inlineData: {
+                  mimeType: img.mimeType || 'image/jpeg',
+                  data: img.base64.replace(/^data:[^;]+;base64,/, '')
+                }
+              });
+            }
+          }
+          userParts.push({ text: userMessage });
+
           geminiContents.push({
             role: 'user',
-            parts: [{ text: userMessage }]
+            parts: userParts
           });
 
           const body = {
@@ -621,7 +636,7 @@ export class UniversalAIService {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
-          }, 35000);
+          }, 45000);
 
           if (res.ok) {
             const data = await res.json();
@@ -634,7 +649,23 @@ export class UniversalAIService {
             role: h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user',
             content: h.content
           }));
-          messages.push({ role: 'user', content: userMessage });
+
+          let userContent: any = userMessage;
+          if (images && images.length > 0) {
+            userContent = [
+              ...images.map(img => ({
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: img.mimeType || 'image/jpeg',
+                  data: img.base64.replace(/^data:[^;]+;base64,/, '')
+                }
+              })),
+              { type: 'text', text: userMessage }
+            ];
+          }
+
+          messages.push({ role: 'user', content: userContent });
 
           const res = await fetchWithTimeout(url, {
             method: 'POST',
@@ -651,7 +682,7 @@ export class UniversalAIService {
               system: defaultSystem,
               messages
             })
-          }, 35000);
+          }, 45000);
 
           if (res.ok) {
             const data = await res.json();
@@ -671,13 +702,26 @@ export class UniversalAIService {
             headers['X-Title'] = 'Savantix AI';
           }
 
+          let userMsgContent: any = userMessage;
+          if (images && images.length > 0) {
+            userMsgContent = [
+              { type: 'text', text: userMessage },
+              ...images.map(img => ({
+                type: 'image_url',
+                image_url: {
+                  url: img.base64.startsWith('data:') ? img.base64 : `data:${img.mimeType || 'image/jpeg'};base64,${img.base64}`
+                }
+              }))
+            ];
+          }
+
           const messages = [
             { role: 'system', content: defaultSystem },
             ...history.map(h => ({
               role: h.role === 'assistant' || h.role === 'model' ? 'assistant' : 'user',
               content: h.content
             })),
-            { role: 'user', content: userMessage }
+            { role: 'user', content: userMsgContent }
           ];
 
           const res = await fetchWithTimeout(url, {
@@ -689,7 +733,7 @@ export class UniversalAIService {
               temperature: config.temperature ?? 0.7,
               max_tokens: config.maxTokens ?? 4096
             })
-          }, 35000);
+          }, 45000);
 
           if (res.ok) {
             const data = await res.json();
@@ -703,11 +747,28 @@ export class UniversalAIService {
     }
 
     // High-yield fallback STEM Study Mentor engine (Zero-failure)
-    return this.generateOfflineAdvisorResponse(userMessage);
+    return this.generateOfflineAdvisorResponse(userMessage, Boolean(images && images.length > 0));
   }
 
-  public static generateOfflineAdvisorResponse(prompt: string): string {
+  public static generateOfflineAdvisorResponse(prompt: string, hasImages = false): string {
     const p = prompt.toLowerCase();
+
+    if (hasImages) {
+      return `### 🖼️ Multimodal Diagram & Problem Analysis
+
+I have received your attached problem diagram / image for: **"${prompt.trim() || 'Uploaded STEM Question'}"**.
+
+#### 1. Visual & Geometric Strategy
+*   **Coordinate System Setup:** Identify reference axes ($x, y$) aligned with inclined planes, symmetries, or principal axes of inertia.
+*   **Vector Decomposition:** Resolve all force, field, and momentum vectors along parallel and perpendicular directions.
+*   **Boundary Conditions:** Check for contact points, frictionless vs rough surfaces, and continuity of potential/wave functions.
+
+#### 2. Governing Formulation:
+$$\\sum \\vec{F} = m\\vec{a}, \\quad \\sum \\vec{\\tau} = I\\vec{\\alpha}, \\quad \\oint \\vec{E} \\cdot d\\vec{A} = \\frac{Q}{\\varepsilon_0}$$
+
+#### 3. Recommended Step:
+Use the **Socratic STEM Solver** scratchpad to sketch your free-body diagram or step-by-step intermediate equation substitutions!`;
+    }
 
     if (p.includes('rotation') || p.includes('torque') || p.includes('angular momentum') || p.includes('physics')) {
       return `### 🌌 Physics & Mechanics Strategic Breakdown
