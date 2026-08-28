@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { UniversalAIService } from '../services/universalAIService';
+import { FreeOnlineAIService, WikiConceptSummary } from '../services/freeOnlineAIService';
 
 export type SubjectType = 'Physics' | 'Math' | 'Chemistry' | 'Computer Science' | 'General';
 
@@ -620,6 +621,26 @@ export const ConceptGraph: React.FC = () => {
   const selectedNode = useMemo(() => {
     return enrichedNodes.find(n => n.id === selectedNodeId) || null;
   }, [enrichedNodes, selectedNodeId]);
+
+  // Live Scientific Wikipedia & Knowledge Fetch (100% Free & Keyless)
+  const [wikiSummary, setWikiSummary] = useState<WikiConceptSummary | null>(null);
+  const [isLoadingWiki, setIsLoadingWiki] = useState(false);
+
+  useEffect(() => {
+    if (!selectedNode) {
+      setWikiSummary(null);
+      return;
+    }
+    let isCurrent = true;
+    setIsLoadingWiki(true);
+    FreeOnlineAIService.fetchConceptSummary(selectedNode.label).then(summary => {
+      if (isCurrent) {
+        setWikiSummary(summary);
+        setIsLoadingWiki(false);
+      }
+    });
+    return () => { isCurrent = false; };
+  }, [selectedNode?.id, selectedNode?.label]);
 
   // Filtered nodes by Subject & Search
   const filteredNodes = useMemo(() => {
@@ -1874,6 +1895,47 @@ Return ONLY the raw JSON array.`;
                   />
                 </div>
               </div>
+
+              {/* Live Scientific Summary & Visuals (100% Free & Keyless) */}
+              {isLoadingWiki ? (
+                <div className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-800/80 animate-pulse flex items-center gap-2 text-xs text-zinc-500">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
+                  <span>Fetching live scientific knowledge...</span>
+                </div>
+              ) : wikiSummary ? (
+                <div className="p-3.5 bg-zinc-950/60 rounded-xl border border-indigo-500/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Compass className="w-3.5 h-3.5 text-indigo-400" />
+                      Live Scientific Summary (Free • No Key)
+                    </span>
+                    {wikiSummary.pageUrl && (
+                      <a
+                        href={wikiSummary.pageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                      >
+                        Wikipedia <ChevronRight className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+
+                  {wikiSummary.thumbnailUrl && (
+                    <div className="w-full h-28 rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center">
+                      <img
+                        src={wikiSummary.thumbnailUrl}
+                        alt={wikiSummary.title}
+                        className="w-full h-full object-contain p-1"
+                      />
+                    </div>
+                  )}
+
+                  <p className="text-xs text-zinc-300 leading-relaxed line-clamp-4">
+                    {wikiSummary.extract}
+                  </p>
+                </div>
+              ) : null}
 
               {/* Free Curated Web References & Resources */}
               <div className="p-3.5 bg-zinc-950/60 rounded-xl border border-zinc-800 space-y-2">
