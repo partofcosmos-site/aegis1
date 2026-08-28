@@ -659,6 +659,36 @@ Generate actionable performance insights, hidden weakness identification, and co
   }
 
   public static async generateFlashcardsWithAI(prompt: string): Promise<AIFlashcard[]> {
+    const config = AIVaultService.getActiveProvider();
+    const apiKey = (config.apiKey || '').trim();
+
+    if (!apiKey) {
+      // Offline fallback: Generate high-yield STEM cards
+      const offlineCards: AIFlashcard[] = [
+        {
+          front: "What is the formula for the relativistic energy-momentum relation?",
+          back: "The energy-momentum relation is given by: $$E^2 = (pc)^2 + (mc^2)^2$$, where $$E$$ is energy, $$p$$ is momentum, $$m$$ is rest mass, and $$c$$ is the speed of light.",
+          deck: "Physics Olympiad"
+        },
+        {
+          front: "Evaluate the integral: $$\\int e^{ax} \\cos(bx) dx$$",
+          back: "Using integration by parts or complex exponentials: $$\\frac{e^{ax}}{a^2+b^2} (a \\cos(bx) + b \\sin(bx)) + C$$",
+          deck: "JEE Advanced Calculus"
+        },
+        {
+          front: "What is the mechanism of the SN2 reaction?",
+          back: "The SN2 (Substitution Nucleophilic Bimolecular) reaction involves a concerted, one-step mechanism where the nucleophile attacks the electrophilic carbon from the backside while the leaving group simultaneously departs, resulting in Walden inversion at the stereocenter.",
+          deck: "Organic Chemistry"
+        },
+        {
+          front: "Define the Lagrangian in analytical mechanics.",
+          back: "The Lagrangian $$L$$ is defined as the difference between the kinetic energy $$T$$ and the potential energy $$V$$: $$L = T - V$$. It is used in the Euler-Lagrange equations to derive the equations of motion: $$\\frac{d}{dt} (\\frac{\\partial L}{\\partial \\dot{q}_i}) - \\frac{\\partial L}{\\partial q_i} = 0$$.",
+          deck: "Mechanics"
+        }
+      ];
+      return offlineCards;
+    }
+
     const formattedPrompt = `Create 10-20 elite study flashcards for: "${prompt}".
 Rules:
 - Format all mathematical equations in LaTeX ($...$ inline, $$...$$ block).

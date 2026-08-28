@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar, Target, Clock, AlertCircle, Plus, Trash2, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Calendar, Target, Clock, AlertCircle, Plus, Trash2, CheckCircle2, ChevronRight, Edit2 } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 
 interface ExamTarget {
@@ -19,44 +19,53 @@ const DEFAULT_EXAMS: ExamTarget[] = [
 ];
 
 export const ExamCountdown: React.FC = () => {
-  const [exams, setExams] = useState<ExamTarget[]>(() => {
-    const saved = localStorage.getItem('savantix_exam_targets');
-    return saved ? JSON.parse(saved) : DEFAULT_EXAMS;
-  });
-
+  const [exams, setExams] = useState<ExamTarget[]>(JSON.parse(localStorage.getItem('savantix_exam_targets') || JSON.stringify(DEFAULT_EXAMS)));
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [targetHours, setTargetHours] = useState('');
-  const [category, setCategory] = useState<'Physics' | 'Math' | 'Chemistry' | 'General'>('General');
+  const [category, setCategory] = useState<ExamTarget['category']>('General');
+  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
 
   const saveExams = (newExams: ExamTarget[]) => {
     setExams(newExams);
     localStorage.setItem('savantix_exam_targets', JSON.stringify(newExams));
+    // Persistence to Firestore could be added here if needed, via AppContext
   };
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !targetDate) return;
-
-    const newTarget: ExamTarget = {
-      id: 'target_' + Date.now(),
-      name: name.trim(),
+    const newExam: ExamTarget = {
+      id: 'exam-' + Date.now(),
+      name,
       targetDate,
-      targetHours: Number(targetHours) || 500,
+      targetHours: Number(targetHours),
       completedHours: 0,
       category
     };
-
-    saveExams([...exams, newTarget]);
+    saveExams([...exams, newExam]);
+    setIsAdding(false);
     setName('');
     setTargetDate('');
     setTargetHours('');
-    setIsAdding(false);
+  };
+
+  const handleEditClick = (exam: ExamTarget) => {
+    setIsEditing(exam.id);
+    setEditForm({ ...exam });
+  };
+
+  const handleSaveEdit = (id: string) => {
+    const updated = exams.map(e => e.id === id ? { ...e, ...editForm } : e);
+    saveExams(updated);
+    setIsEditing(null);
   };
 
   const handleDelete = (id: string) => {
-    saveExams(exams.filter(e => e.id !== id));
+    if (window.confirm("Are you sure you want to delete this exam target?")) {
+      saveExams(exams.filter(e => e.id !== id));
+    }
   };
 
   return (
@@ -81,7 +90,6 @@ export const ExamCountdown: React.FC = () => {
         </button>
       </div>
 
-      {/* Add Exam Form */}
       {isAdding && (
         <form onSubmit={handleAdd} className="bg-zinc-950/80 border border-zinc-800/80 p-5 rounded-2xl space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -143,7 +151,6 @@ export const ExamCountdown: React.FC = () => {
         </form>
       )}
 
-      {/* Exam Countdown Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {exams.map(exam => {
           const daysLeft = Math.max(0, differenceInDays(parseISO(exam.targetDate), new Date()));
@@ -156,52 +163,85 @@ export const ExamCountdown: React.FC = () => {
               key={exam.id}
               className="bg-zinc-950/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-5 space-y-4 relative group hover:border-zinc-700 transition-all shadow-md"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="text-sm font-semibold text-zinc-200">{exam.name}</h4>
-                  <div className="flex items-center gap-2 text-[11px] text-zinc-500 mt-1">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{format(parseISO(exam.targetDate), 'MMM dd, yyyy')}</span>
-                    <span className="px-2 py-0.5 text-[10px] bg-zinc-900 text-zinc-400 rounded-full border border-zinc-800">
-                      {exam.category}
-                    </span>
+              {isEditing === exam.id ? (
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={e => setEditForm({...editForm, name: e.target.value})}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
+                  />
+                  <input
+                    type="date"
+                    value={editForm.targetDate}
+                    onChange={e => setEditForm({...editForm, targetDate: e.target.value})}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100"
+                  />
+                  <div className="flex gap-2">
+                     <button onClick={() => setIsEditing(null)} className="flex-1 px-3 py-2 bg-zinc-800 rounded-lg text-xs text-zinc-300">Cancel</button>
+                     <button onClick={() => handleSaveEdit(exam.id)} className="flex-1 px-3 py-2 bg-indigo-600 rounded-lg text-xs text-white">Save</button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-zinc-200">{exam.name}</h4>
+                      <div className="flex items-center gap-2 text-[11px] text-zinc-500 mt-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{format(parseISO(exam.targetDate), 'MMM dd, yyyy')}</span>
+                        <span className="px-2 py-0.5 text-[10px] bg-zinc-900 text-zinc-400 rounded-full border border-zinc-800">
+                          {exam.category}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="text-right">
-                  <div className="text-2xl font-bold font-mono text-indigo-400">{daysLeft}d</div>
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Remaining</span>
-                </div>
-              </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold font-mono text-indigo-400">{daysLeft}d</div>
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Remaining</span>
+                    </div>
+                  </div>
 
-              {/* Progress Bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-[11px] text-zinc-400">
-                  <span>Progress</span>
-                  <span className="font-semibold text-indigo-300">{progressPercent}%</span>
-                </div>
-                <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-indigo-500 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[11px] text-zinc-400">
+                      <span>Progress</span>
+                      <span className="font-semibold text-indigo-300">{progressPercent}%</span>
+                    </div>
+                    <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-indigo-500 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
 
-              {/* Velocity Pace Footer */}
-              <div className="flex items-center justify-between text-[11px] pt-2 text-zinc-400 border-t border-zinc-800/60">
-                <span className="flex items-center gap-1.5 text-emerald-400">
-                  <Clock className="w-3.5 h-3.5" />
-                  Pace required: <strong>{requiredHoursPerDay} hrs/day</strong>
-                </span>
+                  <div className="flex items-center justify-between text-[11px] pt-2 text-zinc-400 border-t border-zinc-800/60">
+                    <span className="flex items-center gap-1.5 text-emerald-400">
+                      <Clock className="w-3.5 h-3.5" />
+                      Pace: <strong>{requiredHoursPerDay} hrs/day</strong>
+                    </span>
 
-                <button
-                  onClick={() => handleDelete(exam.id)}
-                  className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-opacity p-1.5 hover:bg-zinc-800 rounded-lg"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(exam)}
+                        className="text-zinc-400 hover:text-indigo-400 p-1.5 bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
+                        title="Edit Target"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(exam.id)}
+                        className="text-zinc-400 hover:text-red-400 p-1.5 bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
+                        title="Delete Target"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           );
         })}
