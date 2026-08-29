@@ -278,8 +278,7 @@ export class YouTubeAudioService {
   }
 
   public static getEmbedUrl(videoId: string, autoplay = true): string {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://savantix.vercel.app';
-    return `https://www.youtube.com/embed/${videoId}?autoplay=${autoplay ? 1 : 0}&enablejsapi=1&origin=${encodeURIComponent(origin)}&widget_referrer=${encodeURIComponent(origin)}&rel=0&modestbranding=1&playsinline=1`;
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoplay ? 1 : 0}&enablejsapi=1&playsinline=1&rel=0&modestbranding=1`;
   }
 
   /**

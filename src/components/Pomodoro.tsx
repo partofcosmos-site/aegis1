@@ -314,19 +314,25 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   useEffect(() => {
     const handleYtMessage = (event: MessageEvent) => {
       try {
-        if (typeof event.data === 'string') {
-          const data = JSON.parse(event.data);
-          // YouTube Error codes: 2 (invalid param), 5 (HTML5 error), 100 (not found/removed), 101/150 (not embeddable)
-          if (data.event === 'onError' || (data.info && typeof data.info === 'number' && [2, 5, 100, 101, 150].includes(data.info))) {
-            if (selectedYtTrack) {
-              console.warn(`[Savantix Audio] Video ${selectedYtTrack.youtubeId} unavailable (code ${data.info}). Auto-skipping...`);
-              YouTubeAudioService.reportBadVideoId(selectedYtTrack.youtubeId);
-              setMessage({ type: 'info', text: `Stream '${selectedYtTrack.title}' unavailable — auto-switching to next stream...` });
-              setTimeout(() => {
-                handleNextYtTrack();
-              }, 300);
-            }
+        let data = event.data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            return;
           }
+        }
+        if (!data || typeof data !== 'object') return;
+
+        // YouTube Error codes: 2 (invalid param), 5 (HTML5 error), 100 (not found/removed), 101/150 (not embeddable / restricted)
+        const isErrorEvent = data.event === 'onError' || (data.info && typeof data.info === 'number' && [2, 5, 100, 101, 150].includes(data.info));
+        if (isErrorEvent && selectedYtTrack) {
+          console.warn(`[Savantix Audio] Video ${selectedYtTrack.youtubeId} unavailable (code ${data.info}). Auto-skipping...`);
+          YouTubeAudioService.reportBadVideoId(selectedYtTrack.youtubeId);
+          setMessage({ type: 'info', text: `Stream '${selectedYtTrack.title}' restricted by YouTube — auto-switching to fresh track...` });
+          setTimeout(() => {
+            handleNextYtTrack();
+          }, 300);
         }
       } catch {}
     };
