@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { LogInput } from './LogInput';
 import { InsightsPanel } from './InsightsPanel';
 import { StudyHeatmap } from './StudyHeatmap';
@@ -48,6 +48,15 @@ import {
   calculateSubjectEquilibrium,
   SubjectEquilibriumReport
 } from '../utils/pidEquilibriumEngine';
+import {
+  getCurrentZone,
+  getNextZone,
+  getMinutesUntilNextZone,
+  formatCountdown,
+  getWeakSubjectsFromLogs,
+  getPersonalizedRecommendations,
+  buildTimeline,
+} from '../utils/circadianEngine';
 
 export const Dashboard = () => {
   const { logs, updateLog, deleteLog, elasticStreak, updateElasticStreak, recomputeElasticStreak, addLog } = useAppContext();
@@ -192,6 +201,20 @@ export const Dashboard = () => {
   };
 
   const hasSprintCards = revisionSprint.stabilityCard || revisionSprint.consolidationCard || revisionSprint.decayCard;
+
+  // ── Circadian Engine — live clock ──────────────────────────────────────────
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(tick);
+  }, []);
+
+  const currentZone = useMemo(() => getCurrentZone(now), [now]);
+  const nextZone    = useMemo(() => getNextZone(currentZone), [currentZone]);
+  const minsLeft    = useMemo(() => getMinutesUntilNextZone(now, currentZone), [now, currentZone]);
+  const weakSubjects = useMemo(() => getWeakSubjectsFromLogs(logs), [logs]);
+  const circadianRecs = useMemo(() => getPersonalizedRecommendations(currentZone, weakSubjects), [currentZone, weakSubjects]);
+  const circadianTimeline = useMemo(() => buildTimeline(currentZone), [currentZone]);
 
   return (
     <div className="w-full px-4 sm:px-6 py-8">
@@ -733,6 +756,112 @@ export const Dashboard = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+
+        {/* ================================================================= */}
+        {/* CIRCADIAN COGNITIVE LOAD SCHEDULER                                */}
+        {/* ================================================================= */}
+        <div className={`relative rounded-2xl overflow-hidden shadow-2xl border ${currentZone.borderColor} ${currentZone.bgColor}`}>
+          <div
+            className="absolute inset-0 pointer-events-none opacity-30"
+            style={{ background: `radial-gradient(ellipse at top left, ${currentZone.glowColor}22 0%, transparent 60%)` }}
+          />
+          <div className="relative z-10 p-6">
+
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl leading-none">{currentZone.icon}</div>
+                <div>
+                  <h2 className={`text-lg font-bold ${currentZone.accentColor}`}>
+                    Circadian Cognitive Scheduler
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Your brain's current energy state · Live-updating every minute
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`px-3 py-1.5 rounded-xl border text-xs font-bold ${currentZone.badgeBg}`}>
+                  {currentZone.icon} {currentZone.brainState}
+                </span>
+              </div>
+            </div>
+
+            {/* Timeline bar */}
+            <div className="mb-6">
+              <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest mb-2">24-Hour Energy Map</p>
+              <div className="flex h-5 rounded-full overflow-hidden gap-0.5">
+                {circadianTimeline.map((seg) => (
+                  <div
+                    key={seg.zone.id}
+                    title={`${seg.zone.icon} ${seg.zone.label}`}
+                    className={`h-full transition-all rounded-sm ${seg.isCurrent ? 'opacity-100 ring-2 ring-white/30' : 'opacity-40'}`}
+                    style={{
+                      width: `${seg.widthFraction * 100}%`,
+                      background: seg.zone.glowColor,
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-between text-[9px] text-zinc-600 mt-1.5 font-mono">
+                <span>5:30</span>
+                <span>9:00</span>
+                <span>12:00</span>
+                <span>14:00</span>
+                <span>17:00</span>
+                <span>20:00</span>
+                <span>22:00</span>
+              </div>
+            </div>
+
+            {/* Current zone card + countdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className={`sm:col-span-2 rounded-xl border p-4 ${currentZone.borderColor} bg-zinc-950/40`}>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold mb-2">Now — What to do</p>
+                <ul className="space-y-2">
+                  {circadianRecs.map((rec, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className={`mt-0.5 w-1.5 h-1.5 rounded-full shrink-0 ${currentZone.accentColor.replace('text-', 'bg-')}`} />
+                      <span className="text-sm text-zinc-300">{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex flex-col gap-3">
+                <div className="rounded-xl border border-zinc-800/60 bg-zinc-950/40 p-4 flex flex-col items-center justify-center text-center gap-1">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Next Zone In</p>
+                  <p className={`text-3xl font-bold font-mono ${currentZone.accentColor}`}>
+                    {formatCountdown(minsLeft)}
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    → {nextZone.icon} {nextZone.label}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-zinc-800/60 bg-zinc-950/40 p-3 flex flex-col items-center justify-center text-center gap-1">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Current Time</p>
+                  <p className="text-lg font-bold font-mono text-zinc-200">
+                    {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Weak subject callout */}
+            {weakSubjects.length > 0 && (
+              <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 flex items-start gap-3">
+                <span className="text-amber-400 text-lg leading-none mt-0.5">⚠️</span>
+                <div>
+                  <p className="text-xs font-bold text-amber-300">Weakest subject this week</p>
+                  <p className="text-xs text-amber-200/70 mt-0.5">
+                    <strong>{weakSubjects[0].subject}</strong> — only {weakSubjects[0].totalMinutes} min in the last 7 days.
+                    Schedule it in your next Peak Working Memory slot.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
