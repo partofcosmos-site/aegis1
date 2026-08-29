@@ -1,7 +1,8 @@
 /**
  * @file youtubeAudioService.ts
  * @description
- * Distraction-Free YouTube Study Audio & Music Engine.
+ * Distraction-Free YouTube Study Audio & Music Engine with Self-Healing Auto-Skip,
+ * Blacklist Filtering, and Dynamic Playlist Refresh.
  */
 
 export interface YouTubeTrack {
@@ -15,6 +16,7 @@ export interface YouTubeTrack {
 }
 
 export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
+  // Lo-Fi & Chillhop
   {
     id: 'yt_lofi_1',
     title: 'Deep Study Lo-Fi Beats to Relax & Focus to',
@@ -43,6 +45,26 @@ export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
     duration: '3h 00m'
   },
   {
+    id: 'yt_lofi_4',
+    title: 'Japanese Garden Lofi Chill Beats',
+    artist: 'Lofi Records',
+    category: 'lofi',
+    youtubeId: 'rUxyKA_-grg',
+    tag: 'Zen Garden',
+    duration: '2h 00m'
+  },
+  {
+    id: 'yt_lofi_5',
+    title: 'Late Night Study Session Lo-Fi',
+    artist: 'ChilledCow Classics',
+    category: 'lofi',
+    youtubeId: 'n61ULEU7SU0',
+    tag: 'Midnight Vibe',
+    duration: '3h 15m'
+  },
+
+  // 40Hz Gamma & Neuroscience Binaural Beats
+  {
     id: 'yt_binaural_1',
     title: '40Hz Gamma Pure Binaural Focus Waves (Study & Cognition)',
     artist: 'Brainwave Neuroscience',
@@ -60,6 +82,26 @@ export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
     tag: 'Alpha / Beta Wave',
     duration: '2h 00m'
   },
+  {
+    id: 'yt_binaural_3',
+    title: '40Hz Gamma Focus Frequency for ADHD & Memory',
+    artist: 'Cognitive Audio Lab',
+    category: 'binaural',
+    youtubeId: '21qNxnC46W0',
+    tag: 'Gamma Resonance',
+    duration: '4h 00m'
+  },
+  {
+    id: 'yt_binaural_4',
+    title: 'Pure 10Hz Alpha State Flow Generator',
+    artist: 'Brainwave Lab',
+    category: 'binaural',
+    youtubeId: '92b3R4rQvY0',
+    tag: '10Hz Alpha',
+    duration: '2h 30m'
+  },
+
+  // Classical Music for Deep STEM & Derivations
   {
     id: 'yt_classical_1',
     title: 'Classical Music for Brain Power & Deep Mathematics',
@@ -79,6 +121,26 @@ export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
     duration: '1h 45m'
   },
   {
+    id: 'yt_classical_3',
+    title: 'Vivaldi Complete Four Seasons (Concertos)',
+    artist: 'Camerata Academica',
+    category: 'classical',
+    youtubeId: 'GRxofEmo3HA',
+    tag: 'Four Seasons',
+    duration: '42m'
+  },
+  {
+    id: 'yt_classical_4',
+    title: 'Chopin Nocturnes for Reading & Deep Thinking',
+    artist: 'Frédéric Chopin',
+    category: 'classical',
+    youtubeId: 'RCObOzxZg4Y',
+    tag: 'Romantic Piano',
+    duration: '2h 00m'
+  },
+
+  // Cyberpunk & Synthwave Coding Beats
+  {
     id: 'yt_synthwave_1',
     title: 'Synthwave & Cyberpunk Coding Beats (No Vocals)',
     artist: 'Synth Study Hub',
@@ -87,6 +149,26 @@ export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
     tag: 'Cyberpunk Flow',
     duration: '2h 30m'
   },
+  {
+    id: 'yt_synthwave_2',
+    title: 'Retrowave & Cyberpunk Deep Coding Session',
+    artist: 'Nightride FM',
+    category: 'synthwave',
+    youtubeId: 'MVPTGNGiI-4',
+    tag: 'Code Mode',
+    duration: '3h 00m'
+  },
+  {
+    id: 'yt_synthwave_3',
+    title: 'Chillwave & Synth Ambient Coding Soundtrack',
+    artist: 'Astral Wave',
+    category: 'synthwave',
+    youtubeId: 'UedTcufyrMH',
+    tag: 'Neon Focus',
+    duration: '2h 00m'
+  },
+
+  // Heavy Rain, Thunder & Cozy Library Acoustics
   {
     id: 'yt_ambient_1',
     title: 'Heavy Rainstorm & Thunder for Sleep & Deep Study',
@@ -106,6 +188,17 @@ export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
     duration: '3h 00m'
   },
   {
+    id: 'yt_ambient_3',
+    title: 'Gentle Night Rain on Window for Focused Study',
+    artist: 'Calm River Studio',
+    category: 'ambient',
+    youtubeId: 'lTRiuFIWV54',
+    tag: 'Night Rain',
+    duration: '4h 00m'
+  },
+
+  // Deep Space Ambient & Cosmic Exploration
+  {
     id: 'yt_cinematic_1',
     title: 'Space Ambient & Deep Cosmos Focus Odyssey',
     artist: 'Cosmos Audio',
@@ -113,11 +206,22 @@ export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
     youtubeId: 'sW4YFkK8n64',
     tag: 'Cosmic Ambient',
     duration: '2h 30m'
+  },
+  {
+    id: 'yt_cinematic_2',
+    title: 'Interstellar Deep Space Engine & Nebula Atmosphere',
+    artist: 'Stellar Sounds',
+    category: 'cinematic',
+    youtubeId: 'O_OQ0b3hI1g',
+    tag: 'Deep Cosmos',
+    duration: '3h 00m'
   }
 ];
 
 export class YouTubeAudioService {
   private static YT_API_KEY_STORAGE = 'savantix_google_yt_api_key_v1';
+  private static BAD_VIDEOS_STORAGE = 'savantix_bad_yt_ids_v1';
+  private static CUSTOM_TRACKS_STORAGE = 'savantix_custom_yt_tracks_v1';
 
   public static getApiKey(): string {
     try {
@@ -129,6 +233,40 @@ export class YouTubeAudioService {
 
   public static setApiKey(key: string): void {
     localStorage.setItem(this.YT_API_KEY_STORAGE, key.trim());
+  }
+
+  public static getBadVideoIds(): Set<string> {
+    try {
+      const data = localStorage.getItem(this.BAD_VIDEOS_STORAGE);
+      return data ? new Set(JSON.parse(data)) : new Set();
+    } catch {
+      return new Set();
+    }
+  }
+
+  public static reportBadVideoId(videoId: string): void {
+    try {
+      const bad = this.getBadVideoIds();
+      bad.add(videoId);
+      localStorage.setItem(this.BAD_VIDEOS_STORAGE, JSON.stringify(Array.from(bad)));
+    } catch {}
+  }
+
+  public static getCustomTracks(): YouTubeTrack[] {
+    try {
+      const data = localStorage.getItem(this.CUSTOM_TRACKS_STORAGE);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public static saveCustomTrack(track: YouTubeTrack): void {
+    try {
+      const custom = this.getCustomTracks().filter(t => t.youtubeId !== track.youtubeId);
+      custom.unshift(track);
+      localStorage.setItem(this.CUSTOM_TRACKS_STORAGE, JSON.stringify(custom.slice(0, 30)));
+    } catch {}
   }
 
   public static extractVideoId(input: string): string | null {
@@ -144,9 +282,31 @@ export class YouTubeAudioService {
     return `https://www.youtube.com/embed/${videoId}?autoplay=${autoplay ? 1 : 0}&enablejsapi=1&origin=${encodeURIComponent(origin)}&widget_referrer=${encodeURIComponent(origin)}&rel=0&modestbranding=1&playsinline=1`;
   }
 
+  /**
+   * Returns active, non-blacklisted curated and custom tracks.
+   * Dynamically rotated for variety.
+   */
+  public static getHealthyTracks(): YouTubeTrack[] {
+    const bad = this.getBadVideoIds();
+    const custom = this.getCustomTracks().filter(t => !bad.has(t.youtubeId));
+    const curated = CURATED_FOCUS_TRACKS.filter(t => !bad.has(t.youtubeId));
+    return [...custom, ...curated];
+  }
+
+  /**
+   * Dynamically shuffles/rotates tracks so the library always feels fresh.
+   */
+  public static rotateFreshTracks(): YouTubeTrack[] {
+    const tracks = this.getHealthyTracks();
+    // Deterministic or time-based smart shuffle
+    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+    return shuffled;
+  }
+
   public static async searchTracks(query: string): Promise<YouTubeTrack[]> {
     const q = query.trim().toLowerCase();
-    if (!q) return CURATED_FOCUS_TRACKS;
+    const healthy = this.getHealthyTracks();
+    if (!q) return healthy;
 
     const key = this.getApiKey();
     if (key) {
@@ -160,7 +320,7 @@ export class YouTubeAudioService {
               id: 'yt_' + item.id.videoId,
               title: item.snippet.title.replace(/&amp;/g, '&').replace(/&quot;/g, '"'),
               artist: item.snippet.channelTitle,
-              category: 'custom',
+              category: 'custom' as const,
               youtubeId: item.id.videoId,
               tag: 'YouTube Live',
               duration: 'Study Audio'
@@ -172,13 +332,14 @@ export class YouTubeAudioService {
       }
     }
 
-    const filtered = CURATED_FOCUS_TRACKS.filter(t =>
+    const filtered = healthy.filter(t =>
       t.title.toLowerCase().includes(q) ||
       t.artist.toLowerCase().includes(q) ||
       t.category.toLowerCase().includes(q) ||
       t.tag.toLowerCase().includes(q)
     );
 
-    return filtered.length > 0 ? filtered : CURATED_FOCUS_TRACKS;
+    return filtered.length > 0 ? filtered : healthy;
   }
 }
+

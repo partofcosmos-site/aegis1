@@ -224,15 +224,43 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   const [isMuted, setIsMuted] = useState<boolean>(pomodoroAudio.getIsMuted());
   const [isFallbackActive, setIsFallbackActive] = useState<boolean>(pomodoroAudio.isFallbackActive());
 
-  // --- DISTRACTION-FREE YOUTUBE AUDIO STATE ---
+  // --- DISTRACTION-FREE YOUTUBE AUDIO STATE (SELF-HEALING) ---
   const [audioEngineType, setAudioEngineType] = useState<'synth' | 'youtube'>('synth');
-  const [ytTracks, setYtTracks] = useState<YouTubeTrack[]>(CURATED_FOCUS_TRACKS);
-  const [selectedYtTrack, setSelectedYtTrack] = useState<YouTubeTrack | null>(CURATED_FOCUS_TRACKS[0]);
+  const [ytTracks, setYtTracks] = useState<YouTubeTrack[]>(() => YouTubeAudioService.getHealthyTracks());
+  const [selectedYtTrack, setSelectedYtTrack] = useState<YouTubeTrack | null>(() => {
+    const healthy = YouTubeAudioService.getHealthyTracks();
+    return healthy[0] || null;
+  });
   const [ytSearchQuery, setYtSearchQuery] = useState<string>('');
   const [isYtSearching, setIsYtSearching] = useState<boolean>(false);
   const [ytCategoryFilter, setYtCategoryFilter] = useState<string>('all');
   const [customYtInput, setCustomYtInput] = useState<string>('');
   const [isYtPlaying, setIsYtPlaying] = useState<boolean>(false);
+
+  // --- SELF-HEALING YOUTUBE AUTO-SKIP ENGINE ---
+  useEffect(() => {
+    const handleYtMessage = (event: MessageEvent) => {
+      try {
+        if (typeof event.data === 'string') {
+          const data = JSON.parse(event.data);
+          // YouTube Error codes: 2 (invalid param), 5 (HTML5 error), 100 (not found/removed), 101/150 (not embeddable)
+          if (data.event === 'onError' || (data.info && typeof data.info === 'number' && [2, 5, 100, 101, 150].includes(data.info))) {
+            if (selectedYtTrack) {
+              console.warn(`[Savantix Audio] Video ${selectedYtTrack.youtubeId} unavailable (code ${data.info}). Auto-skipping...`);
+              YouTubeAudioService.reportBadVideoId(selectedYtTrack.youtubeId);
+              setMessage({ type: 'info', text: `Stream '${selectedYtTrack.title}' unavailable — auto-switching to next stream...` });
+              setTimeout(() => {
+                handleNextYtTrack();
+              }, 300);
+            }
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener('message', handleYtMessage);
+    return () => window.removeEventListener('message', handleYtMessage);
+  }, [selectedYtTrack, ytTracks]);
 
   const handleYtSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -241,9 +269,19 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
       const results = await YouTubeAudioService.searchTracks(ytSearchQuery);
       setYtTracks(results);
     } catch {
-      setYtTracks(CURATED_FOCUS_TRACKS);
+      setYtTracks(YouTubeAudioService.getHealthyTracks());
     } finally {
       setIsYtSearching(false);
+    }
+  };
+
+  const handleShuffleYtTracks = () => {
+    const fresh = YouTubeAudioService.rotateFreshTracks();
+    setYtTracks(fresh);
+    if (fresh.length > 0) {
+      setSelectedYtTrack(fresh[0]);
+      setIsYtPlaying(true);
+      setMessage({ type: 'success', text: 'Refreshed stream playlist with fresh focus sessions!' });
     }
   };
 
@@ -272,6 +310,7 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
       tag: 'Custom Link',
       duration: 'Live Audio'
     };
+    YouTubeAudioService.saveCustomTrack(newTrack);
     setYtTracks(prev => [newTrack, ...prev]);
     setSelectedYtTrack(newTrack);
     setIsYtPlaying(true);
@@ -283,10 +322,11 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   };
 
   const handleNextYtTrack = () => {
-    if (!ytTracks.length) return;
-    const currentIndex = ytTracks.findIndex(t => t.youtubeId === selectedYtTrack?.youtubeId);
-    const nextIndex = (currentIndex + 1) % ytTracks.length;
-    handleSelectYtTrack(ytTracks[nextIndex]);
+    const healthy = YouTubeAudioService.getHealthyTracks();
+    if (!healthy.length) return;
+    const currentIndex = healthy.findIndex(t => t.youtubeId === selectedYtTrack?.youtubeId);
+    const nextIndex = (currentIndex + 1) % healthy.length;
+    handleSelectYtTrack(healthy[nextIndex]);
   };
 
   // --- TASK LIST STATE ---
@@ -1566,7 +1606,7 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                   </div>
                 )}
 
-                {/* YouTube Search Bar */}
+                {/* YouTube Search Bar & Live Rotation */}
                 <form onSubmit={handleYtSearch} className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1584,6 +1624,15 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                     className="px-3 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 shadow-md shadow-rose-600/20 cursor-pointer"
                   >
                     {isYtSearching ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Search'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShuffleYtTracks}
+                    className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                    title="Shuffle and rotate fresh study streams"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Fresh</span>
                   </button>
                 </form>
 
