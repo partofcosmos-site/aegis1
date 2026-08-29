@@ -17,75 +17,102 @@ export interface YouTubeTrack {
 export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
   {
     id: 'yt_lofi_1',
-    title: 'Lofi Girl 24/7 Beats to Relax/Study to',
-    artist: 'Lofi Girl',
+    title: 'Lofi Hip Hop Study & Focus Beats — 24/7 Radio',
+    artist: 'Lofi Records',
     category: 'lofi',
     youtubeId: 'jfKfPfyJRdk',
-    tag: '24/7 Live Focus',
-    duration: 'Live Stream'
+    tag: '24/7 Focus Stream',
+    duration: 'Live / Endless'
   },
   {
-    id: 'yt_classical_1',
-    title: 'Chopin Complete Nocturnes for Deep Study',
-    artist: 'Frédéric Chopin',
-    category: 'classical',
-    youtubeId: '9E6b3swbnWg',
-    tag: 'Classical Piano',
-    duration: '1h 58m'
-  },
-  {
-    id: 'yt_cinematic_1',
-    title: 'Hans Zimmer Interstellar & Cinematic Deep Work',
-    artist: 'Hans Zimmer & Cinematic',
-    category: 'cinematic',
-    youtubeId: 'N1t9pIu3G_M',
-    tag: 'Cinematic Flow',
-    duration: '2h 14m'
-  },
-  {
-    id: 'yt_binaural_1',
-    title: '40Hz Gamma Pure Binaural Beats for Problem Solving',
-    artist: 'Brainwave Science',
-    category: 'binaural',
-    youtubeId: '1_G6EZncv8k',
-    tag: '40Hz Focus',
-    duration: '3h 00m'
-  },
-  {
-    id: 'yt_synthwave_1',
-    title: 'Synthwave / Cyberpunk Coding & Intense Math Focus',
-    artist: 'Lofi & Synth',
-    category: 'synthwave',
-    youtubeId: '4xDzrJKXOOY',
-    tag: 'Cyberpunk Focus',
-    duration: '2h 00m'
-  },
-  {
-    id: 'yt_ambient_1',
-    title: 'Cozy Rainy Night Café & Soft Piano Study',
-    artist: 'Ambience Studio',
-    category: 'ambient',
-    youtubeId: 'h2zkV-l_TbY',
-    tag: 'Rain & Café',
+    id: 'yt_lofi_2',
+    title: 'Deep Study Lo-Fi Beats to Relax & Focus to',
+    artist: 'Lofi Chill Lab',
+    category: 'lofi',
+    youtubeId: '5qap5aO4i9A',
+    tag: 'Chillhop Focus',
     duration: '3h 30m'
   },
   {
-    id: 'yt_classical_2',
-    title: 'Mozart Classical Concentration & Learning Symphony',
-    artist: 'W.A. Mozart',
-    category: 'classical',
-    youtubeId: 'Rb0UmrCXxVA',
-    tag: 'Mozart Effect',
-    duration: '2h 05m'
+    id: 'yt_lofi_3',
+    title: 'Midnight Coding & Math Focus Beats',
+    artist: 'Coffee Shop Vibes',
+    category: 'lofi',
+    youtubeId: 'DWcJFNfaw9c',
+    tag: 'Late Night Flow',
+    duration: '2h 45m'
   },
   {
-    id: 'yt_ghibli_1',
-    title: 'Relaxing Studio Ghibli Piano Collection',
-    artist: 'Joe Hisaishi / Ghibli',
-    category: 'lofi',
-    youtubeId: '3jWRrafhO7M',
-    tag: 'Ghibli Piano',
-    duration: '1h 35m'
+    id: 'yt_binaural_1',
+    title: '40Hz Gamma Pure Binaural Focus Waves (Study & Cognition)',
+    artist: 'Brainwave Neuroscience',
+    category: 'binaural',
+    youtubeId: 'WPni755-Krg',
+    tag: '40Hz Gamma',
+    duration: '3h 00m'
+  },
+  {
+    id: 'yt_binaural_2',
+    title: '14Hz Beta & Alpha Waves for Intense Concentration',
+    artist: 'Neuro Focus Lab',
+    category: 'binaural',
+    youtubeId: '3H3gQc0J09k',
+    tag: 'Alpha / Beta Wave',
+    duration: '2h 00m'
+  },
+  {
+    id: 'yt_classical_1',
+    title: 'Classical Music for Brain Power & Deep Mathematics',
+    artist: 'Mozart & Bach Ensemble',
+    category: 'classical',
+    youtubeId: 'mIYzp5rcTvU',
+    tag: 'Classical Focus',
+    duration: '2h 15m'
+  },
+  {
+    id: 'yt_classical_2',
+    title: 'Vivaldi Four Seasons & Baroque Concentration',
+    artist: 'Antonio Vivaldi',
+    category: 'classical',
+    youtubeId: 'jgpJVI3tDbY',
+    tag: 'Baroque Flow',
+    duration: '1h 45m'
+  },
+  {
+    id: 'yt_synthwave_1',
+    title: 'Synthwave & Cyberpunk Coding Beats (No Vocals)',
+    artist: 'Synth Study Hub',
+    category: 'synthwave',
+    youtubeId: '4xDzrJKXOOY',
+    tag: 'Cyberpunk Flow',
+    duration: '2h 30m'
+  },
+  {
+    id: 'yt_ambient_1',
+    title: 'Heavy Rainstorm & Thunder for Sleep & Deep Study',
+    artist: 'Nature Sounds Studio',
+    category: 'ambient',
+    youtubeId: 'mPZkdNFkNps',
+    tag: 'Rain & Thunder',
+    duration: '8h 00m'
+  },
+  {
+    id: 'yt_ambient_2',
+    title: 'Cozy Library Study with Gentle Rain & Fireplace',
+    artist: 'Ambient World',
+    category: 'ambient',
+    youtubeId: 'q76bMs-NwRk',
+    tag: 'Library & Rain',
+    duration: '3h 00m'
+  },
+  {
+    id: 'yt_cinematic_1',
+    title: 'Space Ambient & Deep Cosmos Focus Odyssey',
+    artist: 'Cosmos Audio',
+    category: 'cinematic',
+    youtubeId: 'sW4YFkK8n64',
+    tag: 'Cosmic Ambient',
+    duration: '2h 30m'
   }
 ];
 
@@ -108,12 +135,13 @@ export class YouTubeAudioService {
     const clean = input.trim();
     if (!clean) return null;
     if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) return clean;
-    const match = clean.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    const match = clean.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|live\/))([\w-]{11})/);
     return match ? match[1] : null;
   }
 
   public static getEmbedUrl(videoId: string, autoplay = true): string {
-    return 'https://www.youtube-nocookie.com/embed/' + videoId + '?autoplay=' + (autoplay ? 1 : 0) + '&controls=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://savantix.vercel.app';
+    return `https://www.youtube.com/embed/${videoId}?autoplay=${autoplay ? 1 : 0}&enablejsapi=1&origin=${encodeURIComponent(origin)}&widget_referrer=${encodeURIComponent(origin)}&rel=0&modestbranding=1&playsinline=1`;
   }
 
   public static async searchTracks(query: string): Promise<YouTubeTrack[]> {
@@ -130,7 +158,7 @@ export class YouTubeAudioService {
           if (Array.isArray(data.items)) {
             return data.items.map((item: any) => ({
               id: 'yt_' + item.id.videoId,
-              title: item.snippet.title.replace(/&amp;/g, '&').replace(/&quot;/g, '\"'),
+              title: item.snippet.title.replace(/&amp;/g, '&').replace(/&quot;/g, '"'),
               artist: item.snippet.channelTitle,
               category: 'custom',
               youtubeId: item.id.videoId,

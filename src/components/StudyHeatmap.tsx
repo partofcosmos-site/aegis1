@@ -271,15 +271,20 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({
     }
 
     // Generate Month Header labels corresponding to column index
+    // Show "Jan '26" when year boundary crossed, plain "Aug" otherwise
     const months: Array<{ name: string; colIndex: number }> = [];
-    let lastMonth = '';
+    let lastMonthKey = '';
     weekColumns.forEach((week, colIdx) => {
       const validDay = week.find(d => d.level >= 0);
       if (validDay) {
-        const monthName = format(validDay.date, 'MMM');
-        if (monthName !== lastMonth) {
-          months.push({ name: monthName, colIndex: colIdx });
-          lastMonth = monthName;
+        const monthKey = format(validDay.date, 'MMM-yyyy');
+        if (monthKey !== lastMonthKey) {
+          const monthAbbr = format(validDay.date, 'MMM');
+          const yearAbbr  = format(validDay.date, "'yy");
+          // Only show year suffix at January (year boundary)
+          const label = monthAbbr === 'Jan' ? `Jan ${yearAbbr}` : monthAbbr;
+          months.push({ name: label, colIndex: colIdx });
+          lastMonthKey = monthKey;
         }
       }
     });
