@@ -1,4 +1,5 @@
 import { AIVaultService } from './aiVaultService';
+import { normalizeSpokenLogText } from '../utils/microLogParser';
 import { 
   AIProviderConfig, 
   MultiModelConsensusRequest, 
@@ -921,7 +922,7 @@ Regarding **"${prompt.trim()}"**:
   }
 
   public static parseStudyLogLocal(rawText: string): ParsedLog {
-    const textLower = rawText.toLowerCase();
+    const textLower = normalizeSpokenLogText(rawText);
     
     // 1. Duration extraction
     let durationMinutes = 60; // default 1h

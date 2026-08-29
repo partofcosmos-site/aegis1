@@ -60,6 +60,56 @@ const SUBJECT_TAXONOMY: Record<string, string[]> = {
   ]
 };
 
+const WORD_TO_NUM: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+  eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60,
+  seventy: 70, eighty: 80, ninety: 90, hundred: 100
+};
+
+/**
+ * Normalizes spoken English worded numbers, fractions, and time idioms into standard numerical strings.
+ */
+export function normalizeSpokenLogText(input: string): string {
+  if (!input) return '';
+  let str = input.toLowerCase();
+
+  // 1. Spoken multi-hour fractions
+  str = str.replace(/\b(?:an?\s+)?hour\s+and\s+(?:a\s+)?half\b/gi, '90 minutes');
+  str = str.replace(/\bone\s+and\s+(?:a\s+)?half\s+hours?\b/gi, '90 minutes');
+  str = str.replace(/\b1\s+and\s+(?:a\s+)?half\s+hours?\b/gi, '90 minutes');
+  str = str.replace(/\btwo\s+and\s+(?:a\s+)?half\s+hours?\b/gi, '150 minutes');
+  str = str.replace(/\b2\s+and\s+(?:a\s+)?half\s+hours?\b/gi, '150 minutes');
+  str = str.replace(/\bthree\s+and\s+(?:a\s+)?half\s+hours?\b/gi, '210 minutes');
+  str = str.replace(/\b3\s+and\s+(?:a\s+)?half\s+hours?\b/gi, '210 minutes');
+  str = str.replace(/\bfour\s+and\s+(?:a\s+)?half\s+hours?\b/gi, '270 minutes');
+  str = str.replace(/\b4\s+and\s+(?:a\s+)?half\s+hours?\b/gi, '270 minutes');
+
+  str = str.replace(/\bhalf\s+(?:an?\s+)?hour\b/gi, '30 minutes');
+  str = str.replace(/\bquarter\s+(?:of\s+an?\s+)?hour\b/gi, '15 minutes');
+  str = str.replace(/\b(?:a\s+)?couple\s+of\s+hours?\b/gi, '2 hours');
+  str = str.replace(/\b(?:an?|one)\s+hour\b/gi, '1 hour');
+
+  // 2. Convert compound worded numbers (e.g., "twenty five" -> 25)
+  const tens = '(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)';
+  const units = '(?:one|two|three|four|five|six|seven|eight|nine)';
+  const compoundRegex = new RegExp(`\\b(${tens})[\\s-](${units})\\b`, 'gi');
+  str = str.replace(compoundRegex, (_, tenWord, unitWord) => {
+    const t = WORD_TO_NUM[tenWord.toLowerCase()] || 0;
+    const u = WORD_TO_NUM[unitWord.toLowerCase()] || 0;
+    return String(t + u);
+  });
+
+  // 3. Convert standalone worded numbers
+  Object.keys(WORD_TO_NUM).forEach(word => {
+    const num = WORD_TO_NUM[word];
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    str = str.replace(regex, String(num));
+  });
+
+  return str;
+}
+
 /**
  * Parses raw text or voice transcript into structured study log entity.
  */
@@ -81,7 +131,7 @@ export function parseMicroLog(input: string): MicroLogEntity {
     };
   }
 
-  const lower = text.toLowerCase();
+  const lower = normalizeSpokenLogText(text);
 
   // 1. Duration Parsing (e.g. "1.5h", "1h 30m", "45m", "90 mins", "2 hours", "30 minutes")
   let durationMinutes = 60;
@@ -256,8 +306,8 @@ export function parseMicroLog(input: string): MicroLogEntity {
 
   // 7. Topic Extraction
   // Clean away extracted tokens to isolate the core topic/chapter
-  let cleaned = text
-    .replace(/(?:did|solved|completed|practiced|studied|revised|revision on|covered|worked on)\s+/gi, '')
+  let cleaned = normalizeSpokenLogText(text)
+    .replace(/(?:did|solved|completed|practiced|studied|revised|revision on|covered|worked on|spent)\s+/gi, '')
     .replace(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/gi, '')
     .replace(/(\d+)\s*(?:minutes?|mins?|m)\b/gi, '')
     .replace(/(?:solved|did|completed|attempted)?\s*(\d+)\s*(?:questions?|problems?|numericals?|mcqs?|qs?|q)\b/gi, '')
@@ -268,6 +318,8 @@ export function parseMicroLog(input: string): MicroLogEntity {
     .replace(/\b(torque confusion|sign error|calculation mistake|formula error)\b/gi, '')
     .replace(/\b(hyper focus|peak flow|in the zone|super focused|high focus|deep focus|tired|exhausted|fatigued|sleepy|distracted|slow|felt tired)\b/gi, '')
     .replace(/\b(physics|chemistry|mathematics|math|maths|biology|bio|cs|computer science)\b/gi, '')
+    .replace(/\b(of|for|on|in|with|about|and|an|a|the)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 
   // Also remove any explicitly extracted mistakes from the topic text

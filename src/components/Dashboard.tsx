@@ -725,13 +725,21 @@ export const Dashboard = () => {
                           <div className="flex justify-between items-start mb-2 relative">
                             <span className="text-sm font-semibold text-zinc-200">{log.subject}</span>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-zinc-500 font-medium bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">{log.durationMinutes}m</span>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                <button onClick={() => handleEditClick(log)} className="p-1 text-zinc-500 hover:text-indigo-400 transition-colors">
-                                  <Edit2 className="w-3.5 h-3.5" />
+                              <span className="text-xs text-zinc-400 font-medium bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">{log.durationMinutes}m</span>
+                              <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={() => handleEditClick(log)} 
+                                  className="p-1.5 text-zinc-400 hover:text-indigo-300 hover:bg-zinc-800 rounded-lg transition-colors border border-zinc-800/80 cursor-pointer"
+                                  title="Edit Log"
+                                >
+                                  <Edit2 className="w-3 h-3" />
                                 </button>
-                                <button onClick={() => handleDeleteLog(log.id)} className="p-1 text-zinc-500 hover:text-red-400 transition-colors">
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                <button 
+                                  onClick={() => handleDeleteLog(log.id)} 
+                                  className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors border border-zinc-800/80 cursor-pointer"
+                                  title="Delete Log"
+                                >
+                                  <Trash2 className="w-3 h-3" />
                                 </button>
                               </div>
                             </div>

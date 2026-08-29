@@ -214,6 +214,79 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
+  // --- SESSION LOG CONFIRMATION MODAL STATE ---
+  const [showLogPromptModal, setShowLogPromptModal] = useState<boolean>(false);
+  const [sessionLogData, setSessionLogData] = useState<{
+    subject: string;
+    topic: string;
+    durationMinutes: number;
+    problemsSolved: number;
+    accuracyPercent: number | null;
+    focusScore: number;
+    energyMood: string;
+  }>({
+    subject: 'Physics',
+    topic: '',
+    durationMinutes: 25,
+    problemsSolved: 0,
+    accuracyPercent: 85,
+    focusScore: 8,
+    energyMood: 'Normal'
+  });
+  const [isSavingSessionLog, setIsSavingSessionLog] = useState<boolean>(false);
+
+  const promptLogSession = (mins: number, defaultSubject?: string, defaultTopic?: string) => {
+    setSessionLogData({
+      subject: defaultSubject || subject || 'Physics',
+      topic: defaultTopic || topic || (activeTaskId ? tasks.find(t => t.id === activeTaskId)?.title || '' : 'Focus Block'),
+      durationMinutes: Math.max(1, mins),
+      problemsSolved: 0,
+      accuracyPercent: 85,
+      focusScore: 8,
+      energyMood: 'Normal'
+    });
+    setShowLogPromptModal(true);
+  };
+
+  const handleSaveCompletedSession = async () => {
+    if (!user) {
+      setMessage({ type: 'error', text: 'Please sign in to record study logs.' });
+      setShowLogPromptModal(false);
+      return;
+    }
+    setIsSavingSessionLog(true);
+    try {
+      await addLog({
+        rawText: `Completed ${sessionLogData.durationMinutes}m focus on ${sessionLogData.subject}: ${sessionLogData.topic} (${sessionLogData.problemsSolved} problems)`,
+        subject: sessionLogData.subject || 'General',
+        topic: sessionLogData.topic || 'Focus Sprint',
+        subtopic: 'Pomodoro / Flowtime',
+        durationMinutes: sessionLogData.durationMinutes,
+        problemsSolved: sessionLogData.problemsSolved,
+        accuracyPercent: sessionLogData.accuracyPercent,
+        mistakes: [],
+        efficiencyScore: 8,
+        focusScore: sessionLogData.focusScore,
+        energyMood: sessionLogData.energyMood,
+        date: format(new Date(), 'yyyy-MM-dd')
+      });
+      setMessage({
+        type: 'success',
+        text: `🎯 Saved! Logged ${sessionLogData.durationMinutes}m of ${sessionLogData.subject} (${sessionLogData.problemsSolved} problems) to Dashboard.`
+      });
+      setShowLogPromptModal(false);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Failed to save session log: ' + (err.message || 'Error') });
+    } finally {
+      setIsSavingSessionLog(false);
+    }
+  };
+
+  const handleDiscardSessionLog = () => {
+    setShowLogPromptModal(false);
+    setMessage({ type: 'info', text: 'Session finished without saving to logs.' });
+  };
+
   // --- AUDIO SYNTHESIZER STATE ---
   const [showAudioDrawer, setShowAudioDrawer] = useState<boolean>(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState<boolean>(false);
@@ -505,12 +578,7 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
       return;
     }
 
-    // Auto-log session to AppContext if enabled
-    if (flowConfig.autoLogToContext) {
-      await handleLogSession(totalMins, 'Flowmodoro Session');
-    }
-
-    // Auto-update task progress if linked
+    // Update task progress if linked
     if (activeTaskId) {
       const pomodoroEquivalents = Math.max(1, Math.round(totalMins / 25));
       setTasks(prev => prev.map(t => {
@@ -528,6 +596,9 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
 
     setTotalCompletedCycles(prev => prev + 1);
 
+    // Prompt user to review and save session to study logs
+    promptLogSession(totalMins, subject, topic);
+
     const earnedSecs = calculateDynamicBreak(totalSecs, flowConfig);
 
     if (earnedSecs > 0) {
@@ -537,10 +608,6 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
         setShowBreakPromptModal(true);
       }
     } else {
-      setMessage({
-        type: 'success',
-        text: `🎯 Great sprint! Logged ${totalMins}m of continuous flow.`
-      });
       resetFlowTimer();
     }
   };
@@ -593,7 +660,7 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
     }
 
     if (mode === 'focus') {
-      await handleLogSession(focusDuration, 'Pomodoro Focus Block');
+      promptLogSession(focusDuration, subject, topic);
 
       if (activeTaskId) {
         setTasks(prev => prev.map(t => {
@@ -2185,6 +2252,151 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
             >
               Apply All Settings
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* SESSION LOG CONFIRMATION MODAL (ASK BEFORE SAVING)               */}
+      {/* ================================================================= */}
+      {showLogPromptModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-700/80 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-100">Session Complete — Save to Study Logs?</h3>
+                  <p className="text-xs text-zinc-400">Review & confirm details before adding to your Streak & Heatmap.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDiscardSessionLog}
+                className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Subject & Duration row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Subject</label>
+                  <select
+                    value={sessionLogData.subject}
+                    onChange={(e) => setSessionLogData(prev => ({ ...prev, subject: e.target.value }))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  >
+                    {['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'General'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Duration (Mins)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={720}
+                    value={sessionLogData.durationMinutes}
+                    onChange={(e) => setSessionLogData(prev => ({ ...prev, durationMinutes: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Topic */}
+              <div>
+                <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Topic / Chapter</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rotational Dynamics — Moment of Inertia"
+                  value={sessionLogData.topic}
+                  onChange={(e) => setSessionLogData(prev => ({ ...prev, topic: e.target.value }))}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                />
+              </div>
+
+              {/* Problems Solved & Accuracy */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Problems Solved</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={500}
+                    value={sessionLogData.problemsSolved}
+                    onChange={(e) => setSessionLogData(prev => ({ ...prev, problemsSolved: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Accuracy % (Optional)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={sessionLogData.accuracyPercent ?? ''}
+                    onChange={(e) => setSessionLogData(prev => ({ ...prev, accuracyPercent: e.target.value ? Math.min(100, Math.max(0, parseInt(e.target.value))) : null }))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder:text-zinc-600"
+                    placeholder="e.g. 85"
+                  />
+                </div>
+              </div>
+
+              {/* Energy Mood & Focus Score */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Energy / State</label>
+                  <select
+                    value={sessionLogData.energyMood}
+                    onChange={(e) => setSessionLogData(prev => ({ ...prev, energyMood: e.target.value }))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  >
+                    <option value="Peak Flow">⚡ Peak Flow</option>
+                    <option value="High Energy">🔥 High Energy</option>
+                    <option value="Normal">✨ Steady / Normal</option>
+                    <option value="Fatigued">💤 Fatigued / Tired</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Focus Score ({sessionLogData.focusScore}/10)</label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    value={sessionLogData.focusScore}
+                    onChange={(e) => setSessionLogData(prev => ({ ...prev, focusScore: parseInt(e.target.value) }))}
+                    className="w-full accent-indigo-500 mt-2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={handleDiscardSessionLog}
+                disabled={isSavingSessionLog}
+                className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Skip / Discard
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCompletedSession}
+                disabled={isSavingSessionLog}
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isSavingSessionLog ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>Save to Study Logs</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

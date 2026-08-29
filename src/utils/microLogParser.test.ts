@@ -47,6 +47,40 @@ const testCases = [
       energyMood: "Peak Flow",
       focusScore: 10
     }
+  },
+  {
+    input: "Did two and a half hours physics rotation, solved thirty five questions 85% accuracy",
+    expected: {
+      subject: "Physics",
+      durationMinutes: 150,
+      problemsSolved: 35,
+      accuracyPercent: 85
+    }
+  },
+  {
+    input: "Studied an hour and a half of chemistry organic, did twenty numericals",
+    expected: {
+      subject: "Chemistry",
+      durationMinutes: 90,
+      problemsSolved: 20
+    }
+  },
+  {
+    input: "Spent half an hour on math integration, solved fifteen problems",
+    expected: {
+      subject: "Mathematics",
+      durationMinutes: 30,
+      problemsSolved: 15
+    }
+  },
+  {
+    input: "two hours kinematics, forty five questions 90% acc",
+    expected: {
+      subject: "Physics",
+      durationMinutes: 120,
+      problemsSolved: 45,
+      accuracyPercent: 90
+    }
   }
 ];
 
