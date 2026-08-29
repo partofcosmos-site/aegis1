@@ -17,15 +17,6 @@ export interface YouTubeTrack {
 export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
   {
     id: 'yt_lofi_1',
-    title: 'Lofi Hip Hop Study & Focus Beats — 24/7 Radio',
-    artist: 'Lofi Records',
-    category: 'lofi',
-    youtubeId: 'jfKfPfyJRdk',
-    tag: '24/7 Focus Stream',
-    duration: 'Live / Endless'
-  },
-  {
-    id: 'yt_lofi_2',
     title: 'Deep Study Lo-Fi Beats to Relax & Focus to',
     artist: 'Lofi Chill Lab',
     category: 'lofi',
@@ -34,13 +25,22 @@ export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
     duration: '3h 30m'
   },
   {
-    id: 'yt_lofi_3',
+    id: 'yt_lofi_2',
     title: 'Midnight Coding & Math Focus Beats',
     artist: 'Coffee Shop Vibes',
     category: 'lofi',
     youtubeId: 'DWcJFNfaw9c',
     tag: 'Late Night Flow',
     duration: '2h 45m'
+  },
+  {
+    id: 'yt_lofi_3',
+    title: 'Chill Study Beats for Deep Work & Problem Solving',
+    artist: 'Chillhop Music',
+    category: 'lofi',
+    youtubeId: '1fueZCTYkpA',
+    tag: 'Flow State',
+    duration: '3h 00m'
   },
   {
     id: 'yt_binaural_1',
