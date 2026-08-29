@@ -26,12 +26,12 @@ Every feature from the user request and survey is assigned to a milestone.
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Flowmodoro & Flowtime Engine | `src/utils/flowmodoroEngine.ts`, `src/components/Pomodoro.tsx` | none | IN_PROGRESS |
-| M2 | Sub-Second Voice/Text Micro-Logger | `src/utils/microLogParser.ts`, `src/components/MicroLoggerModal.tsx`, `src/components/LogInput.tsx`, `src/components/Layout.tsx` | none | PLANNED |
-| M3 | Speed vs. Accuracy Calibration Matrix (SACM) | `src/utils/sacmCalculator.ts`, `src/components/Analytics.tsx` | none | PLANNED |
-| M4 | Dynamic Subject Equilibrium Matrix (PID Allocator) | `src/utils/pidEquilibriumEngine.ts`, `src/components/Analytics.tsx`, `src/components/Dashboard.tsx` | none | PLANNED |
-| M5 | Elastic Streak Health Bar & Resilience Tokens | `src/utils/streakResilienceEngine.ts`, `src/components/Dashboard.tsx`, `src/components/StudyHeatmap.tsx`, `src/context/AppContext.tsx` | none | PLANNED |
-| M6 | E2E Test Suite & BrowserOS Live Validation | Test suites, TypeScript compilation, BrowserOS validation | M1-M5 | PLANNED |
+| M1 | Flowmodoro & Flowtime Engine | `src/utils/flowmodoroEngine.ts`, `src/components/Pomodoro.tsx` | none | DONE |
+| M2 | Sub-Second Voice/Text Micro-Logger | `src/utils/microLogParser.ts`, `src/components/MicroLoggerModal.tsx`, `src/components/LogInput.tsx`, `src/components/Layout.tsx` | none | DONE |
+| M3 | Speed vs. Accuracy Calibration Matrix (SACM) | `src/utils/sacmCalculator.ts`, `src/components/Analytics.tsx` | none | DONE |
+| M4 | Dynamic Subject Equilibrium Matrix (PID Allocator) | `src/utils/pidEquilibriumEngine.ts`, `src/components/Analytics.tsx`, `src/components/Dashboard.tsx` | none | DONE |
+| M5 | Elastic Streak Health Bar & Resilience Tokens | `src/utils/streakResilienceEngine.ts`, `src/components/Dashboard.tsx`, `src/components/StudyHeatmap.tsx`, `src/context/AppContext.tsx` | none | DONE |
+| M6 | E2E Test Suite & BrowserOS Live Validation | Test suites, TypeScript compilation, BrowserOS validation | M1-M5 | IN_PROGRESS |
 
 ## Interface Contracts
 ### Flowmodoro ↔ Pomodoro Component
@@ -66,6 +66,6 @@ Every feature from the user request and survey is assigned to a milestone.
 - `src/components/LogInput.tsx` — Dashboard quick logger with micro-log integration.
 - `src/components/Layout.tsx` — App layout with global hotkey handler (`Alt+L` / `Ctrl+K`).
 - `src/components/Analytics.tsx` — SACM matrix scatter plot and Subject Equilibrium PID panel.
-- `src/components/Dashboard.tsx` — Elastic Streak Health Bar & Shield Tokens display.
+- `src/components/Dashboard.tsx` — Elastic Streak Health Bar & Shield Tokens display, PID prescription callout.
 - `src/components/StudyHeatmap.tsx` — Streak display and health status integration.
 - `src/context/AppContext.tsx` — LocalStorage persistence and streak health state sync.

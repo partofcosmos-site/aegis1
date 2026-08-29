@@ -451,9 +451,19 @@ export const StemSolver: React.FC = () => {
     return () => {
       if (solveAbortControllerRef.current) {
         solveAbortControllerRef.current.abort();
-        solveAbortControllerRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const handleNavigate = (e: any) => {
+      if (e.detail && e.detail.tab === 'solver' && e.detail.topic) {
+        setProblemText(prev => prev ? prev : `Revision Topic: ${e.detail.topic}\n\nPlease provide a problem for this topic...`);
+        if (e.detail.subject) setSubject(e.detail.subject as Subject);
+      }
+    };
+    window.addEventListener('navigate', handleNavigate);
+    return () => window.removeEventListener('navigate', handleNavigate);
   }, []);
 
   // Save current solution to history (including canvas diagram if present)

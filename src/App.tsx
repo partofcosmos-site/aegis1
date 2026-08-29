@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider } from './context/AppContext';
 import { AuthWrapper } from './components/AuthWrapper';
 import { Layout, ActiveTabType } from './components/Layout';
@@ -13,9 +13,20 @@ import { Flashcards } from './components/Flashcards';
 import { StemSolver } from './components/StemSolver';
 import { ConceptGraph } from './components/ConceptGraph';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorVault } from './components/ErrorVault';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
+
+  useEffect(() => {
+    const handleNavigate = (e: any) => {
+      if (e.detail && e.detail.tab) {
+        setActiveTab(e.detail.tab);
+      }
+    };
+    window.addEventListener('navigate', handleNavigate);
+    return () => window.removeEventListener('navigate', handleNavigate);
+  }, []);
 
   return (
     <ErrorBoundary>
@@ -52,6 +63,9 @@ export default function App() {
             </div>
             <div className={`h-full w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
               <Settings />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'vault' ? 'block' : 'hidden'}`}>
+              <ErrorVault />
             </div>
           </Layout>
         </AuthWrapper>

@@ -16,7 +16,8 @@ import {
   Sparkles,
   Network,
   Crown,
-  Zap
+  Zap,
+  Lock
 } from 'lucide-react';
 import clsx from 'clsx';
 import { MicroLoggerModal } from './MicroLoggerModal';
@@ -31,7 +32,8 @@ export type ActiveTabType =
   | 'journal' 
   | 'goals' 
   | 'pomodoro' 
-  | 'settings';
+  | 'settings'
+  | 'vault';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -75,6 +77,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
     { id: 'goals', label: 'Goals & Milestones', icon: Target },
     { id: 'pomodoro', label: 'Pomodoro Focus Timer', icon: Clock },
     { id: 'settings', label: 'Universal AI Providers', icon: Settings },
+    { id: 'vault', label: '🔒 Error Vault', icon: Lock },
   ] as const;
 
   return (
