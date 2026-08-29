@@ -570,10 +570,10 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
     }
 
     const totalSecs = flowElapsedSeconds;
-    const totalMins = Math.round(totalSecs / 60);
+    const totalMins = Math.max(1, Math.round(totalSecs / 60));
 
-    if (totalSecs < 60) {
-      setMessage({ type: 'info', text: 'Flow session was under 1 minute. No rest earned yet.' });
+    if (totalSecs < 10) {
+      setMessage({ type: 'info', text: 'Flow session was under 10 seconds. No rest earned yet.' });
       resetFlowTimer();
       return;
     }
@@ -1429,25 +1429,36 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
             </div>
 
             {/* Manual Quick Save / Progress Log */}
-            {engineMode === 'pomodoro' && !isActive && timeLeft < focusDuration * 60 && mode === 'focus' && (
-              <button
-                onClick={() => handleLogSession()}
-                className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-indigo-300 border border-indigo-900/50 hover:border-indigo-500/50 rounded-xl transition-all font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer"
-              >
-                <Save className="w-4 h-4" />
-                Log Current Elapsed Progress ({Math.round((focusDuration * 60 - timeLeft) / 60)} min)
-              </button>
-            )}
-
-            {engineMode === 'flowmodoro' && !flowIsActive && flowElapsedSeconds > 60 && !flowIsBreakActive && (
-              <button
-                onClick={() => handleLogSession(Math.round(flowElapsedSeconds / 60), 'Flowtime Sprint Log')}
-                className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-cyan-300 border border-cyan-900/50 hover:border-cyan-500/50 rounded-xl transition-all font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer"
-              >
-                <Save className="w-4 h-4" />
-                Log Current Flowtime ({Math.round(flowElapsedSeconds / 60)} min)
-              </button>
-            )}
+            <div className="flex items-center gap-2 pt-2">
+              {engineMode === 'pomodoro' && timeLeft < focusDuration * 60 && mode === 'focus' ? (
+                <button
+                  type="button"
+                  onClick={() => promptLogSession(Math.max(1, Math.round((focusDuration * 60 - timeLeft) / 60)), subject, topic)}
+                  className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-indigo-300 border border-indigo-900/50 hover:border-indigo-500/50 rounded-xl transition-all font-semibold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Log Elapsed Focus ({Math.max(1, Math.round((focusDuration * 60 - timeLeft) / 60))}m)
+                </button>
+              ) : engineMode === 'flowmodoro' && flowElapsedSeconds >= 10 ? (
+                <button
+                  type="button"
+                  onClick={() => promptLogSession(Math.max(1, Math.round(flowElapsedSeconds / 60)), subject, topic)}
+                  className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-cyan-300 border border-cyan-900/50 hover:border-cyan-500/50 rounded-xl transition-all font-semibold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Log Current Flow ({Math.max(1, Math.round(flowElapsedSeconds / 60))}m)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => promptLogSession(focusDuration, subject, topic)}
+                  className="flex-1 py-2.5 bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-zinc-700/60 rounded-xl transition-all font-semibold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5 text-indigo-400" />
+                  Log Study Session
+                </button>
+              )}
+            </div>
           </div>
           </div>
         </div>
