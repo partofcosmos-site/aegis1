@@ -405,6 +405,9 @@ export const StemSolver: React.FC = () => {
   const [isSolving, setIsSolving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // AbortController ref — cancel in-flight AI solve request when a new one starts or on unmount
+  const solveAbortControllerRef = useRef<AbortController | null>(null);
+
   // Active Solution & Tier Progression
   const [solution, setSolution] = useState<ProblemSolution | null>(null);
   const [revealedTier, setRevealedTier] = useState<number>(1); // 1, 2, 3, 4
@@ -441,6 +444,16 @@ export const StemSolver: React.FC = () => {
     } catch (e) {
       console.error('Failed to load savantix_solved_problems:', e);
     }
+  }, []);
+
+  // Abort any pending AI solve request on unmount (cleanup)
+  useEffect(() => {
+    return () => {
+      if (solveAbortControllerRef.current) {
+        solveAbortControllerRef.current.abort();
+        solveAbortControllerRef.current = null;
+      }
+    };
   }, []);
 
   // Save current solution to history (including canvas diagram if present)
@@ -836,6 +849,13 @@ export const StemSolver: React.FC = () => {
     if (e) e.preventDefault();
     if (!problemText.trim()) return;
 
+    // Abort any previous in-flight solve request (prevents stale race conditions)
+    if (solveAbortControllerRef.current) {
+      solveAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    solveAbortControllerRef.current = controller;
+
     setIsSolving(true);
     setErrorMsg(null);
     setRevealedTier(1); // Start Socratic progressive exploration from Tier 1!
@@ -976,10 +996,19 @@ You must return a valid JSON object matching this schema precisely:
       setSolution(normalizedSolution);
       saveToHistory(normalizedSolution);
     } catch (err: any) {
-      console.error('StemSolver execution error:', err);
-      setErrorMsg(err.message || 'Failed to synthesize solution. Please verify your AI API key in Settings.');
+      // Silently ignore intentional cancellations from double-click / new request
+      if (err?.name === 'AbortError') return;
+      // Only show error if this request is still the active one
+      if (solveAbortControllerRef.current === controller) {
+        console.error('StemSolver execution error:', err);
+        setErrorMsg(err.message || 'Failed to synthesize solution. Please verify your AI API key in Settings.');
+      }
     } finally {
-      setIsSolving(false);
+      // Only reset loading state for the active request
+      if (solveAbortControllerRef.current === controller) {
+        setIsSolving(false);
+        solveAbortControllerRef.current = null;
+      }
     }
   };
 
