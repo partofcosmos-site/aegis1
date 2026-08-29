@@ -102,124 +102,104 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const authenticateUser = async (authUser: { uid: string; email?: string | null; displayName?: string | null; photoURL?: string | null }) => {
+    const cleanEmail = (authUser.email || '').trim().toLowerCase();
+    const namePart = cleanEmail ? cleanEmail.split('@')[0] : 'scholar';
+    const fallbackName = namePart.charAt(0).toUpperCase() + namePart.slice(1).replace(/[._]/g, ' ');
+    const displayName = authUser.displayName || fallbackName || 'Scholar';
+    const sessionUser = {
+      uid: authUser.uid,
+      email: cleanEmail || 'scholar@savantix.app',
+      displayName,
+      photoURL: authUser.photoURL || ''
+    };
+
+    localStorage.setItem('savantix_user_session', JSON.stringify(sessionUser));
+    localStorage.removeItem('savantix_is_guest');
+    setIsGuest(false);
+    setUser(sessionUser);
+
+    try {
+      const profileRef = doc(db, 'users', authUser.uid);
+      const profileSnap = await getDoc(profileRef);
+      if (!profileSnap.exists()) {
+        const newProfile = {
+          uid: authUser.uid,
+          email: cleanEmail,
+          displayName,
+          schoolHours: 6,
+          targetExams: ['JEE Advanced 2026', 'IPhO', 'NSEP'],
+          createdAt: serverTimestamp(),
+        };
+        await setDoc(profileRef, newProfile);
+        setProfile(newProfile as UserProfile);
+      } else {
+        setProfile(profileSnap.data() as UserProfile);
+      }
+    } catch (e) {
+      console.warn("Firestore profile init fallback:", e);
+      setProfile({
+        uid: authUser.uid,
+        email: cleanEmail,
+        displayName,
+        schoolHours: 6,
+        targetExams: ['JEE Advanced 2026', 'IPhO', 'NSEP'],
+        createdAt: Date.now()
+      });
+    }
+
+    if (cleanEmail === 'debanjan8686@gmail.com' || cleanEmail === 'partofcosmmos@gmail.com') {
+      const seeded = seedDebanjanHistoryIfEmpty(authUser.uid);
+      if (seeded) {
+        setLogs(seeded.mergedLogs);
+        setGoals(seeded.mergedGoals);
+        setJournalEntries(seeded.mergedJournal);
+      }
+    } else {
+      const savedLogs = localStorage.getItem(`savantix_user_logs_${authUser.uid}`);
+      if (savedLogs) setLogs(JSON.parse(savedLogs));
+      const savedGoals = localStorage.getItem(`savantix_user_goals_${authUser.uid}`);
+      if (savedGoals) setGoals(JSON.parse(savedGoals));
+      const savedJournal = localStorage.getItem(`savantix_user_journal_${authUser.uid}`);
+      if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
+    }
+  };
+
   useEffect(() => {
-    // Check if custom authenticated session was saved
+    // 1. Check existing cached user session
     const savedSession = localStorage.getItem('savantix_user_session');
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
         setUser(parsed);
+        setIsGuest(false);
         const savedProf = localStorage.getItem(`savantix_user_profile_${parsed.uid}`);
-        if (savedProf) {
-          setProfile(JSON.parse(savedProf));
-        } else {
-          setProfile({
-            uid: parsed.uid,
-            email: parsed.email,
-            displayName: parsed.displayName,
-            schoolHours: 6,
-            targetExams: ['JEE Advanced 2026'],
-            createdAt: Date.now()
-          });
-        }
-
+        if (savedProf) setProfile(JSON.parse(savedProf));
         if (parsed.email === 'debanjan8686@gmail.com' || parsed.email === 'partofcosmmos@gmail.com') {
           const seeded = seedDebanjanHistoryIfEmpty(parsed.uid);
           if (seeded) {
             setLogs(seeded.mergedLogs);
             setGoals(seeded.mergedGoals);
             setJournalEntries(seeded.mergedJournal);
-          } else {
-            const savedLogs = localStorage.getItem(`savantix_user_logs_${parsed.uid}`);
-            if (savedLogs) setLogs(JSON.parse(savedLogs));
-            const savedGoals = localStorage.getItem(`savantix_user_goals_${parsed.uid}`);
-            if (savedGoals) setGoals(JSON.parse(savedGoals));
-            const savedJournal = localStorage.getItem(`savantix_user_journal_${parsed.uid}`);
-            if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
           }
-        } else {
-          const savedLogs = localStorage.getItem(`savantix_user_logs_${parsed.uid}`);
-          if (savedLogs) setLogs(JSON.parse(savedLogs));
-          const savedGoals = localStorage.getItem(`savantix_user_goals_${parsed.uid}`);
-          if (savedGoals) setGoals(JSON.parse(savedGoals));
-          const savedJournal = localStorage.getItem(`savantix_user_journal_${parsed.uid}`);
-          if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
         }
-
-        const savedInsights = localStorage.getItem(`savantix_user_insights_${parsed.uid}`);
-        if (savedInsights) setInsights(JSON.parse(savedInsights));
-
-        setIsGuest(false);
-        setLoading(false);
-        return;
       } catch {}
-    }
-
-    // Check if guest mode was previously selected
-    const savedGuest = localStorage.getItem('savantix_is_guest');
-    if (savedGuest === 'true') {
+    } else if (localStorage.getItem('savantix_is_guest') === 'true') {
       const guestUser = { uid: 'guest_user', email: 'guest@savantix.app', displayName: 'Guest Scholar' };
       setUser(guestUser);
-      setProfile({
-        uid: 'guest_user',
-        email: 'guest@savantix.app',
-        displayName: 'Guest Scholar',
-        schoolHours: 6,
-        targetExams: ['JEE Advanced 2026', 'IPhO'],
-        createdAt: Date.now()
-      });
       setIsGuest(true);
       loadGuestData();
-      setLoading(false);
-      return;
     }
 
+    // 2. Always listen to Firebase auth changes
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
-        setIsGuest(false);
-        localStorage.removeItem('savantix_is_guest');
-        try {
-          const profileRef = doc(db, 'users', currentUser.uid);
-          const profileSnap = await getDoc(profileRef);
-          
-          if (!profileSnap.exists()) {
-            const newProfile = {
-              uid: currentUser.uid,
-              email: currentUser.email || '',
-              displayName: currentUser.displayName || '',
-              schoolHours: 6,
-              targetExams: ['JEE Advanced 2026'],
-              createdAt: serverTimestamp(),
-            };
-            await setDoc(profileRef, newProfile);
-            setProfile(newProfile as UserProfile);
-          } else {
-            setProfile(profileSnap.data() as UserProfile);
-          }
-
-          if (currentUser.email === 'debanjan8686@gmail.com' || currentUser.email === 'partofcosmmos@gmail.com') {
-            const seeded = seedDebanjanHistoryIfEmpty(currentUser.uid);
-            if (seeded) {
-              setLogs(seeded.mergedLogs);
-              setGoals(seeded.mergedGoals);
-              setJournalEntries(seeded.mergedJournal);
-            }
-          }
-        } catch (error) {
-          console.warn("Firestore profile fetch error:", error);
-        }
-      } else {
-        setProfile(null);
-        setLogs([]);
-        setInsights([]);
-        setGoals([]);
-        setJournalEntries([]);
-        setChatSessions([]);
+        await authenticateUser(currentUser);
       }
       setLoading(false);
     });
 
+    setLoading(false);
     return () => unsubscribe();
   }, []);
 
@@ -266,63 +246,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [user]);
 
+  const login = async () => {
+    setLoading(true);
+    try {
+      const googleUser = await loginWithGoogle();
+      if (!googleUser) {
+        setLoading(false);
+        return;
+      }
+      await authenticateUser(googleUser);
+    } catch (error: any) {
+      console.error("Google Auth error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loginWithEmail = async (emailInput: string) => {
     const cleanEmail = emailInput.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Please enter a valid email address.');
     const uid = 'usr_' + btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
-    const namePart = cleanEmail.split('@')[0];
-    const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1).replace(/[._]/g, ' ');
-    const sessionUser = { uid, email: cleanEmail, displayName };
-    
-    localStorage.setItem('savantix_user_session', JSON.stringify(sessionUser));
-    localStorage.removeItem('savantix_is_guest');
-    setIsGuest(false);
-    setUser(sessionUser);
-    
-    try {
-      const profileRef = doc(db, 'users', uid);
-      const profileSnap = await getDoc(profileRef);
-      if (!profileSnap.exists()) {
-        const newProfile = {
-          uid,
-          email: cleanEmail,
-          displayName,
-          schoolHours: 6,
-          targetExams: ['JEE Advanced 2026'],
-          createdAt: serverTimestamp(),
-        };
-        await setDoc(profileRef, newProfile);
-        setProfile(newProfile as UserProfile);
-      } else {
-        setProfile(profileSnap.data() as UserProfile);
-      }
-    } catch (e) {
-      console.warn("Firestore profile init:", e);
-      setProfile({
-        uid,
-        email: cleanEmail,
-        displayName,
-        schoolHours: 6,
-        targetExams: ['JEE Advanced 2026', 'IPhO', 'NSEP'],
-        createdAt: Date.now()
-      });
-    }
-
-    if (cleanEmail === 'debanjan8686@gmail.com' || cleanEmail === 'partofcosmmos@gmail.com') {
-      const seeded = seedDebanjanHistoryIfEmpty(uid);
-      if (seeded) {
-        setLogs(seeded.mergedLogs);
-        setGoals(seeded.mergedGoals);
-        setJournalEntries(seeded.mergedJournal);
-      }
-    } else {
-      const savedLogs = localStorage.getItem(`savantix_user_logs_${uid}`);
-      if (savedLogs) setLogs(JSON.parse(savedLogs));
-      const savedGoals = localStorage.getItem(`savantix_user_goals_${uid}`);
-      if (savedGoals) setGoals(JSON.parse(savedGoals));
-      const savedJournal = localStorage.getItem(`savantix_user_journal_${uid}`);
-      if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
-    }
+    await authenticateUser({ uid, email: cleanEmail });
   };
 
   const continueAsGuest = () => {
@@ -624,7 +569,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       elasticStreak,
       loading,
       isGuest,
-      login: loginWithGoogle,
+      login,
       loginWithEmail,
       continueAsGuest,
       logout: handleLogout,

@@ -9,18 +9,15 @@ export const auth = getAuth(app);
 
 export const loginWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
   try {
-    await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    return result.user;
   } catch (error: any) {
     if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-      return;
+      return null;
     }
-    try {
-      await signInWithRedirect(auth, provider);
-    } catch (redirectErr) {
-      console.warn("Google redirect fallback:", redirectErr);
-      throw redirectErr;
-    }
+    throw error;
   }
 };
 
