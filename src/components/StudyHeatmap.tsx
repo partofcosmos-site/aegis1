@@ -270,9 +270,8 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({
       weekColumns.push(currentWeek);
     }
 
-    // Generate Month Header labels corresponding to column index
-    // Show "Jan '26" when year boundary crossed, plain "Aug" otherwise
-    const months: Array<{ name: string; colIndex: number }> = [];
+    // Generate Clean Month Header labels with collision prevention (min 3 columns / 45px distance)
+    const rawMonths: Array<{ name: string; colIndex: number }> = [];
     let lastMonthKey = '';
     weekColumns.forEach((week, colIdx) => {
       const validDay = week.find(d => d.level >= 0);
@@ -283,11 +282,35 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({
           const yearAbbr  = format(validDay.date, "'yy");
           // Only show year suffix at January (year boundary)
           const label = monthAbbr === 'Jan' ? `Jan ${yearAbbr}` : monthAbbr;
-          months.push({ name: label, colIndex: colIdx });
+          rawMonths.push({ name: label, colIndex: colIdx });
           lastMonthKey = monthKey;
         }
       }
     });
+
+    const months: Array<{ name: string; colIndex: number }> = [];
+    for (let i = 0; i < rawMonths.length; i++) {
+      const current = rawMonths[i];
+      const next = rawMonths[i + 1];
+      
+      // If the first month only lasts < 3 columns before the next month, drop the sliver
+      if (i === 0 && next && next.colIndex < 3) {
+        continue;
+      }
+      
+      // If too close to previously placed month (< 3 columns), skip to prevent overlapping
+      const prevPlaced = months[months.length - 1];
+      if (prevPlaced && (current.colIndex - prevPlaced.colIndex < 3)) {
+        continue;
+      }
+
+      // If at the very right edge column, skip
+      if (current.colIndex >= weekColumns.length - 1) {
+        continue;
+      }
+
+      months.push(current);
+    }
 
     return {
       weeks: weekColumns,
