@@ -42,6 +42,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import TriageMode from './TriageMode';
 import { format } from 'date-fns';
 import { 
   pomodoroAudio, 
@@ -110,6 +111,9 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
     } catch {}
     return 'pomodoro';
   });
+
+  // --- TRIAGE MODE ---
+  const [triageModeActive, setTriageModeActive] = useState(false);
 
   // Save engine mode
   useEffect(() => {
@@ -901,6 +905,23 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
               (Open-Ended Stopwatch • Dynamic Break Ratio 1:{flowConfig.focusToBreakRatio})
             </span>
           </button>
+
+          {/* Triage Mode Toggle */}
+          <div className="w-px h-8 bg-zinc-700/60 mx-1 flex-shrink-0" />
+          <button
+            onClick={() => setTriageModeActive(v => !v)}
+            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              triageModeActive
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-zinc-950 shadow-md shadow-amber-500/30'
+                : 'text-zinc-400 hover:text-amber-300 hover:bg-zinc-800/50'
+            }`}
+          >
+            <Zap className={`w-4 h-4 ${triageModeActive ? 'text-zinc-950' : 'text-amber-400'}`} />
+            <span>Triage Mode</span>
+            <span className="hidden md:inline text-[11px] font-normal opacity-75">
+              (90s Bail-or-Commit)
+            </span>
+          </button>
         </div>
       </div>
 
@@ -1249,6 +1270,9 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
               )}
             </div>
           )}
+
+          {/* Triage Mode Panel */}
+          {triageModeActive && <TriageMode />}
 
           {/* Active Focus Session Target & Quick Logger Card */}
           <div className="bg-zinc-900/90 border border-zinc-800/80 rounded-3xl p-6 shadow-xl backdrop-blur-xl space-y-4">
