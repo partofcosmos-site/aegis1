@@ -110,16 +110,6 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
                 )}
                 <span>Continue with Google</span>
               </button>
-
-              {/* 1-Click Founder Quick-Sign-in */}
-              <button
-                type="button"
-                onClick={() => loginWithEmail('debanjan8686@gmail.com')}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-950/80 via-indigo-900/50 to-purple-950/80 hover:from-indigo-900/90 hover:to-purple-900/90 text-indigo-200 hover:text-white border border-indigo-700/60 hover:border-indigo-500/80 px-4 py-3 rounded-2xl font-semibold text-xs transition-all duration-200 cursor-pointer shadow-md group"
-              >
-                <span>👑 Quick Sign-in as Debanjan (debanjan8686@gmail.com)</span>
-                <ArrowRight className="w-3.5 h-3.5 text-indigo-400 group-hover:translate-x-0.5 transition-transform" />
-              </button>
             </div>
 
             {/* Clean Section Divider */}
