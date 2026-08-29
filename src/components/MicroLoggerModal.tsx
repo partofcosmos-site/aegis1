@@ -206,8 +206,22 @@ export const MicroLoggerModal: React.FC<MicroLoggerModalProps> = ({
     if (isListening) {
       stopVoiceCapture();
       setStatusMessage(null);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const len = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(len, len);
+        }
+      }, 50);
     } else {
       startVoiceCapture();
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const len = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(len, len);
+        }
+      }, 50);
     }
   };
 
@@ -319,6 +333,7 @@ export const MicroLoggerModal: React.FC<MicroLoggerModalProps> = ({
             <div className="absolute right-2 top-2 bottom-2 flex items-center gap-1.5">
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={toggleVoice}
                 className={`h-full px-2.5 rounded-lg flex items-center gap-1 text-xs font-medium transition-all cursor-pointer ${
                   isListening

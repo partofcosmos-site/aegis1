@@ -10,6 +10,7 @@ import {
   recomputeStreakFromHistory,
   DEFAULT_STREAK_STATE
 } from '../utils/streakResilienceEngine';
+import { seedDebanjanHistoryIfEmpty } from '../utils/debanjanHistoryData';
 
 interface UserProfile {
   uid: string;
@@ -122,14 +123,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         }
 
-        const savedLogs = localStorage.getItem(`savantix_user_logs_${parsed.uid}`);
-        if (savedLogs) setLogs(JSON.parse(savedLogs));
-        const savedGoals = localStorage.getItem(`savantix_user_goals_${parsed.uid}`);
-        if (savedGoals) setGoals(JSON.parse(savedGoals));
+        if (parsed.email === 'debanjan8686@gmail.com' || parsed.email === 'partofcosmmos@gmail.com') {
+          const seeded = seedDebanjanHistoryIfEmpty(parsed.uid);
+          if (seeded) {
+            setLogs(seeded.mergedLogs);
+            setGoals(seeded.mergedGoals);
+            setJournalEntries(seeded.mergedJournal);
+          } else {
+            const savedLogs = localStorage.getItem(`savantix_user_logs_${parsed.uid}`);
+            if (savedLogs) setLogs(JSON.parse(savedLogs));
+            const savedGoals = localStorage.getItem(`savantix_user_goals_${parsed.uid}`);
+            if (savedGoals) setGoals(JSON.parse(savedGoals));
+            const savedJournal = localStorage.getItem(`savantix_user_journal_${parsed.uid}`);
+            if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
+          }
+        } else {
+          const savedLogs = localStorage.getItem(`savantix_user_logs_${parsed.uid}`);
+          if (savedLogs) setLogs(JSON.parse(savedLogs));
+          const savedGoals = localStorage.getItem(`savantix_user_goals_${parsed.uid}`);
+          if (savedGoals) setGoals(JSON.parse(savedGoals));
+          const savedJournal = localStorage.getItem(`savantix_user_journal_${parsed.uid}`);
+          if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
+        }
+
         const savedInsights = localStorage.getItem(`savantix_user_insights_${parsed.uid}`);
         if (savedInsights) setInsights(JSON.parse(savedInsights));
-        const savedJournal = localStorage.getItem(`savantix_user_journal_${parsed.uid}`);
-        if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
 
         setIsGuest(false);
         setLoading(false);
@@ -178,6 +196,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setProfile(newProfile as UserProfile);
           } else {
             setProfile(profileSnap.data() as UserProfile);
+          }
+
+          if (currentUser.email === 'debanjan8686@gmail.com' || currentUser.email === 'partofcosmmos@gmail.com') {
+            const seeded = seedDebanjanHistoryIfEmpty(currentUser.uid);
+            if (seeded) {
+              setLogs(seeded.mergedLogs);
+              setGoals(seeded.mergedGoals);
+              setJournalEntries(seeded.mergedJournal);
+            }
           }
         } catch (error) {
           console.warn("Firestore profile fetch error:", error);
@@ -276,9 +303,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         email: cleanEmail,
         displayName,
         schoolHours: 6,
-        targetExams: ['JEE Advanced 2026'],
+        targetExams: ['JEE Advanced 2026', 'IPhO', 'NSEP'],
         createdAt: Date.now()
       });
+    }
+
+    if (cleanEmail === 'debanjan8686@gmail.com' || cleanEmail === 'partofcosmmos@gmail.com') {
+      const seeded = seedDebanjanHistoryIfEmpty(uid);
+      if (seeded) {
+        setLogs(seeded.mergedLogs);
+        setGoals(seeded.mergedGoals);
+        setJournalEntries(seeded.mergedJournal);
+      }
+    } else {
+      const savedLogs = localStorage.getItem(`savantix_user_logs_${uid}`);
+      if (savedLogs) setLogs(JSON.parse(savedLogs));
+      const savedGoals = localStorage.getItem(`savantix_user_goals_${uid}`);
+      if (savedGoals) setGoals(JSON.parse(savedGoals));
+      const savedJournal = localStorage.getItem(`savantix_user_journal_${uid}`);
+      if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
     }
   };
 

@@ -107,27 +107,54 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
   }, []);
 
   const voiceService = useRef(new VoiceService());
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const baseTextBeforeVoiceRef = useRef<string>('');
 
   const toggleVoiceInput = async () => {
     if (isListening) {
-      const transcript = await voiceService.current.stopRecording();
-      setText(prev => prev ? `${prev} ${transcript}` : transcript);
+      const finalTranscript = await voiceService.current.stopRecording();
+      if (finalTranscript) {
+        const prefix = baseTextBeforeVoiceRef.current.trim();
+        setText(prefix ? `${prefix} ${finalTranscript}` : finalTranscript);
+      }
       setIsListening(false);
       setMessage(null);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const len = textareaRef.current.value.length;
+          textareaRef.current.setSelectionRange(len, len);
+        }
+      }, 50);
     } else {
       setIsListening(true);
+      baseTextBeforeVoiceRef.current = text;
       setMessage({ type: 'info', text: 'Listening... Speak your study session details.' });
-      await voiceService.current.startRecording((level) => {
-        const canvas = document.getElementById('waveform-log') as HTMLCanvasElement;
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#6366f1';
-            ctx.fillRect(0, 0, (level / 255) * canvas.width, canvas.height);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const len = textareaRef.current.value.length;
+          textareaRef.current.setSelectionRange(len, len);
+        }
+      }, 50);
+
+      await voiceService.current.startRecording(
+        (transcript) => {
+          const prefix = baseTextBeforeVoiceRef.current.trim();
+          setText(prefix ? `${prefix} ${transcript}` : transcript);
+        },
+        (level) => {
+          const canvas = document.getElementById('waveform-log') as HTMLCanvasElement;
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.fillStyle = '#6366f1';
+              ctx.fillRect(0, 0, (level / 100) * canvas.width, canvas.height);
+            }
           }
         }
-      });
+      );
     }
   };
 
@@ -252,6 +279,7 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
 
       <form onSubmit={handleSubmit} className="relative">
         <textarea
+          ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="e.g., Did 2h physics rotation, solved 25 questions 85% accuracy, torque confusion..."
@@ -270,6 +298,7 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
         <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={toggleVoiceInput}
             className={`p-2 transition-all rounded-lg cursor-pointer ${
               isListening

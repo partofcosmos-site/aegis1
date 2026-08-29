@@ -132,25 +132,52 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
   }, []);
 
   const voiceService = useRef(new VoiceService());
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const baseInputBeforeVoiceRef = useRef<string>('');
 
   const toggleVoiceInput = async () => {
     if (isListening) {
-      const transcript = await voiceService.current.stopRecording();
-      setInput(prev => prev ? `${prev} ${transcript}` : transcript);
+      const finalTranscript = await voiceService.current.stopRecording();
+      if (finalTranscript) {
+        const prefix = baseInputBeforeVoiceRef.current.trim();
+        setInput(prefix ? `${prefix} ${finalTranscript}` : finalTranscript);
+      }
       setIsListening(false);
+      setTimeout(() => {
+        if (chatInputRef.current) {
+          chatInputRef.current.focus();
+          const len = chatInputRef.current.value.length;
+          chatInputRef.current.setSelectionRange(len, len);
+        }
+      }, 50);
     } else {
       setIsListening(true);
-      await voiceService.current.startRecording((level) => {
-        const canvas = document.getElementById('waveform') as HTMLCanvasElement;
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#6366f1';
-            ctx.fillRect(0, 0, (level / 255) * canvas.width, canvas.height);
+      baseInputBeforeVoiceRef.current = input;
+      setTimeout(() => {
+        if (chatInputRef.current) {
+          chatInputRef.current.focus();
+          const len = chatInputRef.current.value.length;
+          chatInputRef.current.setSelectionRange(len, len);
+        }
+      }, 50);
+
+      await voiceService.current.startRecording(
+        (transcript) => {
+          const prefix = baseInputBeforeVoiceRef.current.trim();
+          setInput(prefix ? `${prefix} ${transcript}` : transcript);
+        },
+        (level) => {
+          const canvas = document.getElementById('waveform') as HTMLCanvasElement;
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.fillStyle = '#6366f1';
+              ctx.fillRect(0, 0, (level / 100) * canvas.width, canvas.height);
+            }
           }
         }
-      });
+      );
     }
   };
 
@@ -769,6 +796,7 @@ Recent insights: ${JSON.stringify(insights.slice(0, 2))}`;
 
             <div className="relative">
               <input
+                ref={chatInputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -808,6 +836,7 @@ Recent insights: ${JSON.stringify(insights.slice(0, 2))}`;
                 </button>
                 <button 
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={toggleVoiceInput}
                   className={clsx(
                     "p-1.5 sm:p-2 transition-all rounded-md cursor-pointer",
