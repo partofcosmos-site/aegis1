@@ -1035,6 +1035,8 @@ You must return a valid JSON object matching this schema precisely:
 
       setFlashcardToast(`✓ Flashcard created in deck: "${newCard.deck}"`);
       setTimeout(() => setFlashcardToast(null), 4000);
+      // Notify Flashcards tab to reload (same-tab sync)
+      window.dispatchEvent(new Event('savantix_flashcards_updated'));
     } catch (err: any) {
       console.error('Failed to convert to flashcard:', err);
       setFlashcardToast('Failed to create flashcard in localStorage.');
@@ -1078,30 +1080,33 @@ You must return a valid JSON object matching this schema precisely:
     setActiveView('solver');
     handleClearCanvas();
 
-    // If this saved problem had a sketch, restore it cleanly
+    // If this saved problem had a sketch, restore it after the solver view mounts
     if (item.canvasDrawing) {
       const img = new Image();
       img.onload = () => {
-        if (!memoryCanvasRef.current) {
-          memoryCanvasRef.current = document.createElement('canvas');
-        }
-        const memCanvas = memoryCanvasRef.current;
-        memCanvas.width = img.width;
-        memCanvas.height = img.height;
-        const memCtx = memCanvas.getContext('2d');
-        if (memCtx) {
-          memCtx.drawImage(img, 0, 0);
-        }
-
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            drawBackgroundGrid(ctx, canvas.width, canvas.height, canvasGridStyle);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // rAF ensures the solver view is rendered and canvas has correct dimensions
+        requestAnimationFrame(() => {
+          if (!memoryCanvasRef.current) {
+            memoryCanvasRef.current = document.createElement('canvas');
           }
-        }
+          const memCanvas = memoryCanvasRef.current;
+          memCanvas.width = img.width;
+          memCanvas.height = img.height;
+          const memCtx = memCanvas.getContext('2d');
+          if (memCtx) {
+            memCtx.drawImage(img, 0, 0);
+          }
+
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.setTransform(1, 0, 0, 1, 0, 0);
+              drawBackgroundGrid(ctx, canvas.width, canvas.height, canvasGridStyle);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            }
+          }
+        }); // end requestAnimationFrame
       };
       img.src = item.canvasDrawing;
     }

@@ -155,6 +155,21 @@ export const Flashcards = () => {
     }
   }, [user, isGuest]);
 
+  // Re-load flashcards whenever StemSolver (or any component) writes new cards to localStorage
+  useEffect(() => {
+    const handleStorageSync = () => {
+      if (user) loadFlashcards();
+    };
+    // Native storage event fires for cross-tab writes
+    window.addEventListener('storage', handleStorageSync);
+    // Custom event fires for same-tab writes (from StemSolver.handleConvertToFlashcard)
+    window.addEventListener('savantix_flashcards_updated', handleStorageSync);
+    return () => {
+      window.removeEventListener('storage', handleStorageSync);
+      window.removeEventListener('savantix_flashcards_updated', handleStorageSync);
+    };
+  }, [user, isGuest]);
+
   const loadFlashcards = async () => {
     if (!user) return;
     if (isGuest) {

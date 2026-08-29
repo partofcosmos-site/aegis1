@@ -69,10 +69,13 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
     window.addEventListener('aegis_ai_provider_changed', handler);
     window.addEventListener('storage', handler);
     window.addEventListener('focus', handler);
+    // visibilitychange fires when switching between browser tabs
+    document.addEventListener('visibilitychange', handler);
     return () => {
       window.removeEventListener('aegis_ai_provider_changed', handler);
       window.removeEventListener('storage', handler);
       window.removeEventListener('focus', handler);
+      document.removeEventListener('visibilitychange', handler);
     };
   }, []);
 
@@ -118,6 +121,14 @@ export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
 
       recognitionRef.current = recognition;
     }
+    // Cleanup: stop mic and clear ref on unmount to prevent memory leak
+    return () => {
+      isListeningRef.current = false;
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch {}
+        recognitionRef.current = null;
+      }
+    };
   }, []);
 
   const voiceService = useRef(new VoiceService());
