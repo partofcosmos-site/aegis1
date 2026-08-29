@@ -14,9 +14,11 @@ import { StemSolver } from './components/StemSolver';
 import { ConceptGraph } from './components/ConceptGraph';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ErrorVault } from './components/ErrorVault';
+import { DeepWorkFortress } from './components/DeepWorkFortress';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
+  const [isFortressMode, setIsFortressMode] = useState(false);
 
   useEffect(() => {
     const handleNavigate = (e: any) => {
@@ -32,6 +34,7 @@ export default function App() {
     <ErrorBoundary>
       <AppProvider>
         <AuthWrapper>
+          {isFortressMode && <DeepWorkFortress onClose={() => setIsFortressMode(false)} />}
           <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
             {/* Persistent Tab Viewport: Preserves background streams, solvers & timers across tab switches */}
             <div className={`h-full w-full ${activeTab === 'dashboard' ? 'block' : 'hidden'}`}>
@@ -59,7 +62,7 @@ export default function App() {
               <Goals />
             </div>
             <div className={`h-full w-full ${activeTab === 'pomodoro' ? 'block' : 'hidden'}`}>
-              <Pomodoro />
+              <Pomodoro isFortressMode={isFortressMode} setIsFortressMode={setIsFortressMode} />
             </div>
             <div className={`h-full w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
               <Settings />

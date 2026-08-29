@@ -5,6 +5,7 @@ import { StudyHeatmap } from './StudyHeatmap';
 import { ExamCountdown } from './ExamCountdown';
 import { useAppContext } from '../context/AppContext';
 import { format, subDays, parseISO, isValid, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { generateMorningRevisionSprint } from '../utils/fsrsEngine';
 import {
   Clock,
   BookOpen,
@@ -31,7 +32,10 @@ import {
   TrendingDown,
   TrendingUp,
   Plus,
-  Minus
+  Minus,
+  Sun,
+  BrainCircuit,
+  Target
 } from 'lucide-react';
 import {
   getStreakHealthTier,
@@ -46,7 +50,7 @@ import {
 } from '../utils/pidEquilibriumEngine';
 
 export const Dashboard = () => {
-  const { logs, updateLog, deleteLog, elasticStreak, updateElasticStreak, recomputeElasticStreak } = useAppContext();
+  const { logs, updateLog, deleteLog, elasticStreak, updateElasticStreak, recomputeElasticStreak, addLog } = useAppContext();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showHistory, setShowHistory] = useState(false);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
@@ -162,6 +166,33 @@ export const Dashboard = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const revisionSprint = useMemo(() => {
+    return generateMorningRevisionSprint(logs, new Date());
+  }, [logs]);
+
+  const handleSolveNow = (subject: string, topic: string) => {
+    window.dispatchEvent(new CustomEvent('navigate', { 
+      detail: { tab: 'solver', subject, topic } 
+    }));
+  };
+
+  const handleMarkSprintComplete = async () => {
+    try {
+      await addLog({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        subject: 'General STEM',
+        topic: 'Morning Revision Sprint',
+        durationMinutes: 45,
+        problemsSolved: 3
+      });
+      showToast('🌅 Morning Sprint Complete! +45 mins');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const hasSprintCards = revisionSprint.stabilityCard || revisionSprint.consolidationCard || revisionSprint.decayCard;
+
   return (
     <div className="w-full px-4 sm:px-6 py-8">
       <div className="max-w-7xl mx-auto w-full space-y-8">
@@ -186,6 +217,90 @@ export const Dashboard = () => {
             className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-full px-4 py-2.5 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner w-full sm:w-auto"
           />
         </header>
+
+        {/* ========================================================================= */}
+        {/* FSRS-STEM NEURO-INTERLEAVED SPRINT */}
+        {/* ========================================================================= */}
+        <div className="bg-zinc-950 border border-indigo-900/50 rounded-2xl overflow-hidden shadow-2xl relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-violet-500/5 to-transparent pointer-events-none" />
+          <div className="p-6 relative z-10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl shadow-lg">
+                  <Sun className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 to-violet-200">
+                    Morning Revision Sprint 🌅
+                  </h2>
+                  <p className="text-xs text-indigo-200/60 mt-0.5">
+                    {format(new Date(), 'EEEE, MMMM do')} • 45 Min Interleaved Practice
+                  </p>
+                </div>
+              </div>
+              {hasSprintCards && (
+                <button
+                  onClick={handleMarkSprintComplete}
+                  className="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Mark Sprint Complete
+                </button>
+              )}
+            </div>
+
+            {!hasSprintCards ? (
+              <div className="text-center py-8 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+                <BrainCircuit className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
+                <p className="text-sm font-medium text-zinc-300">Your revision queue is empty!</p>
+                <p className="text-xs text-zinc-500 mt-1 max-w-md mx-auto">Log some study sessions first. The FSRS engine will automatically build optimal interleaved revision sprints for you as topics age.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { card: revisionSprint.stabilityCard, title: 'Stability Test', icon: <Target className="w-4 h-4 text-rose-400" />, desc: 'Long-term (21+ days)', bg: 'bg-rose-950/20', border: 'border-rose-900/50' },
+                  { card: revisionSprint.consolidationCard, title: 'Consolidation', icon: <BrainCircuit className="w-4 h-4 text-amber-400" />, desc: 'Medium (7-14 days)', bg: 'bg-amber-950/20', border: 'border-amber-900/50' },
+                  { card: revisionSprint.decayCard, title: 'Decay Reinforce', icon: <RotateCcw className="w-4 h-4 text-emerald-400" />, desc: 'Recent (2-6 days)', bg: 'bg-emerald-950/20', border: 'border-emerald-900/50' }
+                ].map((item, idx) => (
+                  <div key={idx} className={`p-4 rounded-xl border ${item.border} ${item.bg} flex flex-col justify-between gap-4 transition-all hover:scale-[1.02] cursor-default`}>
+                    {item.card ? (
+                      <>
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            {item.icon}
+                            <span className="text-xs font-bold text-zinc-300">{item.title}</span>
+                          </div>
+                          <div className="mb-2">
+                            <span className="inline-block px-2 py-0.5 bg-zinc-900/80 rounded border border-zinc-700/50 text-[10px] text-zinc-400 font-mono mb-1">
+                              {item.card.subject}
+                            </span>
+                            <h3 className="text-sm font-semibold text-zinc-100 leading-snug line-clamp-2">
+                              {item.card.topic}
+                            </h3>
+                          </div>
+                          <p className="text-[10px] text-zinc-500">Studied {item.card.daysAgo} days ago</p>
+                        </div>
+                        <button
+                          onClick={() => handleSolveNow(item.card.subject, item.card.topic)}
+                          className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          Solve Now <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-center opacity-50 py-4">
+                        <div className="mb-2">{item.icon}</div>
+                        <span className="text-xs font-semibold text-zinc-400">{item.title}</span>
+                        <p className="text-[10px] text-zinc-500 mt-1">{item.desc}</p>
+                        <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded mt-2">Up to date</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ========================================================================= */}
         {/* R5: ELASTIC STREAK HEALTH BAR & RESILIENCE TOKEN ENGINE HUB */}

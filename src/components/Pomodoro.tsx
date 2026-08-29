@@ -94,7 +94,12 @@ const SUBJECT_OPTIONS = [
   'Research'
 ];
 
-export const Pomodoro: React.FC = () => {
+export interface PomodoroProps {
+  isFortressMode?: boolean;
+  setIsFortressMode?: (mode: boolean) => void;
+}
+
+export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortressMode }) => {
   const { user, addLog } = useAppContext();
 
   // --- ENGINE MODE SELECTION (Classical Pomodoro vs Flowmodoro) ---
@@ -795,6 +800,16 @@ export const Pomodoro: React.FC = () => {
 
         {/* Top Control Action Bar */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {setIsFortressMode && (
+            <button
+              onClick={() => setIsFortressMode(true)}
+              className="px-3.5 py-2 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer"
+              title="Enter Deep Work Fortress"
+            >
+              🏰 <span className="hidden sm:inline">Enter Fortress</span>
+            </button>
+          )}
+
           {/* Audio Suite Toggle Button */}
           <button
             onClick={() => setShowAudioDrawer(!showAudioDrawer)}
@@ -893,13 +908,15 @@ export const Pomodoro: React.FC = () => {
       <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6 items-start">
         
         {/* Left Column: Timer & Controls (7 cols on large) */}
-        <div className="lg:col-span-7 space-y-6">
-          
+        <div className={isFortressMode ? 'fixed inset-0 z-[60] flex flex-col items-center justify-center p-8 max-w-2xl mx-auto space-y-6 pointer-events-none' : 'lg:col-span-7 space-y-6'}>
+          <div className={isFortressMode ? 'w-full pointer-events-auto' : 'contents'}>
           {/* ============================================================ */}
           {/* FLOWMODORO ENGINE CARD */}
           {/* ============================================================ */}
           {engineMode === 'flowmodoro' && (
-            <div className="bg-zinc-900/90 border border-zinc-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+            <div className={`bg-zinc-900/90 border border-zinc-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl ${
+              isFortressMode ? 'border-indigo-500/30' : ''
+            }`}>
               {/* Background Ambient Glow */}
               <div className={`absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-25 transition-all duration-700 ${
                 flowIsBreakActive ? 'bg-emerald-500' : flowIsActive ? 'bg-cyan-500' : 'bg-indigo-500'
@@ -1095,7 +1112,9 @@ export const Pomodoro: React.FC = () => {
           {/* CLASSICAL POMODORO CARD */}
           {/* ============================================================ */}
           {engineMode === 'pomodoro' && (
-            <div className="bg-zinc-900/90 border border-zinc-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+            <div className={`bg-zinc-900/90 border border-zinc-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl ${
+              isFortressMode ? 'border-indigo-500/30' : ''
+            }`}>
               {/* Background Ambient Glow */}
               <div className={`absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-20 transition-all duration-700 ${
                 mode === 'focus' ? 'bg-indigo-500' : mode === 'short_break' ? 'bg-emerald-500' : 'bg-cyan-500'
@@ -1292,7 +1311,7 @@ export const Pomodoro: React.FC = () => {
               </button>
             )}
           </div>
-
+          </div>
         </div>
 
         {/* Right Column: Audio Synth Suite + Task Checklist (5 cols on large) */}
