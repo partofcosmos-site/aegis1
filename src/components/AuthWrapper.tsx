@@ -73,7 +73,7 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
             <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
               Savantix
               <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                v2.4
+                v2.5
               </span>
             </h1>
             <p className="text-zinc-400 text-xs sm:text-sm max-w-xs mx-auto">

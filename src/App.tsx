@@ -16,6 +16,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ErrorVault } from './components/ErrorVault';
 import { DeepWorkFortress } from './components/DeepWorkFortress';
 import { ContactFeedback } from './components/ContactFeedback';
+import { AttendanceCalculator } from './components/AttendanceCalculator';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
@@ -73,6 +74,9 @@ export default function App() {
             </div>
             <div className={`h-full w-full ${activeTab === 'feedback' ? 'block' : 'hidden'}`}>
               <ContactFeedback />
+            </div>
+            <div className={`h-full w-full overflow-y-auto ${activeTab === 'attendance' ? 'block' : 'hidden'}`}>
+              <AttendanceCalculator />
             </div>
           </Layout>
         </AuthWrapper>

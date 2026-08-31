@@ -18,7 +18,8 @@ import {
   Crown,
   Zap,
   Lock,
-  MessageSquareHeart
+  MessageSquareHeart,
+  GraduationCap
 } from 'lucide-react';
 import clsx from 'clsx';
 import { MicroLoggerModal } from './MicroLoggerModal';
@@ -35,7 +36,8 @@ export type ActiveTabType =
   | 'pomodoro' 
   | 'settings'
   | 'vault'
-  | 'feedback';
+  | 'feedback'
+  | 'attendance';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -81,6 +83,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
     { id: 'settings', label: 'Universal AI Providers', icon: Settings },
     { id: 'vault', label: '🔒 Error Vault', icon: Lock },
     { id: 'feedback', label: 'Contact & Feedback', icon: MessageSquareHeart },
+    { id: 'attendance', label: 'Attendance Tracker', icon: GraduationCap },
   ] as const;
 
   return (
