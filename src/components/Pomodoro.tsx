@@ -326,12 +326,18 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
     try {
       const results = await YouTubeAudioService.searchTracks(cleanTag);
       setYtTracks(results);
+      if (results.length > 0) {
+        setSelectedYtTrack(results[0]);
+        setIsYtPlaying(true);
+      }
     } catch {
       setYtTracks(YouTubeAudioService.getHealthyTracks());
     } finally {
       setIsYtSearching(false);
     }
   };
+
+
 
   const handleAddUserTag = (e: React.FormEvent) => {
     e.preventDefault();

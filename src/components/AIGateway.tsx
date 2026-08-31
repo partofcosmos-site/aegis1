@@ -381,11 +381,15 @@ interface AIGatewayButtonProps {
 
 export const AIGatewayButton: React.FC<AIGatewayButtonProps> = ({ query }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeQuery, setActiveQuery] = useState(query || "");
 
   // Listen for external open events (e.g. from StemSolver "Send to AI" button)
   useEffect(() => {
     const handler = (e: any) => {
-      if (e.detail?.open) setIsOpen(true);
+      if (e.detail?.open) {
+        if (e.detail.query) setActiveQuery(e.detail.query);
+        setIsOpen(true);
+      }
     };
     window.addEventListener("savantix_open_ai_gateway", handler);
     return () => window.removeEventListener("savantix_open_ai_gateway", handler);
@@ -407,7 +411,7 @@ export const AIGatewayButton: React.FC<AIGatewayButtonProps> = ({ query }) => {
       <AIGatewayDrawer
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        initialQuery={query}
+        initialQuery={activeQuery || query}
       />
     </>
   );

@@ -8,6 +8,7 @@ import {
   Award, Clock, Sliders
 } from 'lucide-react';
 import { UniversalAIService } from '../services/universalAIService';
+import { SocraticStemEngine } from '../utils/socraticStemEngine';
 import { useAppContext } from '../context/AppContext';
 import { db } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
@@ -1010,8 +1011,10 @@ You must return a valid JSON object matching this schema precisely:
       if (err?.name === 'AbortError') return;
       // Only show error if this request is still the active one
       if (solveAbortControllerRef.current === controller) {
-        console.error('StemSolver execution error:', err);
-        setErrorMsg(err.message || 'Failed to synthesize solution. Please verify your AI API key in Settings.');
+        console.warn('StemSolver remote AI error, using local Socratic engine:', err);
+        const fallbackSolution = SocraticStemEngine.deriveSolution(problemText, subject, difficulty) as unknown as ProblemSolution;
+        setSolution(fallbackSolution);
+        saveToHistory(fallbackSolution);
       }
     } finally {
       // Only reset loading state for the active request
@@ -1396,12 +1399,26 @@ You must return a valid JSON object matching this schema precisely:
                   <span>Socratic Mode unlocks: <strong>1. Intuition → 2. Equations → 3. Derivations → 4. Solution</strong></span>
                 </span>
 
-                <div className="flex items-center gap-2 self-end sm:self-auto">
+                <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('savantix_open_ai_gateway', {
+                        detail: { open: true, query: problemText || 'Derive and solve step-by-step with LaTeX' }
+                      }));
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 bg-gradient-to-r from-violet-600/30 to-indigo-600/30 hover:from-violet-600/50 hover:to-indigo-600/50 text-indigo-200 border border-indigo-500/40 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm"
+                    title="Open in AI Gateway: DeepSeek R1, ChatGPT Deep Research, Gemini 2.5 Pro, Claude"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>AI Gateway (Alt+G)</span>
+                  </button>
+
                   {problemText.trim() && (
                     <button
                       type="button"
                       onClick={() => setProblemText('')}
-                      className="px-3 py-2 bg-zinc-800/70 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-xl text-xs transition-colors"
+                      className="px-3 py-2 bg-zinc-800/70 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-xl text-xs transition-colors cursor-pointer"
                     >
                       Clear
                     </button>
