@@ -102,6 +102,49 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const normalizeLogData = (logData: any, uid: string) => {
+    const nowIso = new Date().toISOString();
+    const dateStr = (logData.date ? String(logData.date) : nowIso.substring(0, 10)).substring(0, 10);
+    const duration = typeof logData.durationMinutes === 'number'
+      ? Math.max(0, logData.durationMinutes)
+      : (parseInt(logData.durationMinutes, 10) || 60);
+    const subject = String(logData.subject || 'Physics').substring(0, 99);
+    const topic = String(logData.topic || 'General Practice').substring(0, 199);
+    const subtopic = String(logData.subtopic || 'Session').substring(0, 199);
+    const rawText = String(logData.rawText || `${subject}: ${topic} (${duration} min)`).substring(0, 1999);
+    const problemsSolved = typeof logData.problemsSolved === 'number' ? Math.max(0, logData.problemsSolved) : 0;
+    const mistakes = Array.isArray(logData.mistakes) ? logData.mistakes.slice(0, 50).map(String) : [];
+    const efficiencyScore = typeof logData.efficiencyScore === 'number' ? Math.min(10, Math.max(0, logData.efficiencyScore)) : 8;
+    const focusScore = typeof logData.focusScore === 'number' ? Math.min(10, Math.max(0, logData.focusScore)) : 8;
+
+    return {
+      uid,
+      rawText,
+      subject,
+      topic,
+      subtopic,
+      durationMinutes: duration,
+      problemsSolved,
+      mistakes,
+      efficiencyScore,
+      focusScore,
+      date: dateStr,
+      notes: logData.notes || ''
+    };
+  };
+
+  const parseFirestoreDate = (val: any): string => {
+    if (!val) return new Date().toISOString();
+    try {
+      if (typeof val.toDate === 'function') return val.toDate().toISOString();
+      if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+      if (typeof val === 'string') return val;
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toISOString();
+    } catch {}
+    return new Date().toISOString();
+  };
+
   const authenticateUser = async (authUser: { uid: string; email?: string | null; displayName?: string | null; photoURL?: string | null }) => {
     const cleanEmail = (authUser.email || '').trim().toLowerCase();
     const namePart = cleanEmail ? cleanEmail.split('@')[0] : 'scholar';
@@ -148,6 +191,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
     }
 
+    // Load local storage data first (instant cache)
+    const localLogsKey = `savantix_user_logs_${authUser.uid}`;
+    const localGoalsKey = `savantix_user_goals_${authUser.uid}`;
+    const localJournalKey = `savantix_user_journal_${authUser.uid}`;
+
     if (cleanEmail === 'debanjan8686@gmail.com' || cleanEmail === 'partofcosmmos@gmail.com') {
       const seeded = seedDebanjanHistoryIfEmpty(authUser.uid);
       if (seeded) {
@@ -156,11 +204,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setJournalEntries(seeded.mergedJournal);
       }
     } else {
-      const savedLogs = localStorage.getItem(`savantix_user_logs_${authUser.uid}`);
+      const savedLogs = localStorage.getItem(localLogsKey);
       if (savedLogs) setLogs(JSON.parse(savedLogs));
-      const savedGoals = localStorage.getItem(`savantix_user_goals_${authUser.uid}`);
+      const savedGoals = localStorage.getItem(localGoalsKey);
       if (savedGoals) setGoals(JSON.parse(savedGoals));
-      const savedJournal = localStorage.getItem(`savantix_user_journal_${authUser.uid}`);
+      const savedJournal = localStorage.getItem(localJournalKey);
       if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
     }
   };
@@ -182,6 +230,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setGoals(seeded.mergedGoals);
             setJournalEntries(seeded.mergedJournal);
           }
+        } else {
+          const savedLogs = localStorage.getItem(`savantix_user_logs_${parsed.uid}`);
+          if (savedLogs) setLogs(JSON.parse(savedLogs));
         }
       } catch {}
     } else if (localStorage.getItem('savantix_is_guest') === 'true') {
@@ -203,32 +254,164 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  // Sync Firestore when authenticated user is active
+  // Sync Firestore with bidirectional merge when authenticated user is active
   useEffect(() => {
     if (!user || user.uid === 'guest_user') return;
 
+    const localLogsKey = `savantix_user_logs_${user.uid}`;
+    const localGoalsKey = `savantix_user_goals_${user.uid}`;
+    const localJournalKey = `savantix_user_journal_${user.uid}`;
+
+    // 1. Real-time Study Logs Sync & Bidirectional Merge
     const logsRef = collection(db, 'users', user.uid, 'logs');
     const qLogs = query(logsRef, orderBy('createdAt', 'desc'));
-    const unsubLogs = onSnapshot(qLogs, (snapshot) => {
-      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, () => {});
+    const unsubLogs = onSnapshot(qLogs, async (snapshot) => {
+      try {
+        const cloudLogs: any[] = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            ...d,
+            createdAt: parseFirestoreDate(d.createdAt)
+          };
+        });
 
-    const insightsRef = collection(db, 'users', user.uid, 'daily_insights');
-    const qInsights = query(insightsRef, orderBy('createdAt', 'desc'));
-    const unsubInsights = onSnapshot(qInsights, (snapshot) => {
-      setInsights(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, () => {});
+        // Read current local cache to merge
+        let currentLocal: any[] = [];
+        try {
+          currentLocal = JSON.parse(localStorage.getItem(localLogsKey) || '[]');
+        } catch {}
 
+        // Map cloud logs by unique signature (date + subject + topic or id)
+        const cloudMap = new Map<string, any>();
+        cloudLogs.forEach(cl => {
+          cloudMap.set(cl.id, cl);
+          const sig = `${cl.date}_${cl.subject}_${cl.topic || ''}`.toLowerCase();
+          cloudMap.set(sig, cl);
+        });
+
+        // Identify local logs that haven't reached cloud yet, and push them to Firestore
+        const unuploaded = currentLocal.filter(ll => {
+          const sig = `${ll.date}_${ll.subject}_${ll.topic || ''}`.toLowerCase();
+          return !cloudMap.has(ll.id) && !cloudMap.has(sig);
+        });
+
+        if (unuploaded.length > 0) {
+          // Push un-uploaded logs to Firestore in background
+          import('firebase/firestore').then(async ({ addDoc, serverTimestamp }) => {
+            for (const item of unuploaded) {
+              try {
+                const normalized = normalizeLogData(item, user.uid);
+                await addDoc(logsRef, {
+                  ...normalized,
+                  createdAt: serverTimestamp()
+                });
+              } catch (pushErr) {
+                console.warn('Auto-sync unuploaded log notice:', pushErr);
+              }
+            }
+          });
+        }
+
+        // Union merge cloud logs with any remaining unique local logs
+        const mergedMap = new Map<string, any>();
+        cloudLogs.forEach(l => mergedMap.set(l.id, l));
+        currentLocal.forEach(l => {
+          if (!mergedMap.has(l.id)) {
+            const sig = `${l.date}_${l.subject}_${l.topic || ''}`.toLowerCase();
+            if (!cloudMap.has(sig)) {
+              mergedMap.set(l.id, l);
+            }
+          }
+        });
+
+        const unifiedLogs = Array.from(mergedMap.values()).sort((a, b) => {
+          const dateA = a.date || a.createdAt || '';
+          const dateB = b.date || b.createdAt || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        setLogs(unifiedLogs);
+        localStorage.setItem(localLogsKey, JSON.stringify(unifiedLogs));
+        localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(unifiedLogs));
+      } catch (err) {
+        console.warn('Logs snapshot sync notice:', err);
+      }
+    }, (err) => {
+      console.warn('Firestore logs subscription notice:', err);
+    });
+
+    // 2. Real-time Goals Sync
     const goalsRef = collection(db, 'users', user.uid, 'goals');
     const qGoals = query(goalsRef, orderBy('createdAt', 'desc'));
     const unsubGoals = onSnapshot(qGoals, (snapshot) => {
-      setGoals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      try {
+        const cloudGoals: any[] = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            ...d,
+            createdAt: parseFirestoreDate(d.createdAt)
+          };
+        });
+
+        let currentLocal: any[] = [];
+        try {
+          currentLocal = JSON.parse(localStorage.getItem(localGoalsKey) || '[]');
+        } catch {}
+
+        const mergedMap = new Map<string, any>();
+        cloudGoals.forEach(g => mergedMap.set(g.id, g));
+        currentLocal.forEach(g => {
+          if (!mergedMap.has(g.id)) mergedMap.set(g.id, g);
+        });
+
+        const unifiedGoals = Array.from(mergedMap.values());
+        setGoals(unifiedGoals);
+        localStorage.setItem(localGoalsKey, JSON.stringify(unifiedGoals));
+      } catch (err) {
+        console.warn('Goals snapshot sync notice:', err);
+      }
     }, () => {});
 
+    // 3. Real-time Journal Sync
     const journalRef = collection(db, 'users', user.uid, 'journal_entries');
     const qJournal = query(journalRef, orderBy('createdAt', 'desc'));
     const unsubJournal = onSnapshot(qJournal, (snapshot) => {
-      setJournalEntries(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      try {
+        const cloudJournal: any[] = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            ...d,
+            createdAt: parseFirestoreDate(d.createdAt)
+          };
+        });
+
+        let currentLocal: any[] = [];
+        try {
+          currentLocal = JSON.parse(localStorage.getItem(localJournalKey) || '[]');
+        } catch {}
+
+        const mergedMap = new Map<string, any>();
+        cloudJournal.forEach(j => mergedMap.set(j.id, j));
+        currentLocal.forEach(j => {
+          if (!mergedMap.has(j.id)) mergedMap.set(j.id, j);
+        });
+
+        const unifiedJournal = Array.from(mergedMap.values()).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        setJournalEntries(unifiedJournal);
+        localStorage.setItem(localJournalKey, JSON.stringify(unifiedJournal));
+      } catch (err) {
+        console.warn('Journal snapshot sync notice:', err);
+      }
+    }, () => {});
+
+    // 4. Daily Insights & Chat Sessions
+    const insightsRef = collection(db, 'users', user.uid, 'daily_insights');
+    const qInsights = query(insightsRef, orderBy('createdAt', 'desc'));
+    const unsubInsights = onSnapshot(qInsights, (snapshot) => {
+      setInsights(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: parseFirestoreDate(doc.data().createdAt) })));
     }, () => {});
 
     const chatSessionsRef = collection(db, 'users', user.uid, 'chat_sessions');
@@ -239,9 +422,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       unsubLogs();
-      unsubInsights();
       unsubGoals();
       unsubJournal();
+      unsubInsights();
       unsubChatSessions();
     };
   }, [user]);
@@ -334,10 +517,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // CRUD Helpers
   const addLog = async (logData: any) => {
     if (!user) return;
+    const normalized = normalizeLogData(logData, user.uid);
     const newLog = {
       id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-      uid: user.uid,
-      ...logData,
+      ...normalized,
       createdAt: new Date().toISOString()
     };
     
@@ -345,15 +528,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updatedLogs = [newLog, ...logs];
     setLogs(updatedLogs);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}logs` : `savantix_user_logs_${user.uid}`, JSON.stringify(updatedLogs));
+    localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(updatedLogs));
 
     // 2. Safe background Firestore update
     if (!isGuest) {
       try {
         const logsRef = collection(db, 'users', user.uid, 'logs');
         await import('firebase/firestore').then(f => f.addDoc(logsRef, {
-          uid: user.uid,
-          ...logData,
-          createdAt: serverTimestamp()
+          ...normalized,
+          createdAt: f.serverTimestamp()
         }));
       } catch (err) {
         console.warn("Firestore addLog background sync notice:", err);
@@ -367,6 +550,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updated = logs.map(l => l.id === id ? { ...l, ...data } : l);
     setLogs(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}logs` : `savantix_user_logs_${user.uid}`, JSON.stringify(updated));
+    localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(updated));
 
     if (!isGuest) {
       try {
@@ -383,6 +567,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updated = logs.filter(l => l.id !== id);
     setLogs(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}logs` : `savantix_user_logs_${user.uid}`, JSON.stringify(updated));
+    localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(updated));
 
     if (!isGuest) {
       try {
@@ -396,13 +581,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addInsight = async (insightData: any) => {
     if (!user) return;
+    const dateStr = (insightData.date ? String(insightData.date) : new Date().toISOString().substring(0, 10)).substring(0, 10);
+    const summary = String(insightData.performanceSummary || insightData.summary || 'Daily Study Review').substring(0, 4999);
     const newInsight = {
       id: 'ins_' + Date.now(),
       uid: user.uid,
       ...insightData,
+      date: dateStr,
+      performanceSummary: summary,
       createdAt: new Date().toISOString()
     };
-    const updated = [newInsight, ...insights.filter(i => i.date !== insightData.date)];
+    const updated = [newInsight, ...insights.filter(i => i.date !== dateStr)];
     setInsights(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}insights` : `savantix_user_insights_${user.uid}`, JSON.stringify(updated));
 
@@ -411,8 +600,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const ref = collection(db, 'users', user.uid, 'daily_insights');
         await import('firebase/firestore').then(f => f.addDoc(ref, {
           uid: user.uid,
-          ...insightData,
-          createdAt: serverTimestamp()
+          date: dateStr,
+          performanceSummary: summary,
+          keyInefficiencies: insightData.keyInefficiencies || [],
+          biggestMistakePattern: insightData.biggestMistakePattern || '',
+          hiddenWeakness: insightData.hiddenWeakness || '',
+          nextDayPlan: insightData.nextDayPlan || [],
+          priorityRanking: insightData.priorityRanking || [],
+          warnings: insightData.warnings || [],
+          createdAt: f.serverTimestamp()
         }));
       } catch (err) {
         console.warn("Firestore addInsight background sync notice:", err);
@@ -423,10 +619,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addGoal = async (goalData: any) => {
     if (!user) return;
+    const title = String(goalData.title || 'Target Objective').substring(0, 199);
+    const desc = String(goalData.description || '').substring(0, 999);
+    const completed = Boolean(goalData.completed || goalData.progress === 100);
+    const targetDate = goalData.targetDate ? String(goalData.targetDate).substring(0, 10) : undefined;
+    
     const newGoal = {
       id: 'goal_' + Date.now(),
       uid: user.uid,
       ...goalData,
+      title,
+      description: desc,
+      completed,
+      targetDate,
       createdAt: new Date().toISOString()
     };
     const updated = [newGoal, ...goals];
@@ -438,8 +643,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const ref = collection(db, 'users', user.uid, 'goals');
         await import('firebase/firestore').then(f => f.addDoc(ref, {
           uid: user.uid,
-          ...goalData,
-          createdAt: serverTimestamp()
+          title,
+          description: desc,
+          completed,
+          ...(targetDate ? { targetDate } : {}),
+          createdAt: f.serverTimestamp()
         }));
       } catch (err) {
         console.warn("Firestore addGoal background sync notice:", err);
@@ -482,10 +690,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addJournalEntry = async (entryData: any) => {
     if (!user) return;
+    const title = String(entryData.title || 'Daily Journal').substring(0, 199);
+    const content = String(entryData.content || entryData.notes || 'Reflection note').substring(0, 9999);
+    const date = (entryData.date ? String(entryData.date) : new Date().toISOString().substring(0, 10)).substring(0, 10);
+    
     const newEntry = {
       id: 'jour_' + Date.now(),
       uid: user.uid,
       ...entryData,
+      title,
+      content,
+      date,
       createdAt: new Date().toISOString()
     };
     const updated = [newEntry, ...journalEntries];
@@ -497,8 +712,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const ref = collection(db, 'users', user.uid, 'journal_entries');
         await import('firebase/firestore').then(f => f.addDoc(ref, {
           uid: user.uid,
-          ...entryData,
-          createdAt: serverTimestamp()
+          title,
+          content,
+          date,
+          createdAt: f.serverTimestamp()
         }));
       } catch (err) {
         console.warn("Firestore addJournalEntry background sync notice:", err);

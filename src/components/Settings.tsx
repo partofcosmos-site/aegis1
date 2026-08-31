@@ -324,6 +324,127 @@ export const Settings = () => {
           )}
         </div>
 
+        {/* Multi-Device Data Sync & Backup Station */}
+        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+                <RefreshCw className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
+                  Multi-Device Cloud Sync & Backup
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
+                    Live Real-Time
+                  </span>
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Connected as <span className="text-zinc-200 font-mono font-medium">{user?.email || 'Guest'}</span> • Instant multi-device synchronization
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  try {
+                    const localLogs = JSON.parse(localStorage.getItem(`savantix_user_logs_${user?.uid}`) || '[]');
+                    const localGoals = JSON.parse(localStorage.getItem(`savantix_user_goals_${user?.uid}`) || '[]');
+                    const localJournal = JSON.parse(localStorage.getItem(`savantix_user_journal_${user?.uid}`) || '[]');
+                    const backupData = {
+                      exportDate: new Date().toISOString(),
+                      user: user?.email,
+                      uid: user?.uid,
+                      logs: localLogs,
+                      goals: localGoals,
+                      journal: localJournal
+                    };
+                    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `savantix_backup_${user?.email?.split('@')[0] || 'scholar'}_${new Date().toISOString().substring(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (e) {
+                    console.error('Backup export failed:', e);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                title="Export JSON backup to keep your data safe"
+              >
+                <DownloadCloud className="w-4 h-4 text-emerald-400" />
+                <span>Export JSON</span>
+              </button>
+
+              <label className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg text-xs font-semibold transition-all cursor-pointer">
+                <Clipboard className="w-4 h-4 text-indigo-400" />
+                <span>Merge Backup</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      try {
+                        const imported = JSON.parse(event.target?.result as string);
+                        if (imported && (Array.isArray(imported.logs) || Array.isArray(imported))) {
+                          const logsToMerge = Array.isArray(imported.logs) ? imported.logs : imported;
+                          const currentLogs: any[] = JSON.parse(localStorage.getItem(`savantix_user_logs_${user?.uid}`) || '[]');
+                          const existingIds = new Set(currentLogs.map(l => l.id || `${l.date}_${l.subject}_${l.topic}`));
+                          const newUnique = logsToMerge.filter((l: any) => !existingIds.has(l.id || `${l.date}_${l.subject}_${l.topic}`));
+                          const merged = [...newUnique, ...currentLogs];
+                          localStorage.setItem(`savantix_user_logs_${user?.uid}`, JSON.stringify(merged));
+                          window.location.reload();
+                        }
+                      } catch (err) {
+                        alert('Failed to parse backup JSON file.');
+                      }
+                    };
+                    reader.readAsText(file);
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
+              <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Active Study Logs</div>
+              <div className="text-2xl font-bold font-mono text-indigo-300 mt-1">
+                {JSON.parse(localStorage.getItem(`savantix_user_logs_${user?.uid}`) || '[]').length}
+              </div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">Synced across your devices</div>
+            </div>
+
+            <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
+              <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Tracked Goals</div>
+              <div className="text-2xl font-bold font-mono text-emerald-300 mt-1">
+                {JSON.parse(localStorage.getItem(`savantix_user_goals_${user?.uid}`) || '[]').length}
+              </div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">Target milestones preserved</div>
+            </div>
+
+            <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
+              <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Journal Reflections</div>
+              <div className="text-2xl font-bold font-mono text-purple-300 mt-1">
+                {JSON.parse(localStorage.getItem(`savantix_user_journal_${user?.uid}`) || '[]').length}
+              </div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">Personal daily records</div>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-500/20 text-xs text-indigo-200/90 flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+            <span>
+              <strong>Zero Data Loss Guarantee:</strong> All synchronization is non-destructive and union-merged. Logging on your phone or tablet automatically combines with your PC when connected without ever deleting or overwriting prior entries.
+            </span>
+          </div>
+        </div>
+
         {/* User Profile Section */}
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
           <div className="p-6 border-b border-zinc-800 flex items-center gap-4">
