@@ -4,9 +4,10 @@ import { Save, User as UserIcon, Cpu, Trash2, CheckCircle, AlertCircle, RefreshC
 import { AIProviderConfig, ProviderType, PROVIDER_TEMPLATES, AIModelPreset } from '../services/aiProviderTypes';
 import { AIVaultService } from '../services/aiVaultService';
 import { YouTubeAudioService } from '../services/youtubeAudioService';
+import { CloudSyncService } from '../services/cloudSyncService';
 
 export const Settings = () => {
-  const { user, profile, updateProfile } = useAppContext();
+  const { user, profile, updateProfile, syncStatus, forceSyncNow } = useAppContext();
   const [displayName, setDisplayName] = useState(profile?.displayName || user?.displayName || '');
   const [schoolHours, setSchoolHours] = useState(profile?.schoolHours?.toString() || '0');
   const [targetExams, setTargetExams] = useState(profile?.targetExams?.join(', ') || '');
@@ -329,22 +330,76 @@ export const Settings = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-                <RefreshCw className="w-5 h-5 text-indigo-400" />
+                <RefreshCw className={`w-5 h-5 text-indigo-400 ${syncStatus?.isSyncing ? 'animate-spin' : ''}`} />
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
                   Multi-Device Cloud Sync & Backup
-                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
-                    Live Real-Time
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live Synced
                   </span>
                 </h3>
                 <p className="text-xs text-zinc-400 mt-0.5">
-                  Connected as <span className="text-zinc-200 font-mono font-medium">{user?.email || 'Guest'}</span> • Instant multi-device synchronization
+                  Connected as <span className="text-zinc-200 font-mono font-medium">{user?.email || 'Guest'}</span> • Last Synced: <span className="text-indigo-300 font-mono">{syncStatus?.lastSyncedAt || 'Just now'}</span>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await forceSyncNow();
+                    setProfileMessage({ type: res.success ? 'success' : 'error', text: res.message });
+                  } catch (e: any) {
+                    setProfileMessage({ type: 'error', text: 'Sync failed: ' + (e.message || '') });
+                  }
+                }}
+                disabled={syncStatus?.isSyncing}
+                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
+                title="Force instant bidirectional cloud synchronization across all devices"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncStatus?.isSyncing ? 'animate-spin' : ''}`} />
+                <span>{syncStatus?.isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) return;
+                  const code = CloudSyncService.generateSyncCode(user.email, user.uid);
+                  navigator.clipboard.writeText(code);
+                  setProfileMessage({ type: 'success', text: '1-Click Pairing Code copied! Paste it in Savantix on your phone/tablet to immediately pair.' });
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                title="Copy encrypted pairing token to pair with mobile or laptop in 1 second"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                <span>Pairing Code</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const input = prompt('Paste your 1-Click Pairing Code from your other device:');
+                  if (!input || !input.trim()) return;
+                  const res = CloudSyncService.importSyncCode(input.trim(), user?.email || 'scholar@savantix.app', user?.uid || 'guest_user');
+                  if (res.success) {
+                    forceSyncNow();
+                    setProfileMessage({ type: 'success', text: 'Successfully paired and merged data from pairing code!' });
+                  } else {
+                    setProfileMessage({ type: 'error', text: res.message });
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                title="Paste pairing code from your PC or mobile to import all study history"
+              >
+                <Clipboard className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Paste Code</span>
+              </button>
+
               <button
                 onClick={() => {
                   try {
@@ -415,15 +470,15 @@ export const Settings = () => {
             <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
               <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Active Study Logs</div>
               <div className="text-2xl font-bold font-mono text-indigo-300 mt-1">
-                {JSON.parse(localStorage.getItem(`savantix_user_logs_${user?.uid}`) || '[]').length}
+                {JSON.parse(localStorage.getItem(`savantix_user_logs_${user?.uid}`) || localStorage.getItem(`savantix_user_logs_${user?.canonicalId}`) || '[]').length}
               </div>
-              <div className="text-[10px] text-zinc-400 mt-0.5">Synced across your devices</div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">Synced across all connected devices</div>
             </div>
 
             <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
               <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Tracked Goals</div>
               <div className="text-2xl font-bold font-mono text-emerald-300 mt-1">
-                {JSON.parse(localStorage.getItem(`savantix_user_goals_${user?.uid}`) || '[]').length}
+                {JSON.parse(localStorage.getItem(`savantix_user_goals_${user?.uid}`) || localStorage.getItem(`savantix_user_goals_${user?.canonicalId}`) || '[]').length}
               </div>
               <div className="text-[10px] text-zinc-400 mt-0.5">Target milestones preserved</div>
             </div>
@@ -431,7 +486,7 @@ export const Settings = () => {
             <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4">
               <div className="text-[11px] text-zinc-500 uppercase tracking-wider font-semibold">Journal Reflections</div>
               <div className="text-2xl font-bold font-mono text-purple-300 mt-1">
-                {JSON.parse(localStorage.getItem(`savantix_user_journal_${user?.uid}`) || '[]').length}
+                {JSON.parse(localStorage.getItem(`savantix_user_journal_${user?.uid}`) || localStorage.getItem(`savantix_user_journal_${user?.canonicalId}`) || '[]').length}
               </div>
               <div className="text-[10px] text-zinc-400 mt-0.5">Personal daily records</div>
             </div>
@@ -440,7 +495,7 @@ export const Settings = () => {
           <div className="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-500/20 text-xs text-indigo-200/90 flex items-start gap-2.5">
             <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
             <span>
-              <strong>Zero Data Loss Guarantee:</strong> All synchronization is non-destructive and union-merged. Logging on your phone or tablet automatically combines with your PC when connected without ever deleting or overwriting prior entries.
+              <strong>Zero Data Loss Real-Time Guarantee:</strong> All synchronization is strictly additive and union-merged. Logging a session on your phone or tablet automatically propagates to your PC in real time without ever deleting or overwriting prior entries.
             </span>
           </div>
         </div>

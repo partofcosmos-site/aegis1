@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { auth, db, loginWithGoogle, logout as firebaseLogout, handleFirestoreError, OperationType } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
@@ -11,6 +11,7 @@ import {
   DEFAULT_STREAK_STATE
 } from '../utils/streakResilienceEngine';
 import { seedDebanjanHistoryIfEmpty } from '../utils/debanjanHistoryData';
+import { CloudSyncService, SyncResult } from '../services/cloudSyncService';
 
 interface UserProfile {
   uid: string;
@@ -32,6 +33,8 @@ interface AppContextType {
   elasticStreak: ElasticStreakState;
   loading: boolean;
   isGuest: boolean;
+  syncStatus: { isSyncing: boolean; lastSyncedAt: string; message?: string };
+  forceSyncNow: () => Promise<SyncResult>;
   login: () => Promise<void>;
   loginWithEmail: (email: string) => Promise<void>;
   continueAsGuest: () => void;
@@ -66,8 +69,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [elasticStreak, setElasticStreak] = useState<ElasticStreakState>(() => loadElasticStreakState());
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ isSyncing: boolean; lastSyncedAt: string; message?: string }>(() => ({
+    isSyncing: false,
+    lastSyncedAt: (typeof window !== 'undefined' && localStorage.getItem('savantix_last_cloud_sync_time')) || 'Never'
+  }));
 
-  // Synchronize and evaluate elastic streak health & resilience tokens whenever logs or user updates
+  // Synchronize and evaluate elastic streak health & resilience tokens
   useEffect(() => {
     if (loading) return;
     try {
@@ -147,11 +154,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const authenticateUser = async (authUser: { uid: string; email?: string | null; displayName?: string | null; photoURL?: string | null }) => {
     const cleanEmail = (authUser.email || '').trim().toLowerCase();
+    const canonicalId = CloudSyncService.getCanonicalUid(cleanEmail);
     const namePart = cleanEmail ? cleanEmail.split('@')[0] : 'scholar';
     const fallbackName = namePart.charAt(0).toUpperCase() + namePart.slice(1).replace(/[._]/g, ' ');
     const displayName = authUser.displayName || fallbackName || 'Scholar';
+    
+    // Canonical user identity
     const sessionUser = {
-      uid: authUser.uid,
+      uid: authUser.uid || canonicalId,
+      canonicalId,
       email: cleanEmail || 'scholar@savantix.app',
       displayName,
       photoURL: authUser.photoURL || ''
@@ -162,12 +173,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setIsGuest(false);
     setUser(sessionUser);
 
+    // Ensure Firebase Auth session is active
+    await CloudSyncService.ensureAuth();
+
     try {
-      const profileRef = doc(db, 'users', authUser.uid);
+      const profileRef = doc(db, 'users', authUser.uid || canonicalId);
       const profileSnap = await getDoc(profileRef);
       if (!profileSnap.exists()) {
         const newProfile = {
-          uid: authUser.uid,
+          uid: authUser.uid || canonicalId,
           email: cleanEmail,
           displayName,
           schoolHours: 6,
@@ -182,7 +196,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       console.warn("Firestore profile init fallback:", e);
       setProfile({
-        uid: authUser.uid,
+        uid: authUser.uid || canonicalId,
         email: cleanEmail,
         displayName,
         schoolHours: 6,
@@ -191,13 +205,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
     }
 
-    // Load local storage data first (instant cache)
-    const localLogsKey = `savantix_user_logs_${authUser.uid}`;
-    const localGoalsKey = `savantix_user_goals_${authUser.uid}`;
-    const localJournalKey = `savantix_user_journal_${authUser.uid}`;
+    // 1. Load local cache immediately
+    const userUidKey = authUser.uid || canonicalId;
+    const localLogsKey = `savantix_user_logs_${userUidKey}`;
+    const localGoalsKey = `savantix_user_goals_${userUidKey}`;
+    const localJournalKey = `savantix_user_journal_${userUidKey}`;
 
     if (cleanEmail === 'debanjan8686@gmail.com' || cleanEmail === 'partofcosmmos@gmail.com') {
-      const seeded = seedDebanjanHistoryIfEmpty(authUser.uid);
+      const seeded = seedDebanjanHistoryIfEmpty(userUidKey);
       if (seeded) {
         setLogs(seeded.mergedLogs);
         setGoals(seeded.mergedGoals);
@@ -211,6 +226,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const savedJournal = localStorage.getItem(localJournalKey);
       if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
     }
+
+    // 2. Real-Time Cloud Sync: Pull remote snapshot & start bidirectional real-time subscription
+    CloudSyncService.pullFromCloud(cleanEmail, userUidKey).then(res => {
+      if (res.success) {
+        const lLogs = JSON.parse(localStorage.getItem(localLogsKey) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
+        const lGoals = JSON.parse(localStorage.getItem(localGoalsKey) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
+        const lJournal = JSON.parse(localStorage.getItem(localJournalKey) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
+        if (lLogs.length) setLogs(lLogs);
+        if (lGoals.length) setGoals(lGoals);
+        if (lJournal.length) setJournalEntries(lJournal);
+        setSyncStatus({
+          isSyncing: false,
+          lastSyncedAt: res.timestamp,
+          message: res.message
+        });
+      }
+    });
+
+    CloudSyncService.subscribeToCloudSync(cleanEmail, userUidKey, (res) => {
+      const lLogs = JSON.parse(localStorage.getItem(localLogsKey) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
+      const lGoals = JSON.parse(localStorage.getItem(localGoalsKey) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
+      const lJournal = JSON.parse(localStorage.getItem(localJournalKey) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
+      if (lLogs.length) setLogs(lLogs);
+      if (lGoals.length) setGoals(lGoals);
+      if (lJournal.length) setJournalEntries(lJournal);
+      setSyncStatus({
+        isSyncing: false,
+        lastSyncedAt: res.timestamp,
+        message: res.message
+      });
+    });
   };
 
   useEffect(() => {
@@ -234,6 +280,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const savedLogs = localStorage.getItem(`savantix_user_logs_${parsed.uid}`);
           if (savedLogs) setLogs(JSON.parse(savedLogs));
         }
+
+        // Trigger background cloud sync on app start
+        CloudSyncService.pullFromCloud(parsed.email, parsed.uid);
       } catch {}
     } else if (localStorage.getItem('savantix_is_guest') === 'true') {
       const guestUser = { uid: 'guest_user', email: 'guest@savantix.app', displayName: 'Guest Scholar' };
@@ -254,180 +303,57 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  // Sync Firestore with bidirectional merge when authenticated user is active
-  useEffect(() => {
-    if (!user || user.uid === 'guest_user') return;
+  // Force Instant Manual Sync across all devices
+  const forceSyncNow = useCallback(async (): Promise<SyncResult> => {
+    if (!user || isGuest) {
+      return {
+        success: false,
+        timestamp: new Date().toLocaleTimeString(),
+        logsCount: logs.length,
+        goalsCount: goals.length,
+        journalCount: journalEntries.length,
+        attendanceCount: 0,
+        message: 'Please sign in to synchronize across devices.'
+      };
+    }
+    setSyncStatus(prev => ({ ...prev, isSyncing: true }));
+    try {
+      const res = await CloudSyncService.pullFromCloud(user.email, user.uid);
+      const canonicalId = CloudSyncService.getCanonicalUid(user.email);
+      const userUidKey = user.uid || canonicalId;
 
-    const localLogsKey = `savantix_user_logs_${user.uid}`;
-    const localGoalsKey = `savantix_user_goals_${user.uid}`;
-    const localJournalKey = `savantix_user_journal_${user.uid}`;
+      const loadedLogs = JSON.parse(localStorage.getItem(`savantix_user_logs_${userUidKey}`) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
+      const loadedGoals = JSON.parse(localStorage.getItem(`savantix_user_goals_${userUidKey}`) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
+      const loadedJournal = JSON.parse(localStorage.getItem(`savantix_user_journal_${userUidKey}`) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
 
-    // 1. Real-time Study Logs Sync & Bidirectional Merge
-    const logsRef = collection(db, 'users', user.uid, 'logs');
-    const qLogs = query(logsRef, orderBy('createdAt', 'desc'));
-    const unsubLogs = onSnapshot(qLogs, async (snapshot) => {
-      try {
-        const cloudLogs: any[] = snapshot.docs.map(doc => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            ...d,
-            createdAt: parseFirestoreDate(d.createdAt)
-          };
-        });
+      if (loadedLogs.length) setLogs(loadedLogs);
+      if (loadedGoals.length) setGoals(loadedGoals);
+      if (loadedJournal.length) setJournalEntries(loadedJournal);
 
-        // Read current local cache to merge
-        let currentLocal: any[] = [];
-        try {
-          currentLocal = JSON.parse(localStorage.getItem(localLogsKey) || '[]');
-        } catch {}
-
-        // Map cloud logs by unique signature (date + subject + topic or id)
-        const cloudMap = new Map<string, any>();
-        cloudLogs.forEach(cl => {
-          cloudMap.set(cl.id, cl);
-          const sig = `${cl.date}_${cl.subject}_${cl.topic || ''}`.toLowerCase();
-          cloudMap.set(sig, cl);
-        });
-
-        // Identify local logs that haven't reached cloud yet, and push them to Firestore
-        const unuploaded = currentLocal.filter(ll => {
-          const sig = `${ll.date}_${ll.subject}_${ll.topic || ''}`.toLowerCase();
-          return !cloudMap.has(ll.id) && !cloudMap.has(sig);
-        });
-
-        if (unuploaded.length > 0) {
-          // Push un-uploaded logs to Firestore in background
-          import('firebase/firestore').then(async ({ addDoc, serverTimestamp }) => {
-            for (const item of unuploaded) {
-              try {
-                const normalized = normalizeLogData(item, user.uid);
-                await addDoc(logsRef, {
-                  ...normalized,
-                  createdAt: serverTimestamp()
-                });
-              } catch (pushErr) {
-                console.warn('Auto-sync unuploaded log notice:', pushErr);
-              }
-            }
-          });
-        }
-
-        // Union merge cloud logs with any remaining unique local logs
-        const mergedMap = new Map<string, any>();
-        cloudLogs.forEach(l => mergedMap.set(l.id, l));
-        currentLocal.forEach(l => {
-          if (!mergedMap.has(l.id)) {
-            const sig = `${l.date}_${l.subject}_${l.topic || ''}`.toLowerCase();
-            if (!cloudMap.has(sig)) {
-              mergedMap.set(l.id, l);
-            }
-          }
-        });
-
-        const unifiedLogs = Array.from(mergedMap.values()).sort((a, b) => {
-          const dateA = a.date || a.createdAt || '';
-          const dateB = b.date || b.createdAt || '';
-          return dateB.localeCompare(dateA);
-        });
-
-        setLogs(unifiedLogs);
-        localStorage.setItem(localLogsKey, JSON.stringify(unifiedLogs));
-        localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(unifiedLogs));
-      } catch (err) {
-        console.warn('Logs snapshot sync notice:', err);
-      }
-    }, (err) => {
-      console.warn('Firestore logs subscription notice:', err);
-    });
-
-    // 2. Real-time Goals Sync
-    const goalsRef = collection(db, 'users', user.uid, 'goals');
-    const qGoals = query(goalsRef, orderBy('createdAt', 'desc'));
-    const unsubGoals = onSnapshot(qGoals, (snapshot) => {
-      try {
-        const cloudGoals: any[] = snapshot.docs.map(doc => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            ...d,
-            createdAt: parseFirestoreDate(d.createdAt)
-          };
-        });
-
-        let currentLocal: any[] = [];
-        try {
-          currentLocal = JSON.parse(localStorage.getItem(localGoalsKey) || '[]');
-        } catch {}
-
-        const mergedMap = new Map<string, any>();
-        cloudGoals.forEach(g => mergedMap.set(g.id, g));
-        currentLocal.forEach(g => {
-          if (!mergedMap.has(g.id)) mergedMap.set(g.id, g);
-        });
-
-        const unifiedGoals = Array.from(mergedMap.values());
-        setGoals(unifiedGoals);
-        localStorage.setItem(localGoalsKey, JSON.stringify(unifiedGoals));
-      } catch (err) {
-        console.warn('Goals snapshot sync notice:', err);
-      }
-    }, () => {});
-
-    // 3. Real-time Journal Sync
-    const journalRef = collection(db, 'users', user.uid, 'journal_entries');
-    const qJournal = query(journalRef, orderBy('createdAt', 'desc'));
-    const unsubJournal = onSnapshot(qJournal, (snapshot) => {
-      try {
-        const cloudJournal: any[] = snapshot.docs.map(doc => {
-          const d = doc.data();
-          return {
-            id: doc.id,
-            ...d,
-            createdAt: parseFirestoreDate(d.createdAt)
-          };
-        });
-
-        let currentLocal: any[] = [];
-        try {
-          currentLocal = JSON.parse(localStorage.getItem(localJournalKey) || '[]');
-        } catch {}
-
-        const mergedMap = new Map<string, any>();
-        cloudJournal.forEach(j => mergedMap.set(j.id, j));
-        currentLocal.forEach(j => {
-          if (!mergedMap.has(j.id)) mergedMap.set(j.id, j);
-        });
-
-        const unifiedJournal = Array.from(mergedMap.values()).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-        setJournalEntries(unifiedJournal);
-        localStorage.setItem(localJournalKey, JSON.stringify(unifiedJournal));
-      } catch (err) {
-        console.warn('Journal snapshot sync notice:', err);
-      }
-    }, () => {});
-
-    // 4. Daily Insights & Chat Sessions
-    const insightsRef = collection(db, 'users', user.uid, 'daily_insights');
-    const qInsights = query(insightsRef, orderBy('createdAt', 'desc'));
-    const unsubInsights = onSnapshot(qInsights, (snapshot) => {
-      setInsights(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: parseFirestoreDate(doc.data().createdAt) })));
-    }, () => {});
-
-    const chatSessionsRef = collection(db, 'users', user.uid, 'chat_sessions');
-    const qChatSessions = query(chatSessionsRef, orderBy('updatedAt', 'desc'));
-    const unsubChatSessions = onSnapshot(qChatSessions, (snapshot) => {
-      setChatSessions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, () => {});
-
-    return () => {
-      unsubLogs();
-      unsubGoals();
-      unsubJournal();
-      unsubInsights();
-      unsubChatSessions();
-    };
-  }, [user]);
+      setSyncStatus({
+        isSyncing: false,
+        lastSyncedAt: res.timestamp,
+        message: res.message
+      });
+      return res;
+    } catch (err: any) {
+      const res: SyncResult = {
+        success: false,
+        timestamp: new Date().toLocaleTimeString(),
+        logsCount: logs.length,
+        goalsCount: goals.length,
+        journalCount: journalEntries.length,
+        attendanceCount: 0,
+        message: err.message || 'Sync failed.'
+      };
+      setSyncStatus({
+        isSyncing: false,
+        lastSyncedAt: res.timestamp,
+        message: res.message
+      });
+      return res;
+    }
+  }, [user, isGuest, logs.length, goals.length, journalEntries.length]);
 
   const login = async () => {
     setLoading(true);
@@ -449,8 +375,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const loginWithEmail = async (emailInput: string) => {
     const cleanEmail = emailInput.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Please enter a valid email address.');
-    const uid = 'usr_' + btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
-    await authenticateUser({ uid, email: cleanEmail });
+    const canonicalId = CloudSyncService.getCanonicalUid(cleanEmail);
+    await authenticateUser({ uid: canonicalId, email: cleanEmail });
   };
 
   const continueAsGuest = () => {
@@ -508,6 +434,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const profileRef = doc(db, 'users', user.uid);
         await setDoc(profileRef, data, { merge: true });
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore profile background sync notice:", err);
       }
@@ -530,7 +457,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}logs` : `savantix_user_logs_${user.uid}`, JSON.stringify(updatedLogs));
     localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(updatedLogs));
 
-    // 2. Safe background Firestore update
+    // 2. Safe background Firestore update & Cloud Push
     if (!isGuest) {
       try {
         const logsRef = collection(db, 'users', user.uid, 'logs');
@@ -538,6 +465,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           ...normalized,
           createdAt: f.serverTimestamp()
         }));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore addLog background sync notice:", err);
       }
@@ -556,6 +484,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const logRef = doc(db, 'users', user.uid, 'logs', id);
         await import('firebase/firestore').then(f => f.updateDoc(logRef, data));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore updateLog background sync notice:", err);
       }
@@ -573,6 +502,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const logRef = doc(db, 'users', user.uid, 'logs', id);
         await import('firebase/firestore').then(f => f.deleteDoc(logRef));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore deleteLog background sync notice:", err);
       }
@@ -649,6 +579,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           ...(targetDate ? { targetDate } : {}),
           createdAt: f.serverTimestamp()
         }));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore addGoal background sync notice:", err);
       }
@@ -666,6 +597,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const ref = doc(db, 'users', user.uid, 'goals', id);
         await import('firebase/firestore').then(f => f.updateDoc(ref, data));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore updateGoal background sync notice:", err);
       }
@@ -682,6 +614,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const ref = doc(db, 'users', user.uid, 'goals', id);
         await import('firebase/firestore').then(f => f.deleteDoc(ref));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore deleteGoal background sync notice:", err);
       }
@@ -717,6 +650,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           date,
           createdAt: f.serverTimestamp()
         }));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore addJournalEntry background sync notice:", err);
       }
@@ -734,6 +668,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const ref = doc(db, 'users', user.uid, 'journal_entries', id);
         await import('firebase/firestore').then(f => f.updateDoc(ref, data));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore updateJournalEntry background sync notice:", err);
       }
@@ -750,6 +685,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const ref = doc(db, 'users', user.uid, 'journal_entries', id);
         await import('firebase/firestore').then(f => f.deleteDoc(ref));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore deleteJournalEntry background sync notice:", err);
       }
@@ -765,45 +701,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const recomputeElasticStreak = () => {
-    try {
-      const recomputed = recomputeStreakFromHistory(logs, elasticStreak.targetMinutesDaily, elasticStreak.shieldTokens);
-      setElasticStreak(recomputed);
-      saveElasticStreakState(recomputed);
-    } catch (err) {
-      console.warn('Failed to recompute elastic streak resilience state:', err);
-    }
+    const target = elasticStreak?.targetMinutesDaily || 120;
+    const fresh = recomputeStreakFromHistory(logs, target);
+    setElasticStreak(fresh);
+    saveElasticStreakState(fresh);
   };
 
   return (
-    <AppContext.Provider value={{
-      user,
-      profile,
-      logs,
-      insights,
-      goals,
-      journalEntries,
-      chatSessions,
-      elasticStreak,
-      loading,
-      isGuest,
-      login,
-      loginWithEmail,
-      continueAsGuest,
-      logout: handleLogout,
-      updateProfile,
-      addLog,
-      updateLog,
-      deleteLog,
-      addInsight,
-      addGoal,
-      updateGoal,
-      deleteGoal,
-      addJournalEntry,
-      updateJournalEntry,
-      deleteJournalEntry,
-      updateElasticStreak,
-      recomputeElasticStreak
-    }}>
+    <AppContext.Provider
+      value={{
+        user,
+        profile,
+        logs,
+        insights,
+        goals,
+        journalEntries,
+        chatSessions,
+        elasticStreak,
+        loading,
+        isGuest,
+        syncStatus,
+        forceSyncNow,
+        login,
+        loginWithEmail,
+        continueAsGuest,
+        logout: handleLogout,
+        updateProfile,
+        addLog,
+        updateLog,
+        deleteLog,
+        addInsight,
+        addGoal,
+        updateGoal,
+        deleteGoal,
+        addJournalEntry,
+        updateJournalEntry,
+        deleteJournalEntry,
+        updateElasticStreak,
+        recomputeElasticStreak,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );
@@ -811,7 +748,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAppContext = () => {
   const context = useContext(AppContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAppContext must be used within an AppProvider');
   }
   return context;
