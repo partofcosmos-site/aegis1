@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, memo } from 'react';
+import React, { useEffect, useRef, memo, useCallback } from 'react';
 import { ExternalLink, SkipForward, Brain, ShieldCheck } from 'lucide-react';
 import { YouTubeTrack, YouTubeAudioService } from '../services/youtubeAudioService';
 
@@ -10,6 +10,8 @@ interface DistractionFreeYouTubePlayerProps {
   onSwitchToSynth?: () => void;
 }
 
+const ERROR_CODES = new Set([2, 5, 100, 101, 150]);
+
 export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTubePlayer({
   track,
   isPlaying,
@@ -18,8 +20,34 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
   onSwitchToSynth
 }: DistractionFreeYouTubePlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const trackRef = useRef(track);
+  const onTrackRestrictedRef = useRef(onTrackRestricted);
+  const onNextTrackRef = useRef(onNextTrack);
 
-  // 1. Manage Playback via postMessage (Zero iframe DOM reloading or buffer resets)
+  useEffect(() => {
+    trackRef.current = track;
+    onTrackRestrictedRef.current = onTrackRestricted;
+    onNextTrackRef.current = onNextTrack;
+  });
+
+  // 1. Send postMessage handshake on iframe load & resume if playing
+  const handleIframeLoad = useCallback(() => {
+    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
+    try {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }),
+        '*'
+      );
+      if (isPlaying) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+          '*'
+        );
+      }
+    } catch {}
+  }, [isPlaying]);
+
+  // 2. Manage Playback via postMessage API (playVideo / pauseVideo / loadVideoById)
   useEffect(() => {
     if (!iframeRef.current || !iframeRef.current.contentWindow) return;
 
@@ -32,7 +60,7 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
     } catch {}
   }, [isPlaying]);
 
-  // 2. Intercept YouTube Player Error Messages & Embedding Restrictions
+  // 3. Centralized Fast Error Interceptor (<50ms trigger, instant blacklist persistence)
   useEffect(() => {
     const handleWindowMessage = (event: MessageEvent) => {
       try {
@@ -46,15 +74,28 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
         }
         if (!data || typeof data !== 'object') return;
 
-        // Error codes: 2 (invalid param), 5 (HTML5 error), 100 (not found/removed), 101/150 (embedding disabled)
-        const isErrorEvent = data.event === 'onError' || (data.info && typeof data.info === 'number' && [2, 5, 100, 101, 150].includes(data.info));
-        if (isErrorEvent && track) {
-          console.warn(`[Savantix Focus Engine] YouTube stream '${track.title}' (${track.youtubeId}) restricted by creator. Auto-skipping...`);
-          YouTubeAudioService.reportBadVideoId(track.youtubeId);
-          if (onTrackRestricted) {
-            onTrackRestricted(track);
-          } else if (onNextTrack) {
-            onNextTrack();
+        // Extract error codes (2: invalid param, 5: html5 error, 100: not found/removed, 101/150: embedding disabled)
+        let errorCode: number | null = null;
+        if (typeof data.data === 'number' && ERROR_CODES.has(data.data)) {
+          errorCode = data.data;
+        } else if (typeof data.info === 'number' && ERROR_CODES.has(data.info)) {
+          errorCode = data.info;
+        } else if (data.info && typeof data.info === 'object' && typeof data.info.errorCode === 'number' && ERROR_CODES.has(data.info.errorCode)) {
+          errorCode = data.info.errorCode;
+        } else if (data.event === 'onError') {
+          errorCode = typeof data.data === 'number' ? data.data : (typeof data.info === 'number' ? data.info : 150);
+        }
+
+        if (errorCode !== null && trackRef.current) {
+          const badTrack = trackRef.current;
+          console.warn(`[Savantix Focus Engine] YouTube stream '${badTrack.title}' (${badTrack.youtubeId}) restricted by creator (code: ${errorCode}). Auto-skipping...`);
+          YouTubeAudioService.reportBadVideoId(badTrack.youtubeId);
+          
+          // Instant callback to parent (<50ms)
+          if (onTrackRestrictedRef.current) {
+            onTrackRestrictedRef.current(badTrack);
+          } else if (onNextTrackRef.current) {
+            onNextTrackRef.current();
           }
         }
       } catch {}
@@ -62,12 +103,13 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
 
     window.addEventListener('message', handleWindowMessage);
     return () => window.removeEventListener('message', handleWindowMessage);
-  }, [track, onTrackRestricted, onNextTrack]);
+  }, []);
 
   if (!track) return null;
 
-  // Build clean embed URL with distraction suppression parameters
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${track.youtubeId}?enablejsapi=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&controls=1&fs=0`;
+  // Build clean embed URL with distraction suppression parameters & origin
+  const origin = typeof window !== 'undefined' && window.location?.origin ? encodeURIComponent(window.location.origin) : '';
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${track.youtubeId}?autoplay=1&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&controls=1&fs=0${origin ? `&origin=${origin}` : ''}`;
 
   return (
     <div className="space-y-2">
@@ -82,6 +124,7 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen={false}
+          onLoad={handleIframeLoad}
         />
       </div>
 

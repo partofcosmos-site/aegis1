@@ -15,6 +15,7 @@ import { ConceptGraph } from './components/ConceptGraph';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ErrorVault } from './components/ErrorVault';
 import { DeepWorkFortress } from './components/DeepWorkFortress';
+import { ContactFeedback } from './components/ContactFeedback';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
@@ -69,6 +70,9 @@ export default function App() {
             </div>
             <div className={`h-full w-full ${activeTab === 'vault' ? 'block' : 'hidden'}`}>
               <ErrorVault />
+            </div>
+            <div className={`h-full w-full ${activeTab === 'feedback' ? 'block' : 'hidden'}`}>
+              <ContactFeedback />
             </div>
           </Layout>
         </AuthWrapper>

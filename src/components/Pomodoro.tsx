@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Play, 
   Pause, 
@@ -311,36 +311,29 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   const [customYtInput, setCustomYtInput] = useState<string>('');
   const [isYtPlaying, setIsYtPlaying] = useState<boolean>(false);
 
-  // --- SELF-HEALING YOUTUBE AUTO-SKIP ENGINE ---
-  useEffect(() => {
-    const handleYtMessage = (event: MessageEvent) => {
-      try {
-        let data = event.data;
-        if (typeof data === 'string') {
-          try {
-            data = JSON.parse(data);
-          } catch {
-            return;
-          }
-        }
-        if (!data || typeof data !== 'object') return;
+  // --- AUDIO CONTROLS (MEMOIZED FOR ZERO-JITTER POMODORO ISOLATION) ---
+  const handleSelectPreset = useCallback((presetId: SoundPresetId) => {
+    setActivePreset(presetId);
+    pomodoroAudio.play(presetId);
+  }, []);
 
-        // YouTube Error codes: 2 (invalid param), 5 (HTML5 error), 100 (not found/removed), 101/150 (not embeddable / restricted)
-        const isErrorEvent = data.event === 'onError' || (data.info && typeof data.info === 'number' && [2, 5, 100, 101, 150].includes(data.info));
-        if (isErrorEvent && selectedYtTrack) {
-          console.warn(`[Savantix Audio] Video ${selectedYtTrack.youtubeId} unavailable (code ${data.info}). Auto-skipping...`);
-          YouTubeAudioService.reportBadVideoId(selectedYtTrack.youtubeId);
-          setMessage({ type: 'info', text: `Stream '${selectedYtTrack.title}' restricted by YouTube — auto-switching to fresh track...` });
-          setTimeout(() => {
-            handleNextYtTrack();
-          }, 300);
-        }
-      } catch {}
-    };
+  const handleToggleAudioPlay = useCallback(() => {
+    pomodoroAudio.togglePlay(activePreset);
+  }, [activePreset]);
 
-    window.addEventListener('message', handleYtMessage);
-    return () => window.removeEventListener('message', handleYtMessage);
-  }, [selectedYtTrack, ytTracks]);
+  const handleVolumeChange = useCallback((newVol: number) => {
+    setAudioVolume(newVol);
+    pomodoroAudio.setVolume(newVol);
+    if (isMuted && newVol > 0) {
+      setIsMuted(false);
+      pomodoroAudio.toggleMute();
+    }
+  }, [isMuted]);
+
+  const handleToggleMute = useCallback(() => {
+    const muted = pomodoroAudio.toggleMute();
+    setIsMuted(muted);
+  }, []);
 
   const handleYtSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -355,7 +348,7 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
     }
   };
 
-  const handleShuffleYtTracks = () => {
+  const handleShuffleYtTracks = useCallback(() => {
     const fresh = YouTubeAudioService.rotateFreshTracks();
     setYtTracks(fresh);
     if (fresh.length > 0) {
@@ -363,16 +356,37 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
       setIsYtPlaying(true);
       setMessage({ type: 'success', text: 'Refreshed stream playlist with fresh focus sessions!' });
     }
-  };
+  }, []);
 
-  const handleSelectYtTrack = (track: YouTubeTrack) => {
+  const handleSelectYtTrack = useCallback((track: YouTubeTrack) => {
     setSelectedYtTrack(track);
     setIsYtPlaying(true);
-    if (isAudioPlaying) {
+    if (pomodoroAudio.getIsPlaying()) {
       pomodoroAudio.pause();
       setIsAudioPlaying(false);
     }
-  };
+  }, []);
+
+  const handleNextYtTrack = useCallback(() => {
+    const healthy = YouTubeAudioService.getHealthyTracks();
+    if (!healthy.length) return;
+    setSelectedYtTrack(prevTrack => {
+      const currentIndex = prevTrack ? healthy.findIndex(t => t.youtubeId === prevTrack.youtubeId) : -1;
+      const nextIndex = (currentIndex + 1) % healthy.length;
+      return healthy[nextIndex];
+    });
+    setIsYtPlaying(true);
+  }, []);
+
+  const handleTrackRestricted = useCallback((restrictedTrack: YouTubeTrack) => {
+    setMessage({ type: 'info', text: `Stream '${restrictedTrack.title}' restricted by creator — auto-switching to fresh track...` });
+    handleNextYtTrack();
+  }, [handleNextYtTrack]);
+
+  const handleSwitchToSynth = useCallback(() => {
+    setAudioEngineType('synth');
+    handleSelectPreset(activePreset);
+  }, [activePreset, handleSelectPreset]);
 
   const handleAddCustomYtTrack = (e: React.FormEvent) => {
     e.preventDefault();
@@ -399,14 +413,6 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
       pomodoroAudio.pause();
       setIsAudioPlaying(false);
     }
-  };
-
-  const handleNextYtTrack = () => {
-    const healthy = YouTubeAudioService.getHealthyTracks();
-    if (!healthy.length) return;
-    const currentIndex = healthy.findIndex(t => t.youtubeId === selectedYtTrack?.youtubeId);
-    const nextIndex = (currentIndex + 1) % healthy.length;
-    handleSelectYtTrack(healthy[nextIndex]);
   };
 
   // --- TASK LIST STATE ---
@@ -821,29 +827,6 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
     }
   };
 
-  // --- AUDIO CONTROLS ---
-  const handleSelectPreset = (presetId: SoundPresetId) => {
-    setActivePreset(presetId);
-    pomodoroAudio.play(presetId);
-  };
-
-  const handleToggleAudioPlay = () => {
-    pomodoroAudio.togglePlay(activePreset);
-  };
-
-  const handleVolumeChange = (newVol: number) => {
-    setAudioVolume(newVol);
-    pomodoroAudio.setVolume(newVol);
-    if (isMuted && newVol > 0) {
-      setIsMuted(false);
-      pomodoroAudio.toggleMute();
-    }
-  };
-
-  const handleToggleMute = () => {
-    const muted = pomodoroAudio.toggleMute();
-    setIsMuted(muted);
-  };
 
   // --- TASK MANAGER HANDLERS ---
   const handleAddTask = (e: React.FormEvent) => {
@@ -1640,15 +1623,9 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                 <DistractionFreeYouTubePlayer
                   track={selectedYtTrack}
                   isPlaying={isYtPlaying}
-                  onTrackRestricted={(restrictedTrack) => {
-                    setMessage({ type: 'info', text: `Stream '${restrictedTrack.title}' restricted by creator — auto-switching to fresh track...` });
-                    handleNextYtTrack();
-                  }}
+                  onTrackRestricted={handleTrackRestricted}
                   onNextTrack={handleNextYtTrack}
-                  onSwitchToSynth={() => {
-                    setAudioEngineType('synth');
-                    handleSelectPreset(activePreset);
-                  }}
+                  onSwitchToSynth={handleSwitchToSynth}
                 />
 
                 {/* YouTube Search Bar & Live Rotation */}

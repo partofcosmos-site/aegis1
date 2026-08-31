@@ -17,7 +17,8 @@ import {
   Network,
   Crown,
   Zap,
-  Lock
+  Lock,
+  MessageSquareHeart
 } from 'lucide-react';
 import clsx from 'clsx';
 import { MicroLoggerModal } from './MicroLoggerModal';
@@ -33,7 +34,8 @@ export type ActiveTabType =
   | 'goals' 
   | 'pomodoro' 
   | 'settings'
-  | 'vault';
+  | 'vault'
+  | 'feedback';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -78,6 +80,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
     { id: 'pomodoro', label: 'Pomodoro Focus Timer', icon: Clock },
     { id: 'settings', label: 'Universal AI Providers', icon: Settings },
     { id: 'vault', label: '🔒 Error Vault', icon: Lock },
+    { id: 'feedback', label: 'Contact & Feedback', icon: MessageSquareHeart },
   ] as const;
 
   return (
@@ -190,8 +193,16 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
         </div>
       </aside>
 
+      {/* Mobile Backdrop Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-30 md:hidden transition-opacity" 
+          onClick={() => setIsMobileMenuOpen(false)} 
+        />
+      )}
+
       {/* Main Content Viewport */}
-      <main className="flex-1 overflow-y-auto min-h-0 h-screen scroll-smooth">
+      <main className="flex-1 overflow-y-auto min-h-0 h-[calc(100vh-60px)] md:h-screen scroll-smooth">
         {children}
       </main>
     </div>

@@ -273,17 +273,21 @@ export const StudyHeatmap: React.FC<StudyHeatmapProps> = ({
     // Generate Clean Month Header labels with collision prevention (min 3 columns / 45px distance)
     const rawMonths: Array<{ name: string; colIndex: number }> = [];
     let lastMonthKey = '';
+    let lastYear = -1;
     weekColumns.forEach((week, colIdx) => {
       const validDay = week.find(d => d.level >= 0);
       if (validDay) {
         const monthKey = format(validDay.date, 'MMM-yyyy');
         if (monthKey !== lastMonthKey) {
           const monthAbbr = format(validDay.date, 'MMM');
-          const yearAbbr  = format(validDay.date, "'yy");
-          // Only show year suffix at January (year boundary)
-          const label = monthAbbr === 'Jan' ? `Jan ${yearAbbr}` : monthAbbr;
+          const yearNum   = validDay.date.getFullYear();
+          const yearShort = String(yearNum).slice(-2);
+          // Show year when year changes (Jan boundary OR first label)
+          const showYear = yearNum !== lastYear;
+          const label = showYear ? `${monthAbbr} '${yearShort}` : monthAbbr;
           rawMonths.push({ name: label, colIndex: colIdx });
           lastMonthKey = monthKey;
+          lastYear = yearNum;
         }
       }
     });
