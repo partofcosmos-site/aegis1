@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import TriageMode from './TriageMode';
+import { DistractionFreeYouTubePlayer } from './DistractionFreeYouTubePlayer';
 import { format } from 'date-fns';
 import { 
   pomodoroAudio, 
@@ -1635,60 +1636,20 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
             ) : (
               /* Distraction-Free YouTube Engine */
               <div className="space-y-4">
-                {/* Active Embed Player */}
-                {selectedYtTrack && (
-                  <div className="space-y-2">
-                    <div className="w-full aspect-video rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 shadow-inner relative">
-                      <iframe
-                        src={YouTubeAudioService.getEmbedUrl(selectedYtTrack.youtubeId, isYtPlaying)}
-                        title={selectedYtTrack.title}
-                        className="w-full h-full border-0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerPolicy="strict-origin-when-cross-origin"
-                        allowFullScreen
-                      />
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-zinc-100 truncate">{selectedYtTrack.title}</div>
-                        <div className="text-[10px] text-zinc-400 truncate">{selectedYtTrack.artist} • {selectedYtTrack.tag}</div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <a
-                          href={`https://www.youtube.com/watch?v=${selectedYtTrack.youtubeId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/60 transition-colors flex items-center gap-1"
-                          title="Open directly in YouTube"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Open
-                        </a>
-                        <button
-                          type="button"
-                          onClick={handleNextYtTrack}
-                          className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-zinc-800 hover:bg-zinc-700 text-rose-300 border border-rose-900/40 transition-colors flex items-center gap-1 cursor-pointer"
-                          title="Skip to next track"
-                        >
-                          <SkipForward className="w-3 h-3" />
-                          Next
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAudioEngineType('synth');
-                            handleSelectPreset(activePreset);
-                          }}
-                          className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/60 transition-colors flex items-center gap-1 cursor-pointer"
-                          title="Switch to pure offline synthesizer"
-                        >
-                          <Brain className="w-3 h-3" />
-                          Synth
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Active Embed Player with PostMessage & Auto-Skip Isolation */}
+                <DistractionFreeYouTubePlayer
+                  track={selectedYtTrack}
+                  isPlaying={isYtPlaying}
+                  onTrackRestricted={(restrictedTrack) => {
+                    setMessage({ type: 'info', text: `Stream '${restrictedTrack.title}' restricted by creator — auto-switching to fresh track...` });
+                    handleNextYtTrack();
+                  }}
+                  onNextTrack={handleNextYtTrack}
+                  onSwitchToSynth={() => {
+                    setAudioEngineType('synth');
+                    handleSelectPreset(activePreset);
+                  }}
+                />
 
                 {/* YouTube Search Bar & Live Rotation */}
                 <form onSubmit={handleYtSearch} className="flex gap-2">
