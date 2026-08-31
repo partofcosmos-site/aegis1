@@ -928,11 +928,15 @@ Regarding **"${prompt.trim()}"**:
     let durationMinutes = 60; // default 1h
     const hourMatch = textLower.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
     const minMatch = textLower.match(/(\d+)\s*(?:minutes?|mins?|m)\b/);
+    const afterMinMatch = textLower.match(/(?:after|spent|for)\s*(\d+)\s*(?:minutes?|mins?|m)\b/);
+    
     if (hourMatch) {
       durationMinutes = Math.round(parseFloat(hourMatch[1]) * 60);
       if (minMatch) durationMinutes += parseInt(minMatch[1], 10);
     } else if (minMatch) {
       durationMinutes = parseInt(minMatch[1], 10);
+    } else if (afterMinMatch) {
+      durationMinutes = parseInt(afterMinMatch[1], 10);
     }
 
     // 2. Problems solved extraction
@@ -944,11 +948,11 @@ Regarding **"${prompt.trim()}"**:
 
     // 3. Subject extraction
     let subject = 'General';
-    if (/\b(?:physics|phy|mechanics|electromagnetism|thermodynamics|optics|kinematics)\b/.test(textLower)) {
+    if (/\b(?:physics|phy|mechanics|electromagnetism|thermodynamics|optics|kinematics|rotational)\b/.test(textLower)) {
       subject = 'Physics';
-    } else if (/\b(?:chemistry|chem|organic|inorganic|electrochemistry|bonding)\b/.test(textLower)) {
+    } else if (/\b(?:chemistry|chem|organic|inorganic|electrochemistry|bonding|kinetics)\b/.test(textLower)) {
       subject = 'Chemistry';
-    } else if (/\b(?:math|mathematics|calculus|algebra|geometry|vectors|integration|trigonometry)\b/.test(textLower)) {
+    } else if (/\b(?:math|mathematics|calculus|algebra|geometry|vectors|integration|trigonometry|algebra)\b/.test(textLower)) {
       subject = 'Mathematics';
     } else if (/\b(?:biology|bio|genetics|botany|zoology)\b/.test(textLower)) {
       subject = 'Biology';
@@ -974,9 +978,12 @@ Regarding **"${prompt.trim()}"**:
       }
     }
     if (!topic) {
-      // Extract first meaningful noun phrase
-      const parts = rawText.split(/[,;\.]/);
-      topic = (parts[0] || subject).replace(/did|solved|\d+h|\d+m|\d+\s*questions?/gi, '').trim() || subject;
+      if (/\blecture\b/.test(textLower)) {
+        topic = `${subject} Lecture`;
+      } else {
+        const parts = rawText.split(/[,;\.]/);
+        topic = (parts[0] || subject).replace(/did|solved|\d+h|\d+m|\d+\s*questions?/gi, '').trim() || `${subject} Study Session`;
+      }
     }
 
     // 5. Mistakes extraction
@@ -990,11 +997,13 @@ Regarding **"${prompt.trim()}"**:
       if (mPhrase) mistakes.push(mPhrase.trim());
     }
 
+    const subtopic = /\blecture\b/.test(textLower) ? 'Lecture Comprehension' : (problemsSolved > 0 ? 'Problem Solving Practice' : 'Self Study');
+
     return {
       subject,
       topic: topic.substring(0, 199),
-      subtopic: '',
-      durationMinutes: Math.max(5, durationMinutes),
+      subtopic,
+      durationMinutes: Math.max(1, durationMinutes),
       problemsSolved,
       mistakes,
       efficiencyScore: 8,
@@ -1003,46 +1012,64 @@ Regarding **"${prompt.trim()}"**:
   }
 
   public static async parseStudyLog(rawText: string): Promise<ParsedLog> {
+    const localGroundTruth = this.parseStudyLogLocal(rawText);
     try {
       const activeProvider = AIVaultService.getActiveProvider();
       if (activeProvider && activeProvider.apiKey) {
-        const prompt = `Parse the following natural language study log into structured data:
-- Distinguish between watching lectures and solving practice questions.
-- problemsSolved should ONLY be practice questions/numericals solved (0 if none mentioned).
-- Convert durations like "2h" to 120 minutes.
-Log: "${rawText}"`;
+        const prompt = `Parse the following student study log into precise structured data:
+Log: "${rawText}"
+
+Requirements:
+- "subject": Physics | Mathematics | Chemistry | Biology | Computer Science | General
+- "topic": Specific concept or lecture topic (e.g. "Rotational Dynamics", "Math Lecture", "Integration By Parts").
+- "subtopic": "Lecture Comprehension", "Problem Solving Practice", or "Theory Revision".
+- "durationMinutes": Duration in minutes (e.g., "60 minutes" -> 60, "1.5 hours" -> 90). Must accurately reflect explicit user statements.
+- "problemsSolved": Practice problems/questions solved (0 if lecture/theory).
+- "mistakes": Array of mistakes or weaknesses mentioned.
+- "efficiencyScore": 1-10 rating (default 8).
+- "focusScore": 1-10 rating (default 8).`;
 
         const schemaDesc = `{
-  "subject": "string (e.g. Physics, Chemistry, Math)",
+  "subject": "string",
   "topic": "string",
   "subtopic": "string",
   "durationMinutes": number,
   "problemsSolved": number,
   "mistakes": ["string"],
-  "efficiencyScore": number (1-10),
-  "focusScore": number (1-10)
+  "efficiencyScore": number,
+  "focusScore": number
 }`;
 
         const parsed = await this.executeJsonRequest<Partial<ParsedLog>>(prompt, schemaDesc);
         
-        const durationMinutes = Math.max(0, Math.round(Number(parsed.durationMinutes))) || 0;
-        const problemsSolved = Math.max(0, Math.round(Number(parsed.problemsSolved))) || 0;
-        const efficiencyScore = Math.min(10, Math.max(1, Math.round(Number(parsed.efficiencyScore)))) || 5;
-        const focusScore = Math.min(10, Math.max(1, Math.round(Number(parsed.focusScore)))) || 5;
+        // Ground with local deterministic truth to protect against hallucinated numbers or drop of explicit user durations
+        const finalSubject = (parsed.subject && parsed.subject !== 'General') ? parsed.subject.trim() : localGroundTruth.subject;
+        const finalTopic = parsed.topic?.trim() || localGroundTruth.topic;
+        const finalSubtopic = parsed.subtopic?.trim() || localGroundTruth.subtopic;
+        
+        let finalDuration = localGroundTruth.durationMinutes;
+        if (typeof parsed.durationMinutes === 'number' && parsed.durationMinutes > 0 && parsed.durationMinutes <= 1440) {
+          finalDuration = Math.round(parsed.durationMinutes);
+        }
 
-        const mistakes = Array.isArray(parsed.mistakes)
+        let finalProblems = typeof parsed.problemsSolved === 'number' ? Math.max(0, Math.round(parsed.problemsSolved)) : localGroundTruth.problemsSolved;
+        if (/lecture|theory|concept|reading|notes/i.test(rawText) && !/solved|questions|problems|numericals|mcqs/i.test(rawText)) {
+          finalProblems = 0;
+        }
+
+        const mistakes = Array.isArray(parsed.mistakes) && parsed.mistakes.length > 0
           ? parsed.mistakes.filter(Boolean).map(m => String(m).substring(0, 200)).slice(0, 50)
-          : [];
+          : localGroundTruth.mistakes;
 
         return {
-          subject: (parsed.subject || 'General').substring(0, 99).trim() || 'General',
-          topic: (parsed.topic || '').substring(0, 199).trim(),
-          subtopic: (parsed.subtopic || '').substring(0, 199).trim(),
-          durationMinutes: durationMinutes > 0 ? durationMinutes : 60,
-          problemsSolved,
+          subject: finalSubject.substring(0, 99) || 'General',
+          topic: finalTopic.substring(0, 199) || `${finalSubject} Study`,
+          subtopic: finalSubtopic.substring(0, 199) || 'Study Session',
+          durationMinutes: finalDuration,
+          problemsSolved: finalProblems,
           mistakes,
-          efficiencyScore,
-          focusScore
+          efficiencyScore: typeof parsed.efficiencyScore === 'number' ? Math.min(10, Math.max(1, Math.round(parsed.efficiencyScore))) : 8,
+          focusScore: typeof parsed.focusScore === 'number' ? Math.min(10, Math.max(1, Math.round(parsed.focusScore))) : 8
         };
       }
     } catch (err) {
@@ -1050,7 +1077,7 @@ Log: "${rawText}"`;
     }
 
     // Zero-failure fallback
-    return this.parseStudyLogLocal(rawText);
+    return localGroundTruth;
   }
 
   public static async generateDailyInsights(logs: any[], constraints: any): Promise<DailyInsightData> {
