@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { MicroLoggerModal } from './MicroLoggerModal';
+import { AIGatewayButton } from './AIGateway';
 
 export type ActiveTabType = 
   | 'dashboard' 
@@ -51,7 +52,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
   const [isMicroLoggerOpen, setIsMicroLoggerOpen] = useState(false);
   const isFounder = ['debanjan8686@gmail.com', 'partofcosmmos@gmail.com'].includes(user?.email || '');
 
-  // Global hotkeys for Micro-Logger HUD (Alt+L or Ctrl+K / Cmd+K)
+  // Global hotkeys for Micro-Logger HUD (Alt+L or Ctrl+K / Cmd+K) and AI Gateway (Alt+G)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Check Alt+L
@@ -63,6 +64,11 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
       else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setIsMicroLoggerOpen(prev => !prev);
+      }
+      // Check Alt+G — open AI Gateway drawer
+      else if (e.altKey && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('savantix_open_ai_gateway', { detail: { open: true } }));
       }
     };
 
@@ -93,6 +99,9 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
         isOpen={isMicroLoggerOpen} 
         onClose={() => setIsMicroLoggerOpen(false)} 
       />
+
+      {/* Global Floating AI Gateway Button (Alt+G) */}
+      <AIGatewayButton />
 
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-zinc-900/60 backdrop-blur-md border-b border-zinc-800/80">
