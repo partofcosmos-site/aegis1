@@ -1,9 +1,9 @@
 /**
  * @file youtubeAudioService.ts
  * @description
- * Distraction-Free YouTube Study Audio & Music Engine with Self-Healing Auto-Skip,
- * Intelligent Non-Repeating Rotation, Multi-Tiered Search (Anime, Gaming, Lo-Fi, Classical),
- * and MediaSession OS Audio Integration.
+ * Distraction-Free YouTube Study Audio Engine with Open Live YouTube Search,
+ * User-Customizable One-Tap Tags, Non-Repeating Rotation, Anti-Algorithm Guardrails,
+ * Audio Fade-Out, and MediaSession OS Integration.
  */
 
 export type YouTubeCategory =
@@ -26,7 +26,19 @@ export interface YouTubeTrack {
   youtubeId: string;
   tag: string;
   duration?: string;
+  thumbnail?: string;
 }
+
+export const DEFAULT_USER_TAGS: string[] = [
+  '⛩️ Ghibli Piano',
+  '🍜 Naruto Lo-Fi',
+  '⚔️ Attack on Titan',
+  '🎮 Minecraft Ambience',
+  '☕ 4 A.M Study Session',
+  '🧠 40Hz Gamma Focus',
+  '🌌 Synthwave Beats',
+  '🌧️ Heavy Rain Thunder'
+];
 
 export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
   // ─── ANIME & GHIBLI STUDY MUSIC ───────────────────────────────────────
@@ -375,6 +387,9 @@ export class YouTubeAudioService {
   private static BAD_VIDEOS_STORAGE = 'savantix_bad_yt_ids_v1';
   private static CUSTOM_TRACKS_STORAGE = 'savantix_custom_yt_tracks_v1';
   private static RECENT_TRACKS_STORAGE = 'savantix_recent_played_yt_v1';
+  private static USER_TAGS_STORAGE = 'savantix_user_custom_yt_tags_v1';
+  private static SEARCH_CACHE_STORAGE = 'savantix_yt_search_cache_v1';
+  
   private static memoryBadVideoIds: Set<string> = new Set();
   private static recentTrackIds: string[] = [];
   private static memoryInitialized = false;
@@ -408,10 +423,50 @@ export class YouTubeAudioService {
     this.memoryInitialized = true;
   }
 
+  // ─── USER CUSTOM ONE-TAP TAGS ──────────────────────────────────────────
+  public static getUserCustomTags(): string[] {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = localStorage.getItem(this.USER_TAGS_STORAGE);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+      return DEFAULT_USER_TAGS;
+    } catch {
+      return DEFAULT_USER_TAGS;
+    }
+  }
+
+  public static addUserCustomTag(tag: string): string[] {
+    const clean = tag.trim();
+    if (!clean) return this.getUserCustomTags();
+    const current = this.getUserCustomTags().filter(t => t.toLowerCase() !== clean.toLowerCase());
+    const updated = [clean, ...current].slice(0, 20);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(this.USER_TAGS_STORAGE, JSON.stringify(updated));
+      }
+    } catch {}
+    return updated;
+  }
+
+  public static removeUserCustomTag(tag: string): string[] {
+    const updated = this.getUserCustomTags().filter(t => t !== tag);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(this.USER_TAGS_STORAGE, JSON.stringify(updated));
+      }
+    } catch {}
+    return updated;
+  }
+
+  // ─── RECENT & HEALTH PERSISTENCE ──────────────────────────────────────
   public static recordPlayedTrack(videoId: string): void {
     if (!videoId) return;
     this.initMemoryCache();
-    this.recentTrackIds = [videoId, ...this.recentTrackIds.filter(id => id !== videoId)].slice(0, 15);
+    this.recentTrackIds = [videoId, ...this.recentTrackIds.filter(id => id !== videoId)].slice(0, 25);
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         localStorage.setItem(this.RECENT_TRACKS_STORAGE, JSON.stringify(this.recentTrackIds));
@@ -487,7 +542,7 @@ export class YouTubeAudioService {
       const custom = this.getCustomTracks().filter(t => t.youtubeId !== track.youtubeId);
       custom.unshift(track);
       if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(this.CUSTOM_TRACKS_STORAGE, JSON.stringify(custom.slice(0, 30)));
+        localStorage.setItem(this.CUSTOM_TRACKS_STORAGE, JSON.stringify(custom.slice(0, 50)));
       }
     } catch {}
   }
@@ -500,10 +555,15 @@ export class YouTubeAudioService {
     return match ? match[1] : null;
   }
 
-  public static getEmbedUrl(videoId: string, autoplay = true): string {
+  /**
+   * Anti-Algorithm Distraction-Free Embed URL:
+   * Uses loop=1&playlist={id} so YouTube NEVER auto-plays external random recommended videos (e.g. BBC news / clickbait)!
+   */
+  public static getEmbedUrl(videoId: string, autoplay = true, autoLoop = true): string {
     const origin = typeof window !== 'undefined' && window.location?.origin ? encodeURIComponent(window.location.origin) : '';
     const originParam = origin ? `&origin=${origin}` : '';
-    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoplay ? 1 : 0}&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&controls=1&fs=0${originParam}`;
+    const loopParam = autoLoop ? `&loop=1&playlist=${videoId}` : '';
+    return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=${autoplay ? 1 : 0}&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&controls=1&fs=0${loopParam}${originParam}`;
   }
 
   public static getHealthyTracks(category?: YouTubeCategory): YouTubeTrack[] {
@@ -522,8 +582,8 @@ export class YouTubeAudioService {
   }
 
   /**
-   * Intelligently selects the next track using a non-repeating ring buffer.
-   * NEVER resets to index 0 when an error occurs.
+   * Intelligent non-repeating circular queue.
+   * NEVER jumps to index 0 when error occurs.
    */
   public static getNextTrack(currentTrackId?: string, trackPool?: YouTubeTrack[]): YouTubeTrack {
     this.initMemoryCache();
@@ -535,19 +595,18 @@ export class YouTubeAudioService {
     if (validTracks.length === 1) return validTracks[0];
 
     // Find tracks not played recently
-    const recentSet = new Set(this.recentTrackIds.slice(0, 5));
+    const recentSet = new Set(this.recentTrackIds.slice(0, 10));
     if (currentTrackId) recentSet.add(currentTrackId);
 
     const unplayedTracks = validTracks.filter(t => !recentSet.has(t.youtubeId));
 
     if (unplayedTracks.length > 0) {
-      // Pick a random unplayed track
       const pick = unplayedTracks[Math.floor(Math.random() * unplayedTracks.length)];
       this.recordPlayedTrack(pick.youtubeId);
       return pick;
     }
 
-    // If all tracks in current pool were played recently, pick the sequential next track
+    // Circular fallback: sequential next track
     const currentIndex = currentTrackId ? validTracks.findIndex(t => t.youtubeId === currentTrackId) : -1;
     const nextIndex = (currentIndex + 1) % validTracks.length;
     const selected = validTracks[nextIndex];
@@ -555,18 +614,12 @@ export class YouTubeAudioService {
     return selected;
   }
 
-  /**
-   * Dynamically shuffles/rotates tracks so the library always feels fresh.
-   */
   public static rotateFreshTracks(category?: YouTubeCategory): YouTubeTrack[] {
     const tracks = this.getHealthyTracks(category);
     const shuffled = [...tracks].sort(() => Math.random() - 0.5);
     return shuffled;
   }
 
-  /**
-   * Fetches metadata for any YouTube URL or Video ID via noembed (100% keyless & CORS-free).
-   */
   public static async resolveDirectVideo(input: string): Promise<YouTubeTrack | null> {
     const vidId = this.extractVideoId(input);
     if (!vidId) return null;
@@ -591,7 +644,6 @@ export class YouTubeAudioService {
       }
     } catch {}
 
-    // Fallback if noembed offline
     return {
       id: `yt_direct_${vidId}`,
       title: `YouTube Video (${vidId})`,
@@ -604,28 +656,71 @@ export class YouTubeAudioService {
   }
 
   /**
-   * Multi-tier universal search:
+   * Universal Open Search Engine:
    * 1. Direct URL / Video ID instant parsing
-   * 2. YouTube Data API v3 (if key set in settings)
-   * 3. Fuzzy search across rich 40+ track library (including all Anime, Gaming, Lo-Fi, Classical)
+   * 2. Live YouTube open search via /api/yt-search
+   * 3. Google YouTube Data API v3 (if key provided)
+   * 4. Multi-token weighted fuzzy matcher against built-in 40+ track library
+   * 5. Fallback category routing
    */
   public static async searchTracks(query: string): Promise<YouTubeTrack[]> {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     const healthy = this.getHealthyTracks();
     if (!q) return healthy;
 
-    // Tier 1: Check if input is a direct YouTube link or ID
-    const directTrack = await this.resolveDirectVideo(query);
+    // 1. Direct Link / Video ID
+    const directTrack = await this.resolveDirectVideo(q);
     if (directTrack) {
       this.saveCustomTrack(directTrack);
       return [directTrack, ...healthy.filter(t => t.youtubeId !== directTrack.youtubeId)];
     }
 
-    // Tier 2: YouTube Data API v3 (if user provided key in settings)
+    // Check search cache in localStorage
+    const cacheKey = `savantix_cache_${q.toLowerCase()}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+
+    // 2. Open Live YouTube Search via Vercel Serverless Function /api/yt-search
+    try {
+      const apiRes = await fetch(`/api/yt-search?q=${encodeURIComponent(q)}`, {
+        signal: AbortSignal.timeout(4500)
+      });
+      if (apiRes.ok) {
+        const data = await apiRes.json();
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          const bad = this.getBadVideoIds();
+          const cleanResults: YouTubeTrack[] = data.results
+            .filter((v: any) => v.youtubeId && !bad.has(v.youtubeId))
+            .map((v: any) => ({
+              id: v.id || `yt_${v.youtubeId}`,
+              title: v.title,
+              artist: v.artist || 'YouTube Creator',
+              category: 'custom' as const,
+              youtubeId: v.youtubeId,
+              tag: v.duration || 'Open Search',
+              duration: v.duration || 'Stream'
+            }));
+
+          if (cleanResults.length > 0) {
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(cleanResults));
+            } catch {}
+            return cleanResults;
+          }
+        }
+      }
+    } catch {}
+
+    // 3. YouTube Data API v3 (if key configured)
     const key = this.getApiKey();
     if (key) {
       try {
-        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query + ' study focus instrumental')}&videoEmbeddable=true&type=video&maxResults=10&key=${encodeURIComponent(key)}`;
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(q + ' study instrumental')}&videoEmbeddable=true&type=video&maxResults=12&key=${encodeURIComponent(key)}`;
         const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
         if (res.ok) {
           const data = await res.json();
@@ -641,18 +736,17 @@ export class YouTubeAudioService {
             }));
           }
         }
-      } catch (err) {
-        console.warn('Google YouTube Data API search error:', err);
-      }
+      } catch {}
     }
 
-    // Tier 3: High-accuracy multi-token fuzzy matching against all built-in tracks
-    const queryTokens = q.split(/\s+/).filter(Boolean);
+    // 4. Multi-token fuzzy match against library
+    const qLower = q.toLowerCase();
+    const queryTokens = qLower.split(/\s+/).filter(Boolean);
     const scoredTracks = healthy.map(track => {
       const searchBlob = `${track.title} ${track.artist} ${track.category} ${track.tag}`.toLowerCase();
       let matchCount = 0;
       for (const token of queryTokens) {
-        if (searchBlob.includes(token)) matchCount++;
+        if (searchBlob.includes(token)) matchCount += 2;
       }
       return { track, score: matchCount };
     });
@@ -664,30 +758,27 @@ export class YouTubeAudioService {
 
     if (matches.length > 0) return matches;
 
-    // Tier 4: Category fallback (if query matches category keywords)
-    if (q.includes('anime') || q.includes('naruto') || q.includes('ghibli') || q.includes('titan') || q.includes('jujutsu') || q.includes('demon')) {
+    // 5. Category fallback
+    if (qLower.includes('anime') || qLower.includes('naruto') || qLower.includes('ghibli') || qLower.includes('titan') || qLower.includes('jujutsu') || qLower.includes('demon')) {
       return healthy.filter(t => t.category === 'anime');
     }
-    if (q.includes('game') || q.includes('gaming') || q.includes('minecraft') || q.includes('zelda') || q.includes('hollow') || q.includes('persona') || q.includes('nier') || q.includes('genshin')) {
+    if (qLower.includes('game') || qLower.includes('gaming') || qLower.includes('minecraft') || qLower.includes('zelda') || qLower.includes('hollow') || qLower.includes('persona') || qLower.includes('nier') || qLower.includes('genshin')) {
       return healthy.filter(t => t.category === 'gaming');
     }
-    if (q.includes('classical') || q.includes('mozart') || q.includes('chopin') || q.includes('beethoven') || q.includes('bach') || q.includes('piano')) {
+    if (qLower.includes('classical') || qLower.includes('mozart') || qLower.includes('chopin') || qLower.includes('beethoven') || qLower.includes('bach') || qLower.includes('piano')) {
       return healthy.filter(t => t.category === 'classical');
     }
-    if (q.includes('rain') || q.includes('ambient') || q.includes('thunder') || q.includes('water') || q.includes('fire')) {
+    if (qLower.includes('rain') || qLower.includes('ambient') || qLower.includes('thunder') || qLower.includes('water') || qLower.includes('fire')) {
       return healthy.filter(t => t.category === 'ambient');
     }
-    if (q.includes('synth') || q.includes('cyber') || q.includes('wave')) {
+    if (qLower.includes('synth') || qLower.includes('cyber') || qLower.includes('wave')) {
       return healthy.filter(t => t.category === 'synthwave');
     }
 
     return healthy;
   }
 
-  /**
-   * Syncs current track metadata with the browser MediaSession API.
-   * Prevents background tab freezing and enables OS media key integration.
-   */
+  // ─── MEDIASESSION & BACKGROUND PLAYBACK ────────────────────────────────
   public static syncMediaSession(
     track: YouTubeTrack | null,
     isPlaying: boolean,

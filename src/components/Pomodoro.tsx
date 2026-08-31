@@ -310,6 +310,43 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   const [ytCategoryFilter, setYtCategoryFilter] = useState<string>('all');
   const [customYtInput, setCustomYtInput] = useState<string>('');
   const [isYtPlaying, setIsYtPlaying] = useState<boolean>(false);
+  const [autoLoop, setAutoLoop] = useState<boolean>(true);
+  const [userCustomTags, setUserCustomTags] = useState<string[]>(() => YouTubeAudioService.getUserCustomTags());
+  const [newTagInput, setNewTagInput] = useState<string>('');
+  const [isAddingTag, setIsAddingTag] = useState<boolean>(false);
+
+  const handleToggleAutoLoop = useCallback(() => {
+    setAutoLoop(prev => !prev);
+  }, []);
+
+  const handleSelectQuickTag = async (tag: string) => {
+    const cleanTag = tag.replace(/^[^\w\s]+/, '').trim();
+    setYtSearchQuery(cleanTag);
+    setIsYtSearching(true);
+    try {
+      const results = await YouTubeAudioService.searchTracks(cleanTag);
+      setYtTracks(results);
+    } catch {
+      setYtTracks(YouTubeAudioService.getHealthyTracks());
+    } finally {
+      setIsYtSearching(false);
+    }
+  };
+
+  const handleAddUserTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTagInput.trim()) return;
+    const updated = YouTubeAudioService.addUserCustomTag(newTagInput);
+    setUserCustomTags(updated);
+    setNewTagInput('');
+    setIsAddingTag(false);
+  };
+
+  const handleRemoveUserTag = (tag: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = YouTubeAudioService.removeUserCustomTag(tag);
+    setUserCustomTags(updated);
+  };
 
   // --- AUDIO CONTROLS (MEMOIZED FOR ZERO-JITTER POMODORO ISOLATION) ---
   const handleSelectPreset = useCallback((presetId: SoundPresetId) => {
@@ -1642,7 +1679,64 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                   onPrevTrack={handlePrevYtTrack}
                   onPlayPause={handleToggleYtPlay}
                   onSwitchToSynth={handleSwitchToSynth}
+                  autoLoop={autoLoop}
+                  onToggleAutoLoop={handleToggleAutoLoop}
                 />
+
+                {/* User One-Tap Quick Search Tags Bar */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                      Quick Focus Vibes (1-Tap Search):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingTag(prev => !prev)}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+                    >
+                      {isAddingTag ? 'Cancel' : '+ Custom Vibe'}
+                    </button>
+                  </div>
+
+                  {isAddingTag && (
+                    <form onSubmit={handleAddUserTag} className="flex gap-1.5 pt-1">
+                      <input
+                        type="text"
+                        placeholder="e.g. ⚔️ Attack on Titan or 🌌 Cyberpunk"
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        className="flex-1 bg-zinc-950 border border-indigo-500/40 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!newTagInput.trim()}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        Save
+                      </button>
+                    </form>
+                  )}
+
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[10px] scrollbar-thin">
+                    {userCustomTags.map((tag) => (
+                      <div
+                        key={tag}
+                        onClick={() => handleSelectQuickTag(tag)}
+                        className="group flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-950/80 hover:bg-zinc-800 border border-zinc-800/80 hover:border-zinc-600 text-zinc-300 transition-all whitespace-nowrap cursor-pointer shadow-sm"
+                      >
+                        <span>{tag}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveUserTag(tag, e)}
+                          className="opacity-0 group-hover:opacity-100 hover:text-rose-400 p-0.5 text-zinc-500 transition-opacity cursor-pointer"
+                          title="Remove tag"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* YouTube Search Bar & Live Rotation */}
                 <form onSubmit={handleYtSearch} className="flex gap-2">

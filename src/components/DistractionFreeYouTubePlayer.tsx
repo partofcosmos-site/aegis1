@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, memo, useCallback } from 'react';
-import { ExternalLink, SkipForward, Brain, ShieldCheck } from 'lucide-react';
+import React, { useEffect, useRef, memo, useCallback, useState } from 'react';
+import { ExternalLink, SkipForward, Brain, ShieldCheck, Repeat, Volume2, VolumeX, Sparkles, Wand2 } from 'lucide-react';
 import { YouTubeTrack, YouTubeAudioService } from '../services/youtubeAudioService';
 
 interface DistractionFreeYouTubePlayerProps {
@@ -10,6 +10,8 @@ interface DistractionFreeYouTubePlayerProps {
   onPrevTrack?: () => void;
   onPlayPause?: () => void;
   onSwitchToSynth?: () => void;
+  autoLoop?: boolean;
+  onToggleAutoLoop?: () => void;
 }
 
 const ERROR_CODES = new Set([2, 5, 100, 101, 150]);
@@ -21,22 +23,27 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
   onNextTrack,
   onPrevTrack,
   onPlayPause,
-  onSwitchToSynth
+  onSwitchToSynth,
+  autoLoop = true,
+  onToggleAutoLoop
 }: DistractionFreeYouTubePlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const trackRef = useRef(track);
   const onTrackRestrictedRef = useRef(onTrackRestricted);
   const onNextTrackRef = useRef(onNextTrack);
-  const isPlayingRef = useRef(isPlaying);
+  const autoLoopRef = useRef(autoLoop);
+  const [playerVolume, setPlayerVolume] = useState<number>(100);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [isFading, setIsFading] = useState<boolean>(false);
 
   useEffect(() => {
     trackRef.current = track;
     onTrackRestrictedRef.current = onTrackRestricted;
     onNextTrackRef.current = onNextTrack;
-    isPlayingRef.current = isPlaying;
+    autoLoopRef.current = autoLoop;
   });
 
-  // 1. Sync OS MediaSession API for Background Playback & Media Key Control
+  // 1. Sync OS MediaSession API for Background Playback
   useEffect(() => {
     if (track) {
       YouTubeAudioService.syncMediaSession(
@@ -80,7 +87,39 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
     } catch {}
   }, [isPlaying]);
 
-  // 4. Centralized Fast Error Interceptor (<50ms trigger, non-repeating blacklist persistence)
+  // 4. Volume Controller via postMessage
+  const postVolume = useCallback((vol: number) => {
+    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
+    try {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'setVolume', args: [vol] }),
+        '*'
+      );
+    } catch {}
+  }, []);
+
+  // 5. Gentle Fade-Out Controller (like someone peacefully leaving the room)
+  const handleFadeOut = useCallback(() => {
+    if (isFading || !isPlaying) return;
+    setIsFading(true);
+    let current = playerVolume;
+    const stepTime = 100;
+    const totalSteps = 15;
+    const stepVal = current / totalSteps;
+
+    const interval = setInterval(() => {
+      current = Math.max(0, current - stepVal);
+      postVolume(Math.round(current));
+      if (current <= 0) {
+        clearInterval(interval);
+        setIsFading(false);
+        if (onPlayPause) onPlayPause();
+        postVolume(playerVolume); // Reset volume state for next play
+      }
+    }, stepTime);
+  }, [isFading, isPlaying, playerVolume, postVolume, onPlayPause]);
+
+  // 6. Centralized Event Listener: Anti-Algorithm Loop & Error Interceptor
   useEffect(() => {
     const handleWindowMessage = (event: MessageEvent) => {
       try {
@@ -94,7 +133,26 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
         }
         if (!data || typeof data !== 'object') return;
 
-        // Extract error codes (2: invalid param, 5: html5 error, 100: not found/removed, 101/150: embedding disabled)
+        // Catch End-Of-Video (State 0): Prevent YouTube auto-playing random algorithm content
+        if (data.event === 'onStateChange' && (data.info === 0 || data.data === 0)) {
+          if (autoLoopRef.current && iframeRef.current?.contentWindow) {
+            // Instant seamless replay of current study stream
+            iframeRef.current.contentWindow.postMessage(
+              JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }),
+              '*'
+            );
+            iframeRef.current.contentWindow.postMessage(
+              JSON.stringify({ event: 'command', func: 'playVideo', args: '' }),
+              '*'
+            );
+          } else if (onNextTrackRef.current) {
+            // Auto-advance to the next study track in user's queue
+            onNextTrackRef.current();
+          }
+          return;
+        }
+
+        // Extract error codes (2: invalid param, 5: html5 error, 100: not found, 101/150: embedding disabled)
         let errorCode: number | null = null;
         if (typeof data.data === 'number' && ERROR_CODES.has(data.data)) {
           errorCode = data.data;
@@ -111,7 +169,6 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
           console.warn(`[Savantix Focus Engine] YouTube stream '${badTrack.title}' (${badTrack.youtubeId}) restricted by creator (code: ${errorCode}). Auto-skipping to non-repeating fresh track...`);
           YouTubeAudioService.reportBadVideoId(badTrack.youtubeId);
           
-          // Instant callback to parent (<50ms)
           if (onTrackRestrictedRef.current) {
             onTrackRestrictedRef.current(badTrack);
           } else if (onNextTrackRef.current) {
@@ -127,9 +184,8 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
 
   if (!track) return null;
 
-  // Build clean embed URL with distraction suppression parameters & origin
-  const origin = typeof window !== 'undefined' && window.location?.origin ? encodeURIComponent(window.location.origin) : '';
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${track.youtubeId}?autoplay=1&mute=0&enablejsapi=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&controls=1&fs=0${origin ? `&origin=${origin}` : ''}`;
+  // Build clean anti-algorithm embed URL with loop=1&playlist={id}
+  const embedUrl = YouTubeAudioService.getEmbedUrl(track.youtubeId, true, autoLoop);
 
   return (
     <div className="space-y-2">
@@ -137,7 +193,7 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
       <div className="w-full aspect-video rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 shadow-inner relative group">
         <iframe
           ref={iframeRef}
-          key={track.youtubeId}
+          key={`${track.youtubeId}_${autoLoop}`}
           src={embedUrl}
           title={track.title}
           className="w-full h-full border-0 pointer-events-auto"
@@ -157,12 +213,41 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
               <ShieldCheck className="w-2.5 h-2.5" /> Ad-Filtered
             </span>
           </div>
-          <div className="text-[10px] text-zinc-400 truncate mt-0.5">
-            {track.artist} • {track.tag} {track.duration ? `(${track.duration})` : ''}
+          <div className="text-[10px] text-zinc-400 truncate mt-0.5 flex items-center gap-2">
+            <span>{track.artist} • {track.tag} {track.duration ? `(${track.duration})` : ''}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Loop / Auto-Next Toggle */}
+          {onToggleAutoLoop && (
+            <button
+              type="button"
+              onClick={onToggleAutoLoop}
+              className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors flex items-center gap-1 cursor-pointer ${
+                autoLoop
+                  ? 'bg-rose-600/20 text-rose-300 border-rose-500/40'
+                  : 'bg-zinc-800 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
+              }`}
+              title={autoLoop ? 'Loop current track infinitely (No external ads/videos)' : 'Auto-advance to next study track'}
+            >
+              <Repeat className="w-3 h-3" />
+              <span>{autoLoop ? 'Loop 1' : 'Queue'}</span>
+            </button>
+          )}
+
+          {/* Smooth Fade-Out Button */}
+          <button
+            type="button"
+            onClick={handleFadeOut}
+            disabled={isFading || !isPlaying}
+            className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-900/40 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
+            title="Smoothly fade out audio like someone gently leaving the room"
+          >
+            <Wand2 className={`w-3 h-3 ${isFading ? 'animate-spin' : ''}`} />
+            <span>Fade</span>
+          </button>
+
           <a
             href={`https://www.youtube.com/watch?v=${track.youtubeId}`}
             target="_blank"
