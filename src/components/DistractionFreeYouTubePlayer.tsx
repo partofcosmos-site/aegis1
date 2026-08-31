@@ -7,6 +7,8 @@ interface DistractionFreeYouTubePlayerProps {
   isPlaying: boolean;
   onTrackRestricted?: (track: YouTubeTrack) => void;
   onNextTrack?: () => void;
+  onPrevTrack?: () => void;
+  onPlayPause?: () => void;
   onSwitchToSynth?: () => void;
 }
 
@@ -17,20 +19,38 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
   isPlaying,
   onTrackRestricted,
   onNextTrack,
+  onPrevTrack,
+  onPlayPause,
   onSwitchToSynth
 }: DistractionFreeYouTubePlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const trackRef = useRef(track);
   const onTrackRestrictedRef = useRef(onTrackRestricted);
   const onNextTrackRef = useRef(onNextTrack);
+  const isPlayingRef = useRef(isPlaying);
 
   useEffect(() => {
     trackRef.current = track;
     onTrackRestrictedRef.current = onTrackRestricted;
     onNextTrackRef.current = onNextTrack;
+    isPlayingRef.current = isPlaying;
   });
 
-  // 1. Send postMessage handshake on iframe load & resume if playing
+  // 1. Sync OS MediaSession API for Background Playback & Media Key Control
+  useEffect(() => {
+    if (track) {
+      YouTubeAudioService.syncMediaSession(
+        track,
+        isPlaying,
+        onNextTrack,
+        onPrevTrack,
+        onPlayPause,
+        onPlayPause
+      );
+    }
+  }, [track, isPlaying, onNextTrack, onPrevTrack, onPlayPause]);
+
+  // 2. Send postMessage handshake on iframe load & resume if playing
   const handleIframeLoad = useCallback(() => {
     if (!iframeRef.current || !iframeRef.current.contentWindow) return;
     try {
@@ -47,7 +67,7 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
     } catch {}
   }, [isPlaying]);
 
-  // 2. Manage Playback via postMessage API (playVideo / pauseVideo / loadVideoById)
+  // 3. Manage Playback via postMessage API (playVideo / pauseVideo)
   useEffect(() => {
     if (!iframeRef.current || !iframeRef.current.contentWindow) return;
 
@@ -60,7 +80,7 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
     } catch {}
   }, [isPlaying]);
 
-  // 3. Centralized Fast Error Interceptor (<50ms trigger, instant blacklist persistence)
+  // 4. Centralized Fast Error Interceptor (<50ms trigger, non-repeating blacklist persistence)
   useEffect(() => {
     const handleWindowMessage = (event: MessageEvent) => {
       try {
@@ -88,7 +108,7 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
 
         if (errorCode !== null && trackRef.current) {
           const badTrack = trackRef.current;
-          console.warn(`[Savantix Focus Engine] YouTube stream '${badTrack.title}' (${badTrack.youtubeId}) restricted by creator (code: ${errorCode}). Auto-skipping...`);
+          console.warn(`[Savantix Focus Engine] YouTube stream '${badTrack.title}' (${badTrack.youtubeId}) restricted by creator (code: ${errorCode}). Auto-skipping to non-repeating fresh track...`);
           YouTubeAudioService.reportBadVideoId(badTrack.youtubeId);
           
           // Instant callback to parent (<50ms)
@@ -159,7 +179,7 @@ export const DistractionFreeYouTubePlayer = memo(function DistractionFreeYouTube
               type="button"
               onClick={onNextTrack}
               className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-zinc-800 hover:bg-zinc-700 text-rose-300 border border-rose-900/40 transition-colors flex items-center gap-1 cursor-pointer"
-              title="Skip to next verified track"
+              title="Skip to next non-repeating track"
             >
               <SkipForward className="w-3 h-3" />
               Next

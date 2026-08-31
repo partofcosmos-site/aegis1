@@ -349,16 +349,18 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   };
 
   const handleShuffleYtTracks = useCallback(() => {
-    const fresh = YouTubeAudioService.rotateFreshTracks();
+    const fresh = YouTubeAudioService.rotateFreshTracks(ytCategoryFilter as any);
     setYtTracks(fresh);
     if (fresh.length > 0) {
-      setSelectedYtTrack(fresh[0]);
+      const next = YouTubeAudioService.getNextTrack(selectedYtTrack?.youtubeId, fresh);
+      setSelectedYtTrack(next);
       setIsYtPlaying(true);
-      setMessage({ type: 'success', text: 'Refreshed stream playlist with fresh focus sessions!' });
+      setMessage({ type: 'success', text: 'Refreshed playlist with non-repeating fresh focus tracks!' });
     }
-  }, []);
+  }, [selectedYtTrack, ytCategoryFilter]);
 
   const handleSelectYtTrack = useCallback((track: YouTubeTrack) => {
+    YouTubeAudioService.recordPlayedTrack(track.youtubeId);
     setSelectedYtTrack(track);
     setIsYtPlaying(true);
     if (pomodoroAudio.getIsPlaying()) {
@@ -368,18 +370,28 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   }, []);
 
   const handleNextYtTrack = useCallback(() => {
-    const healthy = YouTubeAudioService.getHealthyTracks();
-    if (!healthy.length) return;
-    setSelectedYtTrack(prevTrack => {
-      const currentIndex = prevTrack ? healthy.findIndex(t => t.youtubeId === prevTrack.youtubeId) : -1;
-      const nextIndex = (currentIndex + 1) % healthy.length;
-      return healthy[nextIndex];
-    });
+    const next = YouTubeAudioService.getNextTrack(selectedYtTrack?.youtubeId, ytTracks);
+    setSelectedYtTrack(next);
     setIsYtPlaying(true);
+  }, [selectedYtTrack, ytTracks]);
+
+  const handlePrevYtTrack = useCallback(() => {
+    const healthy = (ytTracks && ytTracks.length > 0) ? ytTracks : YouTubeAudioService.getHealthyTracks(ytCategoryFilter as any);
+    if (!healthy.length) return;
+    const currentIndex = selectedYtTrack ? healthy.findIndex(t => t.youtubeId === selectedYtTrack.youtubeId) : 0;
+    const prevIndex = (currentIndex - 1 + healthy.length) % healthy.length;
+    const prevTrack = healthy[prevIndex];
+    YouTubeAudioService.recordPlayedTrack(prevTrack.youtubeId);
+    setSelectedYtTrack(prevTrack);
+    setIsYtPlaying(true);
+  }, [selectedYtTrack, ytTracks, ytCategoryFilter]);
+
+  const handleToggleYtPlay = useCallback(() => {
+    setIsYtPlaying(prev => !prev);
   }, []);
 
   const handleTrackRestricted = useCallback((restrictedTrack: YouTubeTrack) => {
-    setMessage({ type: 'info', text: `Stream '${restrictedTrack.title}' restricted by creator — auto-switching to fresh track...` });
+    setMessage({ type: 'info', text: `Stream '${restrictedTrack.title}' restricted — auto-rotating to fresh non-repeating track...` });
     handleNextYtTrack();
   }, [handleNextYtTrack]);
 
@@ -388,14 +400,15 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
     handleSelectPreset(activePreset);
   }, [activePreset, handleSelectPreset]);
 
-  const handleAddCustomYtTrack = (e: React.FormEvent) => {
+  const handleAddCustomYtTrack = async (e: React.FormEvent) => {
     e.preventDefault();
     const vidId = YouTubeAudioService.extractVideoId(customYtInput);
     if (!vidId) {
       alert('Please enter a valid YouTube video link or 11-character video ID.');
       return;
     }
-    const newTrack: YouTubeTrack = {
+    const resolved = await YouTubeAudioService.resolveDirectVideo(customYtInput);
+    const newTrack: YouTubeTrack = resolved || {
       id: `custom_${Date.now()}`,
       title: 'Custom Focus Audio Stream',
       artist: 'Distraction-Free Direct Stream',
@@ -405,7 +418,8 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
       duration: 'Live Audio'
     };
     YouTubeAudioService.saveCustomTrack(newTrack);
-    setYtTracks(prev => [newTrack, ...prev]);
+    YouTubeAudioService.recordPlayedTrack(newTrack.youtubeId);
+    setYtTracks(prev => [newTrack, ...prev.filter(t => t.youtubeId !== newTrack.youtubeId)]);
     setSelectedYtTrack(newTrack);
     setIsYtPlaying(true);
     setCustomYtInput('');
@@ -1625,6 +1639,8 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                   isPlaying={isYtPlaying}
                   onTrackRestricted={handleTrackRestricted}
                   onNextTrack={handleNextYtTrack}
+                  onPrevTrack={handlePrevYtTrack}
+                  onPlayPause={handleToggleYtPlay}
                   onSwitchToSynth={handleSwitchToSynth}
                 />
 
@@ -1634,7 +1650,7 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                     <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="Search songs, artists, or study vibes..."
+                      placeholder="Search Anime OST, Ghibli, Gaming, Lo-Fi, or paste YouTube link..."
                       value={ytSearchQuery}
                       onChange={(e) => setYtSearchQuery(e.target.value)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50 placeholder:text-zinc-600"
@@ -1651,7 +1667,7 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                     type="button"
                     onClick={handleShuffleYtTracks}
                     className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer shrink-0"
-                    title="Shuffle and rotate fresh study streams"
+                    title="Rotate fresh non-repeating study streams"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                     <span>Fresh</span>
@@ -1662,12 +1678,14 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-thin">
                   {[
                     { id: 'all', label: 'All' },
-                    { id: 'lofi', label: 'Lo-Fi' },
-                    { id: 'classical', label: 'Classical' },
-                    { id: 'cinematic', label: 'Cinematic' },
-                    { id: 'binaural', label: '40Hz Gamma' },
-                    { id: 'synthwave', label: 'Synthwave' },
-                    { id: 'ambient', label: 'Rain Café' }
+                    { id: 'anime', label: '⛩️ Anime OST' },
+                    { id: 'gaming', label: '🎮 Gaming OST' },
+                    { id: 'lofi', label: '☕ Lo-Fi' },
+                    { id: 'classical', label: '🎻 Classical' },
+                    { id: 'binaural', label: '🧠 40Hz Gamma' },
+                    { id: 'ambient', label: '🌧️ Rain Café' },
+                    { id: 'synthwave', label: '🌌 Synthwave' },
+                    { id: 'cinematic', label: '✨ Cosmic' }
                   ].map(cat => (
                     <button
                       key={cat.id}
