@@ -170,6 +170,20 @@ export const AI_SERVICES: AIService[] = [
     bestFor: "Fast physics intuition and coding synthesis"
   },
   {
+    id: "notebooklm",
+    name: "Google NotebookLM",
+    shortName: "NotebookLM",
+    description: "NotebookLM — grounded study guides, audio overviews & source synthesis",
+    color: "from-purple-600 to-indigo-600",
+    textColor: "text-purple-400",
+    emoji: "📓",
+    baseUrl: "https://notebooklm.google.com/",
+    supportsDirectLink: false,
+    requiresLogin: true,
+    category: "frontier",
+    bestFor: "Audio Deep Dive podcasts, source-grounded study notes & Q&A"
+  },
+  {
     id: "huggingchat",
     name: "HuggingChat (Open Source)",
     shortName: "HuggingChat",
@@ -185,11 +199,12 @@ export const AI_SERVICES: AIService[] = [
   }
 ];
 
-/** 7 Primary Fast Launch Frontier Models for the 1-Click Action Bar */
+/** Primary Fast Launch Frontier Models for the 1-Click Action Bar */
 export const FAST_LAUNCH_ROSTER_IDS = [
   "chatgpt",
   "deepseek",
   "gemini",
+  "notebooklm",
   "claude",
   "perplexity",
   "wolfram",
@@ -538,7 +553,7 @@ export const AIGatewayDrawer: React.FC<AIGatewayDrawerProps> = ({ isOpen, onClos
               <span className="text-[10px] text-zinc-500 hidden sm:inline">Zero-Latency Bridge</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5 sm:gap-2">
               {fastLaunchServices.map(service => (
                 <button
                   key={service.id}
@@ -838,15 +853,15 @@ export const AIGatewayButton: React.FC<AIGatewayButtonProps> = ({ query }) => {
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button — compact icon on mobile, pill with label on desktop */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-2xl shadow-2xl shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer font-semibold text-sm"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center justify-center gap-2 p-3 sm:px-4 sm:py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-full sm:rounded-2xl shadow-2xl shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer font-semibold text-sm"
         title="AI Gateway & Socratic STEM Solver (Alt+G)"
       >
-        <Globe className="w-4 h-4" />
+        <Globe className="w-5 h-5 sm:w-4 sm:h-4" />
         <span className="hidden sm:inline">AI Gateway</span>
-        <Sparkles className="w-3.5 h-3.5 opacity-80" />
+        <Sparkles className="w-3.5 h-3.5 opacity-80 hidden sm:block" />
       </button>
 
       <AIGatewayDrawer

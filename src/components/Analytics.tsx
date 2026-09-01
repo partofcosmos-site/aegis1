@@ -353,7 +353,19 @@ export const Analytics = () => {
       const problemShare = Math.round(problems / subjects.length);
 
       subjects.forEach(sub => {
-        const normSubject = sub.charAt(0).toUpperCase() + sub.slice(1).toLowerCase();
+        const titleCase = sub.charAt(0).toUpperCase() + sub.slice(1).toLowerCase();
+        // Merge common aliases into canonical subject names
+        const SUBJECT_ALIASES: Record<string, string> = {
+          'Math': 'Mathematics', 'Maths': 'Mathematics', 'Mathematic': 'Mathematics',
+          'Phy': 'Physics', 'Phys': 'Physics',
+          'Chem': 'Chemistry',
+          'Bio': 'Biology',
+          'Cs': 'Computer Science', 'Comp sci': 'Computer Science', 'Computer science': 'Computer Science',
+          'Eng': 'English', 'English core': 'English',
+          'Pe': 'Physical Education', 'Phys ed': 'Physical Education', 'Physical education': 'Physical Education',
+          'Web app': 'Web Application', 'Web application': 'Web Application',
+        };
+        const normSubject = SUBJECT_ALIASES[titleCase] || titleCase;
         if (!subjectTimeMap[normSubject]) {
           subjectTimeMap[normSubject] = { minutes: 0, problems: 0, count: 0 };
         }

@@ -17,6 +17,8 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 
+import { ActiveTabType } from './Layout';
+
 export interface ChatAttachment {
   id: string;
   name: string;
@@ -26,7 +28,7 @@ export interface ChatAttachment {
 }
 
 interface ChatbotProps {
-  setActiveTab: (tab: 'dashboard' | 'chat' | 'analytics' | 'journal' | 'goals' | 'pomodoro' | 'settings' | 'flashcards') => void;
+  setActiveTab: (tab: ActiveTabType) => void;
 }
 
 export const Chatbot = ({ setActiveTab }: ChatbotProps) => {
@@ -411,11 +413,11 @@ Recent insights: ${JSON.stringify(insights.slice(0, 2))}`;
 
       // 4. Auto-detect navigation commands
       const lower = userMsg.toLowerCase();
-      if (lower.includes('go to solver') || lower.includes('open stem solver')) setActiveTab('solver' as any);
-      else if (lower.includes('go to graph') || lower.includes('open concept graph')) setActiveTab('graph' as any);
-      else if (lower.includes('go to flashcards')) setActiveTab('flashcards' as any);
-      else if (lower.includes('go to pomodoro')) setActiveTab('pomodoro' as any);
-      else if (lower.includes('go to analytics')) setActiveTab('analytics' as any);
+      if (lower.includes('go to solver') || lower.includes('open stem solver')) setActiveTab('solver');
+      else if (lower.includes('go to graph') || lower.includes('open concept graph')) setActiveTab('graph');
+      else if (lower.includes('go to attendance') || lower.includes('open attendance')) setActiveTab('attendance');
+      else if (lower.includes('go to pomodoro')) setActiveTab('pomodoro');
+      else if (lower.includes('go to analytics')) setActiveTab('analytics');
 
       // 5. Persistent Local Storage
       const storageKey = `savantix_chat_session_${user.uid || 'guest'}_${sessionId}`;

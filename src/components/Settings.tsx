@@ -698,8 +698,11 @@ response = client.chat.completions.create(model="meta-llama/Llama-3-70b-chat-hf"
                           { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 120B (Free)', desc: 'STEM Math' },
                           { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (Free)', desc: 'General' },
                           { id: 'qwen/qwen-2.5-72b-instruct:free', label: 'Qwen 72B (Free)', desc: 'Math' },
-                          { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: 'Default' },
-                          { id: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite', desc: 'Ultra Fast' }
+                          { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', desc: 'Default Fast' },
+                          { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Lite', desc: 'Ultra Fast' },
+                          { id: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', desc: 'Reasoning' },
+                          { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', desc: 'Deep Reasoning' },
+                          { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: 'Stable Fallback' }
                         ].map(preset => (
                           <button
                             key={preset.id}

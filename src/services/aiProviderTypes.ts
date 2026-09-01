@@ -231,8 +231,11 @@ export const PROVIDER_TEMPLATES: Record<ProviderType, ProviderTemplate> = {
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     requiresKey: true,
     defaultModels: [
-      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Default)', specialization: 'speed' },
-      { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite (Ultra Fast)', specialization: 'speed' }
+      { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (Default Fast)', specialization: 'speed' },
+      { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite (Ultra Fast)', specialization: 'speed' },
+      { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash (Reasoning & Speed)', specialization: 'deep_reasoning' },
+      { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Deep Reasoning)', specialization: 'deep_reasoning' },
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Stable Fallback)', specialization: 'speed' }
     ],
     setupGuideUrl: 'https://aistudio.google.com/app/apikey'
   },

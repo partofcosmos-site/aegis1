@@ -9,7 +9,6 @@ import { Journal } from './components/Journal';
 import { Goals } from './components/Goals';
 import { Pomodoro } from './components/Pomodoro';
 import { Settings } from './components/Settings';
-import { Flashcards } from './components/Flashcards';
 import { StemSolver } from './components/StemSolver';
 import { ConceptGraph } from './components/ConceptGraph';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -53,9 +52,6 @@ export default function App() {
             </div>
             <div className={`h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
               <Chatbot setActiveTab={setActiveTab} />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'flashcards' ? 'block' : 'hidden'}`}>
-              <Flashcards />
             </div>
             <div className={`h-full w-full ${activeTab === 'journal' ? 'block' : 'hidden'}`}>
               <Journal />

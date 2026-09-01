@@ -29,16 +29,15 @@ export type ActiveTabType =
   | 'dashboard' 
   | 'chat' 
   | 'analytics' 
+  | 'attendance'
   | 'solver'
   | 'graph'
-  | 'flashcards' 
   | 'journal' 
   | 'goals' 
   | 'pomodoro' 
   | 'settings'
   | 'vault'
-  | 'feedback'
-  | 'attendance';
+  | 'feedback';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -79,17 +78,16 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analytics', label: 'Analytics & Heatmap', icon: BarChart2 },
+    { id: 'attendance', label: 'Attendance Tracker', icon: GraduationCap },
     { id: 'solver', label: 'Socratic STEM Solver', icon: Sparkles },
     { id: 'graph', label: 'Concept Mastery Graph', icon: Network },
     { id: 'chat', label: 'Savantix Chat (AI Council)', icon: MessageSquare },
-    { id: 'flashcards', label: 'Flashcards (SM-2)', icon: Layers },
     { id: 'journal', label: 'Journal & Reflections', icon: BookOpen },
     { id: 'goals', label: 'Goals & Milestones', icon: Target },
     { id: 'pomodoro', label: 'Pomodoro Focus Timer', icon: Clock },
-    { id: 'settings', label: 'Universal AI Providers', icon: Settings },
     { id: 'vault', label: '🔒 Error Vault', icon: Lock },
+    { id: 'settings', label: 'Universal AI Providers', icon: Settings },
     { id: 'feedback', label: 'Contact & Feedback', icon: MessageSquareHeart },
-    { id: 'attendance', label: 'Attendance Tracker', icon: GraduationCap },
   ] as const;
 
   return (
