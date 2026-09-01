@@ -24,32 +24,31 @@ export const DEFAULT_SUBJECTS: SubjectAttendance[] = [
   { id: 'eng_301', code: '301', name: 'English Core', attended: 48, total: 71, required: 75, color: 'purple', isPracticalSubject: false },
 ];
 
-// 21 Logged Absence Dates + 3 Buffer Entries = 23 Total Absences
+// 20 Logged Absence Dates (from Authoritative JSON) + 3 Buffer Entries = 23 Total Entries
 export const DEFAULT_ABSENCES: AbsenceEntry[] = [
-  { id: 'abs_1', date: '2026-04-24', dayOfWeek: 'Friday', reason: 'Physics Mechanics & Lab setup sprint', category: 'olympiad', isPracticalDay: true, notes: 'Self-study & practical lab preparations' },
-  { id: 'abs_2', date: '2026-04-30', dayOfWeek: 'Thursday', reason: 'JEE Advanced Kinematics & Irodov Ch. 1 deep dive', category: 'jee_prep', isPracticalDay: false, notes: 'Intensive problem solving' },
-  { id: 'abs_3', date: '2026-05-06', dayOfWeek: 'Wednesday', reason: 'Chemistry Organic reaction mechanisms self-study', category: 'self_study', isPracticalDay: true, notes: 'Reaction pathways & mechanisms' },
-  { id: 'abs_4', date: '2026-05-08', dayOfWeek: 'Friday', reason: 'Pre-Summer Vacation syllabus sprint', category: 'self_study', isPracticalDay: true, notes: 'Syllabus alignment before summer window' },
-  { id: 'abs_5', date: '2026-05-13', dayOfWeek: 'Wednesday', reason: 'IIT Kharagpur i-KITES prep & research packing', category: 'travel', isPracticalDay: false, notes: 'Preparation for residential program' },
-  { id: 'abs_6', date: '2026-05-15', dayOfWeek: 'Friday', reason: 'Travel to IIT Kharagpur campus for orientation', category: 'academic_deputation', isPracticalDay: true, notes: 'Campus check-in & orientation' },
-  { id: 'abs_7', date: '2026-07-03', dayOfWeek: 'Friday', reason: 'Post-IIT KGP consolidation & sleep recovery', category: 'recovery', isPracticalDay: true, notes: 'Consolidation of research logs & sleep debt recovery' },
-  { id: 'abs_8', date: '2026-07-08', dayOfWeek: 'Wednesday', reason: 'Advanced Integral Calculus problem solving', category: 'jee_prep', isPracticalDay: false, notes: 'Definite integrals & functional equations' },
-  { id: 'abs_9', date: '2026-07-15', dayOfWeek: 'Wednesday', reason: 'NSEP Mechanics & Rotational Dynamics problem sets', category: 'olympiad', isPracticalDay: true, notes: 'Pathfinder rotational dynamics' },
-  { id: 'abs_10', date: '2026-07-22', dayOfWeek: 'Wednesday', reason: 'Electrostatics Gauss Law & Potential derivations', category: 'jee_prep', isPracticalDay: false, notes: 'Vector calculus applications in electrostatics' },
-  { id: 'abs_11', date: '2026-07-24', dayOfWeek: 'Friday', reason: 'Chemistry Physical Equilibrium numericals', category: 'self_study', isPracticalDay: true, notes: 'Ionic and chemical equilibrium problems' },
-  { id: 'abs_12', date: '2026-07-31', dayOfWeek: 'Friday', reason: 'Full-syllabus mock test calibration & error vault review', category: 'exam_prep', isPracticalDay: true, notes: 'Full mock analysis' },
-  { id: 'abs_13', date: '2026-08-05', dayOfWeek: 'Wednesday', reason: 'Web Application practical project development', category: 'school_work', isPracticalDay: false, notes: 'Full-stack frontend development' },
-  { id: 'abs_14', date: '2026-08-07', dayOfWeek: 'Friday', reason: 'Mathematics Vectors & 3D Geometry sprint', category: 'jee_prep', isPracticalDay: true, notes: '3D lines, planes and vector products' },
-  { id: 'abs_15', date: '2026-08-12', dayOfWeek: 'Wednesday', reason: 'Physical Education notes completion & revision', category: 'school_work', isPracticalDay: false, notes: 'CBSE PE manual and notes' },
-  { id: 'abs_16', date: '2026-08-14', dayOfWeek: 'Friday', reason: 'Pre-Independence Day intensive self-study', category: 'self_study', isPracticalDay: true, notes: 'Intensive physics problem solving' },
-  { id: 'abs_17', date: '2026-08-19', dayOfWeek: 'Wednesday', reason: 'NSEP Mock Test 1 error analysis & remediation', category: 'olympiad', isPracticalDay: false, notes: 'Detailed question-by-question postmortem' },
-  { id: 'abs_18', date: '2026-08-21', dayOfWeek: 'Friday', reason: 'Official NSEP 2026 registration day & problem sets', category: 'olympiad', isPracticalDay: true, notes: 'Official registration & Krotov optics' },
-  { id: 'abs_19', date: '2026-08-26', dayOfWeek: 'Wednesday', reason: 'Half-Yearly syllabus revision sprint', category: 'exam_prep', isPracticalDay: false, notes: 'NCERT back-exercise mastery' },
-  { id: 'abs_20', date: '2026-08-28', dayOfWeek: 'Friday', reason: 'Day before Raksha Bandhan / intensive revision', category: 'holiday_prep', isPracticalDay: true, notes: 'Pre-festival study marathon' },
-  { id: 'abs_21', date: '2026-09-01', dayOfWeek: 'Tuesday', reason: 'Self-study / Half-Yearly exam preparation (Today)', category: 'exam_prep', isPracticalDay: false, notes: 'Class XI Half-Yearly exam revision' },
-  { id: 'abs_buf_1', date: '2026-05-11', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 1 (Deputation Prep)', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
-  { id: 'abs_buf_2', date: '2026-07-06', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 2 (Syllabus Alignment)', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
-  { id: 'abs_buf_3', date: '2026-08-10', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 3 (Health / Recovery)', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
+  { id: 'abs_1', date: '2026-06-30', dayOfWeek: 'Tuesday', reason: 'PT1 exam consolidation & self-study', category: 'self_study', isPracticalDay: false, notes: 'Post PT1 syllabus alignment' },
+  { id: 'abs_2', date: '2026-07-03', dayOfWeek: 'Friday', reason: 'Post-IIT KGP consolidation & sleep recovery', category: 'recovery', isPracticalDay: true, notes: 'Consolidation of research logs & sleep debt recovery' },
+  { id: 'abs_3', date: '2026-07-08', dayOfWeek: 'Wednesday', reason: 'Advanced Integral Calculus problem solving', category: 'jee_prep', isPracticalDay: false, notes: 'Definite integrals & functional equations' },
+  { id: 'abs_4', date: '2026-07-10', dayOfWeek: 'Friday', reason: 'Physics Rotational Dynamics problem sets', category: 'olympiad', isPracticalDay: true, notes: 'Pathfinder rotational dynamics' },
+  { id: 'abs_5', date: '2026-07-17', dayOfWeek: 'Friday', reason: 'Chemistry Chemical Equilibrium numericals', category: 'self_study', isPracticalDay: true, notes: 'Ionic and chemical equilibrium problems' },
+  { id: 'abs_6', date: '2026-07-20', dayOfWeek: 'Monday', reason: 'Mathematics Vectors & 3D Geometry sprint', category: 'jee_prep', isPracticalDay: false, notes: 'Vector algebra and coordinate geometry' },
+  { id: 'abs_7', date: '2026-07-21', dayOfWeek: 'Tuesday', reason: 'Electrostatics Gauss Law & Potential derivations', category: 'jee_prep', isPracticalDay: false, notes: 'Vector calculus applications in electrostatics' },
+  { id: 'abs_8', date: '2026-07-28', dayOfWeek: 'Tuesday', reason: 'Full-syllabus mock test calibration', category: 'exam_prep', isPracticalDay: false, notes: 'Error vault review & mock calibration' },
+  { id: 'abs_9', date: '2026-08-01', dayOfWeek: 'Saturday', reason: 'Weekend special study session (Logged)', category: 'self_study', isPracticalDay: false, notes: 'Weekend intensive study logged' },
+  { id: 'abs_10', date: '2026-08-03', dayOfWeek: 'Monday', reason: 'Physics Electromagnetism problem solving', category: 'olympiad', isPracticalDay: false, notes: 'Lorentz force and magnetic fields' },
+  { id: 'abs_11', date: '2026-08-05', dayOfWeek: 'Wednesday', reason: 'Web Application practical project development', category: 'school_work', isPracticalDay: false, notes: 'Full-stack frontend development' },
+  { id: 'abs_12', date: '2026-08-06', dayOfWeek: 'Thursday', reason: 'Practical Day absence (Chemistry lab self-study)', category: 'self_study', isPracticalDay: true, notes: 'ABSENT_PRACTICAL_DAY' },
+  { id: 'abs_13', date: '2026-08-10', dayOfWeek: 'Monday', reason: 'Health & physical recovery day', category: 'recovery', isPracticalDay: false, notes: 'Medical rest and home study' },
+  { id: 'abs_14', date: '2026-08-11', dayOfWeek: 'Tuesday', reason: 'Physical Education notes completion & revision', category: 'school_work', isPracticalDay: false, notes: 'CBSE PE manual and notes' },
+  { id: 'abs_15', date: '2026-08-14', dayOfWeek: 'Friday', reason: 'Pre-Independence Day intensive self-study', category: 'self_study', isPracticalDay: true, notes: 'Intensive physics problem solving' },
+  { id: 'abs_16', date: '2026-08-19', dayOfWeek: 'Wednesday', reason: 'NSEP Mock Test 1 error analysis & remediation', category: 'olympiad', isPracticalDay: false, notes: 'Detailed question-by-question postmortem' },
+  { id: 'abs_17', date: '2026-08-21', dayOfWeek: 'Friday', reason: 'Official NSEP 2026 registration day & problem sets', category: 'olympiad', isPracticalDay: true, notes: 'Official registration & Krotov optics' },
+  { id: 'abs_18', date: '2026-08-25', dayOfWeek: 'Tuesday', reason: 'Chemistry Organic reaction mechanisms sprint', category: 'jee_prep', isPracticalDay: false, notes: 'Reaction pathways & mechanisms' },
+  { id: 'abs_19', date: '2026-08-27', dayOfWeek: 'Thursday', reason: 'Practical Day absence (Physics lab self-study)', category: 'self_study', isPracticalDay: true, notes: 'ABSENT_PRACTICAL_DAY' },
+  { id: 'abs_20', date: '2026-09-01', dayOfWeek: 'Tuesday', reason: 'Half-Yearly exam preparation & syllabus revision', category: 'exam_prep', isPracticalDay: false, notes: 'Class XI Half-Yearly exam revision' },
+  { id: 'abs_buf_1', date: '2026-05-11', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 1', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
+  { id: 'abs_buf_2', date: '2026-07-06', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 2', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
+  { id: 'abs_buf_3', date: '2026-08-17', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 3', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
 ];
 
 // 28 Official Institutional Holidays
@@ -94,8 +93,27 @@ export const DEFAULT_VACATIONS: VacationEntry[] = [
 
 // 4 Examination & PTM Milestones
 export const DEFAULT_EXAMS: ExamMilestone[] = [
-  { id: 'exam_1', name: 'Periodic Test 1 (PT1)', startDate: '2026-07-06', endDate: '2026-07-13', ptmDate: '2026-07-18', status: 'completed', strategicFocus: 'Basic mechanics, dimensional analysis & calculus foundations', syllabusPercentage: 20 },
-  { id: 'exam_2', name: 'Half-Yearly Examination', startDate: '2026-09-14', endDate: '2026-09-25', ptmDate: '2026-10-03', status: 'upcoming', strategicFocus: 'Cumulative assessment covering 50% CBSE Class XI syllabus', syllabusPercentage: 50 },
+  { id: 'exam_1', name: 'Periodic Test 1 (PT1)', startDate: '2026-06-22', endDate: '2026-06-30', ptmDate: '2026-07-04', status: 'completed', strategicFocus: 'Basic mechanics, dimensional analysis & calculus foundations', syllabusPercentage: 20 },
+  {
+    id: 'exam_2',
+    name: 'Half-Yearly Examination',
+    startDate: '2026-09-14',
+    endDate: '2026-09-25',
+    ptmDate: '2026-10-03',
+    status: 'upcoming',
+    strategicFocus: 'Cumulative assessment covering 50% CBSE Class XI syllabus (Practicals Sept 8-11, Theory Sept 14-25)',
+    syllabusPercentage: 50,
+    slots: [
+      { date: '2026-09-08', day: 'Tuesday', subject: 'Web Application Practical', type: 'practical', user_exam: true },
+      { date: '2026-09-10', day: 'Thursday', subject: 'Physics Practical', type: 'practical', user_exam: true },
+      { date: '2026-09-11', day: 'Friday', subject: 'Physical Education Practical', type: 'practical', user_exam: true },
+      { date: '2026-09-14', day: 'Monday', subject: 'English Core (Theory)', type: 'theory', user_exam: true },
+      { date: '2026-09-17', day: 'Thursday', subject: 'Preparatory Break', type: 'theory', user_exam: false },
+      { date: '2026-09-18', day: 'Friday', subject: 'Bio / Pol.Sci / Econ (Free Study Day)', type: 'theory', user_exam: false },
+      { date: '2026-09-21', day: 'Monday', subject: 'Physics (Theory)', type: 'theory', user_exam: true },
+      { date: '2026-09-25', day: 'Friday', subject: 'Chemistry Practical', type: 'practical', user_exam: true }
+    ]
+  },
   { id: 'exam_3', name: 'Periodic Test 2 (PT2)', startDate: '2026-12-11', endDate: '2026-12-18', ptmDate: '2026-12-24', status: 'scheduled', strategicFocus: 'Pre-lock assessment (Electromagnetism, Waves & Thermodynamics)', syllabusPercentage: 75 },
   { id: 'exam_4', name: 'Annual Exam (Class XI Finals)', startDate: '2027-03-01', endDate: '2027-03-12', ptmDate: '2027-03-20', status: 'scheduled', strategicFocus: 'Final CBSE 10+2 promotion exam (100% full syllabus)', syllabusPercentage: 100 },
 ];
@@ -122,10 +140,10 @@ export const DEFAULT_PROFILE: InstitutionalProfile = {
   stream: 'Class XI — Science (PCM + STEM)',
   sessionStart: '2026-04-21',
   lockDate: '2026-12-31',
-  totalWorkingDays: 139,
-  workingDaysHeld: 71,
-  presentDays: 48,
-  absentDays: 23,
+  totalWorkingDays: 141,
+  workingDaysHeld: 73,
+  presentDays: 41, // 41 physical present + 10 On-Duty = 51 total present
+  absentDays: 22,
   onDutyDays: 10,
   subjects: DEFAULT_SUBJECTS
 };
@@ -438,4 +456,68 @@ export function saveInstitutionalState(state: InstitutionalAttendanceState): voi
   } catch (err) {
     console.error('Failed to save institutional attendance state', err);
   }
+}
+
+export interface StreakAbsenceRisk {
+  hasCriticalStreak: boolean;
+  consecutiveAbsenceStreak: number;
+  dates: string[];
+  warningMessage?: string;
+}
+
+/**
+ * 3-Consecutive-Day Absence Risk Detector
+ * Detects whether 3 or more consecutive school working days were missed.
+ */
+export function detectConsecutiveAbsenceRisk(absences: AbsenceEntry[]): StreakAbsenceRisk {
+  const sorted = [...(absences || [])]
+    .filter(a => a.status === 'ABSENT' || a.status === 'ABSENT_PRACTICAL_DAY' || !a.status)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  let maxStreak = 0;
+  let currentStreak = 0;
+  let streakDates: string[] = [];
+  let longestStreakDates: string[] = [];
+
+  const isNextWorkingDay = (d1: string, d2: string): boolean => {
+    const dt1 = new Date(d1);
+    const dt2 = new Date(d2);
+    const diffDays = Math.round((dt2.getTime() - dt1.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) return true;
+    if (diffDays === 3 && dt1.getDay() === 5 && dt2.getDay() === 1) return true;
+    return false;
+  };
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (i === 0) {
+      currentStreak = 1;
+      streakDates = [sorted[i].date];
+    } else {
+      if (isNextWorkingDay(sorted[i - 1].date, sorted[i].date)) {
+        currentStreak++;
+        streakDates.push(sorted[i].date);
+      } else {
+        if (currentStreak > maxStreak) {
+          maxStreak = currentStreak;
+          longestStreakDates = [...streakDates];
+        }
+        currentStreak = 1;
+        streakDates = [sorted[i].date];
+      }
+    }
+  }
+  if (currentStreak > maxStreak) {
+    maxStreak = currentStreak;
+    longestStreakDates = [...streakDates];
+  }
+
+  const hasCriticalStreak = maxStreak >= 3;
+  return {
+    hasCriticalStreak,
+    consecutiveAbsenceStreak: maxStreak,
+    dates: longestStreakDates,
+    warningMessage: hasCriticalStreak
+      ? `CRITICAL REGULATORY RISK: ${maxStreak} consecutive school working days absent (${longestStreakDates.join(', ')}). Requires formal medical / on-duty condonation.`
+      : undefined
+  };
 }

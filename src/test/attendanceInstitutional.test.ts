@@ -120,20 +120,20 @@ export async function runAttendanceInstitutionalTests(): Promise<void> {
     assert(DEFAULT_PROFILE.stream.includes('Science'), 'Academic stream must be Science');
     assertEqual(DEFAULT_PROFILE.sessionStart, '2026-04-21', 'Session Start Date');
     assertEqual(DEFAULT_PROFILE.lockDate, '2026-12-31', 'CBSE Attendance Lock Date');
-    assertEqual(DEFAULT_PROFILE.totalWorkingDays, 139, 'Total projected working days');
+    assertEqual(DEFAULT_PROFILE.totalWorkingDays, 141, 'Total projected working days');
   });
 
-  // 2. Ground Truth Numbers Verification (Sept 1, 2026)
-  test('Ground Truth Numbers: 71 held days, 48 present, 23 absent, 10 on-duty days', () => {
-    assertEqual(DEFAULT_PROFILE.workingDaysHeld, 71, 'Working days held to date as of Sept 1, 2026');
-    assertEqual(DEFAULT_PROFILE.presentDays, 48, 'Physically attended days');
-    assertEqual(DEFAULT_PROFILE.absentDays, 23, 'Total absent days (20 logged + 1 today + 3 buffer)');
+  // 2. Ground Truth Numbers Verification (Sept 2, 2026 Authoritative Schema)
+  test('Ground Truth Numbers: 73 held days, 51 present (41 phys + 10 OD), 22 absent', () => {
+    assertEqual(DEFAULT_PROFILE.workingDaysHeld, 73, 'Working days held to date as of Sept 2, 2026');
+    assertEqual(DEFAULT_PROFILE.presentDays, 41, 'Physically attended days');
+    assertEqual(DEFAULT_PROFILE.absentDays, 22, 'Total absent days (19 logged weekdays + 3 buffer)');
     assertEqual(DEFAULT_PROFILE.onDutyDays, 10, 'Approved on-duty days for IIT Kharagpur Kriti RISE');
     
-    // Mathematical consistency check
+    // Mathematical consistency check: 41 + 10 + 22 = 73
     assert(
-      DEFAULT_PROFILE.presentDays + DEFAULT_PROFILE.absentDays === DEFAULT_PROFILE.workingDaysHeld,
-      'Present + Absent must equal working days held (48 + 23 = 71)'
+      DEFAULT_PROFILE.presentDays + DEFAULT_PROFILE.onDutyDays + DEFAULT_PROFILE.absentDays === DEFAULT_PROFILE.workingDaysHeld,
+      'Physical Present + OnDuty + Absent must equal working days held (41 + 10 + 22 = 73)'
     );
   });
 
@@ -153,29 +153,23 @@ export async function runAttendanceInstitutionalTests(): Promise<void> {
   });
 
   // 4. Logged Absences Schedule Verification
-  test('Logged Absences: contains all 21 specific dates + 3 buffer records = 24 entries', () => {
+  test('Logged Absences: contains all 20 logged dates + 3 buffer records = 23 entries', () => {
     assert(Array.isArray(DEFAULT_ABSENCES), 'Absences must be an array');
-    assertEqual(DEFAULT_ABSENCES.length, 24, 'Total absence entries (21 logged dates + 3 buffer entries)');
+    assertEqual(DEFAULT_ABSENCES.length, 23, 'Total absence entries (20 logged dates + 3 buffer entries)');
 
     // Verify critical user-corrected dates
-    const aug28Absence = DEFAULT_ABSENCES.find(a => a.date === '2026-08-28');
-    assert(!!aug28Absence, 'Absence on 2026-08-28 (Day before Raksha Bandhan) must exist');
-    assertEqual(aug28Absence!.dayOfWeek, 'Friday', '2026-08-28 is Friday');
-    assertEqual(aug28Absence!.isPracticalDay, true, '2026-08-28 is a Practical Day');
+    const aug03Absence = DEFAULT_ABSENCES.find(a => a.date === '2026-08-03');
+    assert(!!aug03Absence, 'Absence on 2026-08-03 (Monday) must exist');
+    assertEqual(aug03Absence!.dayOfWeek, 'Monday', '2026-08-03 is Monday');
 
     const sept01Absence = DEFAULT_ABSENCES.find(a => a.date === '2026-09-01');
-    assert(!!sept01Absence, 'Absence on 2026-09-01 (Today / Sept 1 2026) must exist');
+    assert(!!sept01Absence, 'Absence on 2026-09-01 (Tuesday) must exist');
     assertEqual(sept01Absence!.dayOfWeek, 'Tuesday', '2026-09-01 is Tuesday');
     assertEqual(sept01Absence!.category, 'exam_prep', '2026-09-01 category is exam_prep');
 
-    // Verify first absence
-    const firstAbsence = DEFAULT_ABSENCES.find(a => a.date === '2026-04-24');
-    assert(!!firstAbsence, 'First absence on 2026-04-24 must exist');
-    assertEqual(firstAbsence!.isPracticalDay, true, '2026-04-24 is Practical Day');
-
     // Verify practical days vs non-practical days
     const practicalAbsences = DEFAULT_ABSENCES.filter(a => a.isPracticalDay);
-    assert(practicalAbsences.length >= 10, 'Must identify practical day absences');
+    assert(practicalAbsences.length >= 6, 'Must identify practical day absences');
 
     // Verify buffer absences
     const bufferAbsences = DEFAULT_ABSENCES.filter(a => a.category === 'buffer');
@@ -260,7 +254,7 @@ export async function runAttendanceInstitutionalTests(): Promise<void> {
     const pt1 = DEFAULT_EXAMS.find(e => e.name.includes('Periodic Test 1'));
     assert(!!pt1, 'PT1 exists');
     assertEqual(pt1!.status, 'completed', 'PT1 status is completed');
-    assertEqual(pt1!.ptmDate, '2026-07-18', 'PT1 PTM Date');
+    assertEqual(pt1!.ptmDate, '2026-07-04', 'PT1 PTM Date');
 
     const hy = DEFAULT_EXAMS.find(e => e.name.includes('Half-Yearly'));
     assert(!!hy, 'Half-Yearly exam exists');

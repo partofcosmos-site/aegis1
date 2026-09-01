@@ -31,6 +31,7 @@ export interface AbsenceEntry {
   category: AbsenceCategory;
   isPracticalDay: boolean;
   notes?: string;
+  status?: 'ABSENT' | 'ABSENT_PRACTICAL_DAY' | 'WEEKEND_ABSENCE_LOGGED' | string;
 }
 
 export type HolidayClassification =
@@ -60,6 +61,14 @@ export interface VacationEntry {
   description: string;
 }
 
+export interface ExamDateSlot {
+  date: string;
+  day: string;
+  subject: string;
+  type: 'practical' | 'theory';
+  user_exam?: boolean;
+}
+
 export interface ExamMilestone {
   id: string;
   name: string;
@@ -69,6 +78,7 @@ export interface ExamMilestone {
   status: 'completed' | 'upcoming' | 'scheduled';
   strategicFocus?: string;
   syllabusPercentage?: number;
+  slots?: ExamDateSlot[];
 }
 
 export interface OnDutyCredit {

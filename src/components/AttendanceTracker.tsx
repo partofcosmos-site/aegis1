@@ -817,6 +817,27 @@ export const AttendanceTracker: React.FC = () => {
                     {exam.strategicFocus && (
                       <p className="text-[11px] text-zinc-500 pt-1 border-t border-zinc-800/60">{exam.strategicFocus}</p>
                     )}
+                    {Array.isArray(exam.slots) && exam.slots.length > 0 && (
+                      <div className="pt-2 border-t border-zinc-800/80 space-y-1.5">
+                        <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Exam Routine & Practicals:</span>
+                        <div className="grid grid-cols-1 gap-1">
+                          {exam.slots.map((slot, sIdx) => (
+                            <div key={sIdx} className="flex items-center justify-between text-[11px] bg-zinc-950/70 px-2.5 py-1.5 rounded-xl border border-zinc-800/60">
+                              <div className="flex items-center gap-2">
+                                <span className={clsx(
+                                  "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
+                                  slot.type === 'practical' ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                )}>
+                                  {slot.type}
+                                </span>
+                                <span className="font-semibold text-zinc-200">{slot.subject}</span>
+                              </div>
+                              <span className="text-zinc-400 font-mono text-[10px]">{slot.date} ({slot.day})</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
