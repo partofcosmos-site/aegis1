@@ -65,13 +65,29 @@ export class CloudSyncService {
   /**
    * Ensures an authenticated Firebase Auth session exists so Firestore rules never block requests.
    */
-  public static async ensureAuth(): Promise<boolean> {
+  public static async ensureAuth(email?: string): Promise<boolean> {
     if (auth.currentUser) return true;
     try {
+      if (email && email.includes('@')) {
+        const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('firebase/auth');
+        const cleanEmail = email.trim().toLowerCase();
+        const seedPassword = `Savantix_Sync_${cleanEmail.replace(/[^a-z0-9]/g, '')}_2026!`;
+        try {
+          await signInWithEmailAndPassword(auth, cleanEmail, seedPassword);
+          return true;
+        } catch (signInErr: any) {
+          if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/invalid-email') {
+            try {
+              await createUserWithEmailAndPassword(auth, cleanEmail, seedPassword);
+              return true;
+            } catch {}
+          }
+        }
+      }
       await signInAnonymously(auth);
       return true;
     } catch (err) {
-      console.warn('[CloudSyncService] Anonymous auth fallback notice:', err);
+      console.warn('[CloudSyncService] Firebase auth notice:', err);
       return false;
     }
   }
@@ -394,7 +410,7 @@ export class CloudSyncService {
 
     // 2. Secondary: Firestore sync partition
     try {
-      await this.ensureAuth();
+      await this.ensureAuth(email);
       const syncDocRef = doc(db, this.SYNC_COLLECTION, canonicalId);
       await setDoc(syncDocRef, {
         ...snapshot,
@@ -447,7 +463,7 @@ export class CloudSyncService {
     // 2. Secondary: Firestore sync partition
     if (!remoteData) {
       try {
-        await this.ensureAuth();
+        await this.ensureAuth(email);
         const syncDocRef = doc(db, this.SYNC_COLLECTION, canonicalId);
         const snap = await getDoc(syncDocRef);
         if (snap.exists()) {
@@ -522,7 +538,7 @@ export class CloudSyncService {
     }, 4000);
 
     // 2. Firestore WebSocket Listener
-    this.ensureAuth().then(() => {
+    this.ensureAuth(email).then(() => {
       try {
         const syncDocRef = doc(db, this.SYNC_COLLECTION, canonicalId);
         const unsub = onSnapshot(syncDocRef, (snap) => {

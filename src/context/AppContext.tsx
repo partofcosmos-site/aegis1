@@ -470,6 +470,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const cleanEmail = emailInput.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Please enter a valid email address.');
     const canonicalId = CloudSyncService.getCanonicalUid(cleanEmail);
+    await CloudSyncService.ensureAuth(cleanEmail);
     await authenticateUser({ uid: canonicalId, email: cleanEmail });
   };
 
