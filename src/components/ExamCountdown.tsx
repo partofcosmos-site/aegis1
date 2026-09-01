@@ -25,11 +25,7 @@ export const ExamCountdown: React.FC = () => {
   const getInitialExams = () => {
     const saved = localStorage.getItem('savantix_exam_targets');
     if (saved) return JSON.parse(saved);
-    
-    if (user?.email === 'debanjan8686@gmail.com' || user?.email === 'partofcosmmos@gmail.com') {
-      return DEFAULT_EXAMS;
-    }
-    return [{ id: 'exam-1', name: 'JEE Advanced 2026', targetDate: '2026-05-24', targetHours: 1200, completedHours: 0, category: 'General' }];
+    return DEFAULT_EXAMS;
   };
 
   const [exams, setExams] = useState<ExamTarget[]>(getInitialExams());

@@ -54,9 +54,9 @@ export interface SubmittedTicket {
 
 const DRAFT_STORAGE_KEY = 'savantix_feedback_draft';
 const HISTORY_STORAGE_KEY = 'savantix_submitted_feedback';
-const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/debanjan8686@gmail.com';
-const FOUNDER_EMAIL = 'debanjan8686@gmail.com';
-const FOUNDER_GITHUB = 'https://github.com/debanjan8686';
+const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/savantix.core@gmail.com';
+const FOUNDER_EMAIL = 'support@savantix.app';
+const FOUNDER_GITHUB = 'https://github.com/partofcosmos-site/aegis1';
 
 export const ContactFeedback: React.FC = () => {
   const { user } = useAppContext();
@@ -249,7 +249,7 @@ export const ContactFeedback: React.FC = () => {
   // Generate mailto link
   const mailtoUrl = useMemo(() => {
     const sub = encodeURIComponent(`[Savantix ${category.toUpperCase()}] ${subject || 'Feedback'}`);
-    let body = `Hi Debanjan,\n\nName: ${name}\nEmail: ${email}\nCategory: ${category}\n`;
+    let body = `Hello Savantix Support Team,\n\nName: ${name}\nEmail: ${email}\nCategory: ${category}\n`;
     if (category === 'feature') body += `Priority: ${priority}\n`;
     if (category === 'academic') body += `Focus: ${academicFocus}\nAffiliation: ${affiliation}\n`;
     body += `\nMessage:\n${message}\n`;
@@ -463,7 +463,7 @@ export const ContactFeedback: React.FC = () => {
     {
       id: 'faq-3',
       question: 'Expected Response Time & Support SLA',
-      answer: 'Critical bug reports are typically investigated and deployed within 24 to 48 hours. Feature requests and academic collaboration proposals are reviewed weekly by founder Debanjan Biswas. If you provide a valid email, you will receive a direct reply.'
+      answer: 'Critical bug reports are typically investigated and deployed within 24 to 48 hours. Feature requests and academic collaboration proposals are reviewed weekly by the Savantix Engineering & Research Team. If you provide a valid email, you will receive a direct reply.'
     },
     {
       id: 'faq-4',
@@ -502,7 +502,7 @@ export const ContactFeedback: React.FC = () => {
               Contact & Community Feedback
             </h1>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl">
-              Direct connection with founder <span className="text-zinc-200 font-medium">Debanjan Biswas</span> and the Savantix STEM community.
+              Direct connection with the <span className="text-zinc-200 font-medium">Savantix Engineering & Research Team</span> and the global STEM community.
             </p>
           </div>
 
@@ -612,7 +612,7 @@ export const ContactFeedback: React.FC = () => {
                       <div className="flex-1 space-y-1">
                         <h3 className="text-sm font-bold text-emerald-300">Feedback Dispatched Successfully</h3>
                         <p className="text-xs text-emerald-200/80">
-                          Thank you, {submitSuccess.name}! Your {submitSuccess.category} ticket has been routed to Debanjan Biswas via FormSubmit AJAX.
+                          Thank you, {submitSuccess.name}! Your {submitSuccess.category} ticket has been routed to the Savantix Support Team via secure encrypted transmission.
                         </p>
                         <div className="pt-2 flex flex-wrap items-center gap-2">
                           <button
@@ -714,7 +714,7 @@ export const ContactFeedback: React.FC = () => {
                           value={email}
                           onChange={e => setEmail(e.target.value)}
                           onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
-                          placeholder="debanjan@example.com"
+                          placeholder="scholar@example.com"
                           className={clsx(
                             "w-full px-3.5 py-2.5 rounded-xl bg-zinc-950/70 border text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 transition-all",
                             touched.email && !isEmailValid
@@ -1149,7 +1149,7 @@ export const ContactFeedback: React.FC = () => {
           {/* ========================================================================= */}
           <div className="lg:col-span-4 space-y-6">
             
-            {/* Founder Channel Card */}
+            {/* Core Team Support Card */}
             <div className="bg-gradient-to-b from-zinc-900/80 to-zinc-950 border border-zinc-800/90 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
               
@@ -1162,22 +1162,22 @@ export const ContactFeedback: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-zinc-100 flex items-center gap-1.5">
-                      Debanjan Biswas
+                      Savantix Core Team
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-950 border border-indigo-500/30 text-indigo-300">
-                        Bidu
+                        Engineering
                       </span>
                     </h3>
-                    <p className="text-xs text-indigo-400 font-medium">Founder & Core Architect, Savantix</p>
+                    <p className="text-xs text-indigo-400 font-medium">Core Research & Architecture</p>
                   </div>
                 </div>
 
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Physics Olympiad & JEE Advanced researcher building antifragile, socratic study operating systems for serious STEM scholars.
+                  Physics Olympiad & JEE Advanced research team building antifragile, Socratic study operating systems for serious STEM scholars.
                 </p>
 
                 <div className="pt-2 space-y-2 border-t border-zinc-800/80">
                   <div className="flex items-center justify-between text-xs py-1">
-                    <span className="text-zinc-500">Direct Email:</span>
+                    <span className="text-zinc-500">Support Email:</span>
                     <button
                       type="button"
                       onClick={handleCopyFounderEmail}
@@ -1190,14 +1190,14 @@ export const ContactFeedback: React.FC = () => {
                   </div>
 
                   <div className="flex items-center justify-between text-xs py-1">
-                    <span className="text-zinc-500">Repository:</span>
+                    <span className="text-zinc-500">Open Repository:</span>
                     <a
                       href={FOUNDER_GITHUB}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer font-medium"
                     >
-                      <span>GitHub Profile</span>
+                      <span>Savantix Hub</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
