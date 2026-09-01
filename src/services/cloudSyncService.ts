@@ -362,90 +362,117 @@ export class CloudSyncService {
   }
 
   /**
-   * Pushes full local snapshot to Firestore cloud partition.
+   * Pushes full local snapshot to Cloud (Serverless Relay + Firestore).
    */
   public static async pushToCloud(email: string, uid: string): Promise<SyncResult> {
-    await this.ensureAuth();
     const canonicalId = this.getCanonicalUid(email);
     const snapshot = this.getLocalSnapshot(email, uid);
+    let apiSuccess = false;
 
+    // 1. Primary: Serverless Sync Relay (/api/sync)
     try {
+      const endpoint = typeof window !== 'undefined' 
+        ? `${window.location.origin}/api/sync` 
+        : 'https://savantix.vercel.app/api/sync';
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          canonicalId,
+          email: email.trim().toLowerCase(),
+          snapshot
+        })
+      });
+
+      if (response.ok) {
+        apiSuccess = true;
+      }
+    } catch (apiErr) {
+      console.warn('[CloudSyncService] Serverless sync push notice:', apiErr);
+    }
+
+    // 2. Secondary: Firestore sync partition
+    try {
+      await this.ensureAuth();
       const syncDocRef = doc(db, this.SYNC_COLLECTION, canonicalId);
       await setDoc(syncDocRef, {
         ...snapshot,
         updatedAt: serverTimestamp()
       }, { merge: true });
-
-      const timestamp = new Date().toLocaleTimeString();
-      localStorage.setItem('savantix_last_cloud_sync_time', timestamp);
-
-      return {
-        success: true,
-        timestamp,
-        logsCount: snapshot.logs.length,
-        goalsCount: snapshot.goals.length,
-        journalCount: snapshot.journal.length,
-        insightsCount: snapshot.insights?.length || 0,
-        attendanceCount: snapshot.attendance.length,
-        message: `Pushed ${snapshot.logs.length} logs to cloud at ${timestamp}`
-      };
-    } catch (err: any) {
-      console.warn('[CloudSyncService] Push to cloud error:', err);
-      return {
-        success: false,
-        timestamp: new Date().toLocaleTimeString(),
-        logsCount: snapshot.logs.length,
-        goalsCount: snapshot.goals.length,
-        journalCount: snapshot.journal.length,
-        insightsCount: snapshot.insights?.length || 0,
-        attendanceCount: snapshot.attendance.length,
-        message: err.message || 'Cloud push failed.'
-      };
+      apiSuccess = true;
+    } catch (fireErr) {
+      console.warn('[CloudSyncService] Firestore push notice:', fireErr);
     }
+
+    const timestamp = new Date().toLocaleTimeString();
+    localStorage.setItem('savantix_last_cloud_sync_time', timestamp);
+
+    return {
+      success: apiSuccess,
+      timestamp,
+      logsCount: snapshot.logs.length,
+      goalsCount: snapshot.goals.length,
+      journalCount: snapshot.journal.length,
+      insightsCount: snapshot.insights?.length || 0,
+      attendanceCount: snapshot.attendance.length,
+      message: apiSuccess ? `Pushed ${snapshot.logs.length} logs to cloud at ${timestamp}` : 'Sync queued locally'
+    };
   }
 
   /**
    * Pulls latest cloud state and merges non-destructively into local storage.
    */
   public static async pullFromCloud(email: string, uid: string): Promise<SyncResult> {
-    await this.ensureAuth();
     const canonicalId = this.getCanonicalUid(email);
+    let remoteData: CloudSyncPayload | null = null;
 
+    // 1. Primary: Serverless Sync Relay (/api/sync)
     try {
-      const syncDocRef = doc(db, this.SYNC_COLLECTION, canonicalId);
-      const snap = await getDoc(syncDocRef);
+      const endpoint = typeof window !== 'undefined' 
+        ? `${window.location.origin}/api/sync?canonicalId=${encodeURIComponent(canonicalId)}` 
+        : `https://savantix.vercel.app/api/sync?canonicalId=${encodeURIComponent(canonicalId)}`;
 
-      if (snap.exists()) {
-        const remoteData = snap.data() as CloudSyncPayload;
-        const result = this.mergeAndPersist(remoteData, email, uid);
-
-        // Also push back union merge so both cloud and client are at identical top state
-        const updatedSnapshot = this.getLocalSnapshot(email, uid);
-        await setDoc(syncDocRef, { ...updatedSnapshot, updatedAt: serverTimestamp() }, { merge: true });
-
-        return result;
-      } else {
-        // First time initialization: push current local data as initial cloud baseline
-        return await this.pushToCloud(email, uid);
+      const response = await fetch(endpoint);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.exists && json.payload) {
+          remoteData = json.payload as CloudSyncPayload;
+        }
       }
-    } catch (err: any) {
-      console.warn('[CloudSyncService] Pull from cloud notice:', err);
-      return {
-        success: false,
-        timestamp: new Date().toLocaleTimeString(),
-        logsCount: 0,
-        goalsCount: 0,
-        journalCount: 0,
-        insightsCount: 0,
-        attendanceCount: 0,
-        message: err.message || 'Cloud pull failed.'
-      };
+    } catch (apiErr) {
+      console.warn('[CloudSyncService] Serverless pull notice:', apiErr);
+    }
+
+    // 2. Secondary: Firestore sync partition
+    if (!remoteData) {
+      try {
+        await this.ensureAuth();
+        const syncDocRef = doc(db, this.SYNC_COLLECTION, canonicalId);
+        const snap = await getDoc(syncDocRef);
+        if (snap.exists()) {
+          remoteData = snap.data() as CloudSyncPayload;
+        }
+      } catch (fireErr) {
+        console.warn('[CloudSyncService] Firestore pull notice:', fireErr);
+      }
+    }
+
+    if (remoteData) {
+      const result = this.mergeAndPersist(remoteData, email, uid);
+
+      // Re-push merged top state so both client and cloud are perfectly equalized
+      this.pushToCloud(email, uid).catch(() => {});
+      return result;
+    } else {
+      // First time initialization: push current local state as cloud baseline
+      return await this.pushToCloud(email, uid);
     }
   }
 
   /**
    * Real-Time Real-Device Subscription:
-   * Whenever any device edits or adds study data, all other connected devices update automatically.
+   * Combines WebSocket onSnapshot + Serverless Poller + BroadcastChannel.
    */
   public static subscribeToCloudSync(
     email: string,
@@ -458,6 +485,43 @@ export class CloudSyncService {
     }
 
     const canonicalId = this.getCanonicalUid(email);
+    let lastKnownPayloadJson = '';
+
+    // 1. Background Serverless Poller (every 4s)
+    const pollInterval = setInterval(async () => {
+      if (this.isSyncing) return;
+      try {
+        const endpoint = typeof window !== 'undefined' 
+          ? `${window.location.origin}/api/sync?canonicalId=${encodeURIComponent(canonicalId)}` 
+          : `https://savantix.vercel.app/api/sync?canonicalId=${encodeURIComponent(canonicalId)}`;
+
+        const response = await fetch(endpoint);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.exists && json.payload) {
+            const currentStr = JSON.stringify({
+              logs: json.payload.logs?.length,
+              goals: json.payload.goals?.length,
+              journal: json.payload.journal?.length,
+              lastSynced: json.payload.lastSyncedAt
+            });
+
+            if (currentStr !== lastKnownPayloadJson) {
+              lastKnownPayloadJson = currentStr;
+              this.isSyncing = true;
+              try {
+                const res = this.mergeAndPersist(json.payload as CloudSyncPayload, email, uid);
+                onDataUpdated(res);
+              } finally {
+                this.isSyncing = false;
+              }
+            }
+          }
+        }
+      } catch {}
+    }, 4000);
+
+    // 2. Firestore WebSocket Listener
     this.ensureAuth().then(() => {
       try {
         const syncDocRef = doc(db, this.SYNC_COLLECTION, canonicalId);
@@ -476,13 +540,17 @@ export class CloudSyncService {
           console.warn('[CloudSyncService] Live sync subscription notice:', err);
         });
 
-        this.activeUnsubscribe = unsub;
+        this.activeUnsubscribe = () => {
+          clearInterval(pollInterval);
+          unsub();
+        };
       } catch (err) {
-        console.warn('[CloudSyncService] Setup subscription failed:', err);
+        this.activeUnsubscribe = () => clearInterval(pollInterval);
       }
     });
 
     return () => {
+      clearInterval(pollInterval);
       if (this.activeUnsubscribe) {
         this.activeUnsubscribe();
         this.activeUnsubscribe = null;
