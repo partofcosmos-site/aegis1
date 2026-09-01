@@ -13,10 +13,12 @@ interface ExamTarget {
 }
 
 const DEFAULT_EXAMS: ExamTarget[] = [
-  { id: 'exam-1', name: 'JEE Advanced 2026', targetDate: '2026-05-24', targetHours: 1200, completedHours: 0, category: 'General' },
-  { id: 'exam-2', name: 'IPhO (International Physics Olympiad)', targetDate: '2026-07-12', targetHours: 800, completedHours: 0, category: 'Physics' },
-  { id: 'exam-3', name: 'NSEP (National Standard Exam in Physics)', targetDate: '2026-11-23', targetHours: 400, completedHours: 0, category: 'Physics' },
-  { id: 'exam-4', name: 'MIT SAT / Subject Test', targetDate: '2026-10-05', targetHours: 300, completedHours: 0, category: 'General' }
+  { id: 'exam-1', name: 'IPhO (International Physics Olympiad) Gold Track / OCSC', targetDate: '2027-07-15', targetHours: 1200, completedHours: 0, category: 'Physics' },
+  { id: 'exam-2', name: 'NSEP 2026 (Physics Olympiad Stage 1)', targetDate: '2026-11-29', targetHours: 600, completedHours: 0, category: 'Physics' },
+  { id: 'exam-3', name: 'INPhO 2027 (Indian National Physics Olympiad Stage 2)', targetDate: '2027-01-31', targetHours: 500, completedHours: 0, category: 'Physics' },
+  { id: 'exam-4', name: 'JEE Advanced 2028 (Class 12 Passing Year)', targetDate: '2028-05-28', targetHours: 1500, completedHours: 0, category: 'General' },
+  { id: 'exam-5', name: 'ISI & CMI Mathematics Entrances 2028', targetDate: '2028-05-14', targetHours: 800, completedHours: 0, category: 'Math' },
+  { id: 'exam-6', name: 'CBSE Class 12 Senior Secondary Board 2028', targetDate: '2028-03-01', targetHours: 400, completedHours: 0, category: 'General' }
 ];
 
 export const ExamCountdown: React.FC = () => {
@@ -24,7 +26,12 @@ export const ExamCountdown: React.FC = () => {
   
   const getInitialExams = () => {
     const saved = localStorage.getItem('savantix_exam_targets');
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
     return DEFAULT_EXAMS;
   };
 
@@ -106,7 +113,7 @@ export const ExamCountdown: React.FC = () => {
               <label className="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Target Exam Name</label>
               <input
                 type="text"
-                placeholder="e.g. JEE Advanced 2026"
+                placeholder="e.g. IPhO Gold Track or JEE Advanced 2028"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 className="w-full bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"

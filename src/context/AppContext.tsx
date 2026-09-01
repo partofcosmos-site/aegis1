@@ -153,7 +153,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const authenticateUser = async (authUser: { uid: string; email?: string | null; displayName?: string | null; photoURL?: string | null }) => {
-    const cleanEmail = (authUser.email || '').trim().toLowerCase();
+    let cleanEmail = (authUser.email || '').trim().toLowerCase();
+    
+    // Guard against anonymous auth email nullification by preserving cached email
+    if (!cleanEmail) {
+      try {
+        const savedSession = localStorage.getItem('savantix_user_session');
+        if (savedSession) {
+          const parsed = JSON.parse(savedSession);
+          if (parsed.email && parsed.email !== 'scholar@savantix.app' && parsed.email !== 'guest@savantix.app') {
+            cleanEmail = parsed.email.trim().toLowerCase();
+          }
+        }
+      } catch {}
+    }
+
     const canonicalId = CloudSyncService.getCanonicalUid(cleanEmail);
     const namePart = cleanEmail ? cleanEmail.split('@')[0] : 'scholar';
     const fallbackName = namePart.charAt(0).toUpperCase() + namePart.slice(1).replace(/[._]/g, ' ');
@@ -176,6 +190,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // Ensure Firebase Auth session is active
     await CloudSyncService.ensureAuth();
 
+    const isFounder = ['debanjan8686@gmail.com', 'partofcosmmos@gmail.com'].includes(cleanEmail);
+    const initialTargetExams = isFounder 
+      ? ['IPhO (Gold Track) / NSEP 2026–2027', 'INPhO / OCSC 2027', 'JEE Advanced 2028', 'ISI / CMI 2028', 'CBSE Class 12 Boards (March 2028)']
+      : ['IPhO (Gold Track) / NSEP 2026–2027', 'JEE Advanced 2028', 'ISI / CMI 2028', 'CBSE Class 12 Boards (March 2028)'];
+
     try {
       const profileRef = doc(db, 'users', authUser.uid || canonicalId);
       const profileSnap = await getDoc(profileRef);
@@ -185,7 +204,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           email: cleanEmail,
           displayName,
           schoolHours: 6,
-          targetExams: ['JEE Advanced 2026', 'IPhO', 'NSEP'],
+          targetExams: initialTargetExams,
           createdAt: serverTimestamp(),
         };
         await setDoc(profileRef, newProfile);
@@ -200,16 +219,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         email: cleanEmail,
         displayName,
         schoolHours: 6,
-        targetExams: ['JEE Advanced 2026', 'IPhO', 'NSEP'],
+        targetExams: initialTargetExams,
         createdAt: Date.now()
       });
     }
 
-    // 1. Load local cache immediately
+    // 1. Load local cache immediately (Logs, Goals, Journal, Insights)
     const userUidKey = authUser.uid || canonicalId;
     const localLogsKey = `savantix_user_logs_${userUidKey}`;
     const localGoalsKey = `savantix_user_goals_${userUidKey}`;
     const localJournalKey = `savantix_user_journal_${userUidKey}`;
+    const localInsightsKey = `savantix_user_insights_${userUidKey}`;
 
     if (cleanEmail === 'debanjan8686@gmail.com' || cleanEmail === 'partofcosmmos@gmail.com') {
       const seeded = seedDebanjanHistoryIfEmpty(userUidKey);
@@ -227,15 +247,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
     }
 
+    // Rehydrate cached insights state on auth bootstrap
+    const savedInsights = localStorage.getItem(localInsightsKey) || localStorage.getItem(`savantix_user_insights_${canonicalId}`);
+    if (savedInsights) {
+      try { setInsights(JSON.parse(savedInsights)); } catch {}
+    }
+
     // 2. Real-Time Cloud Sync: Pull remote snapshot & start bidirectional real-time subscription
     CloudSyncService.pullFromCloud(cleanEmail, userUidKey).then(res => {
       if (res.success) {
         const lLogs = JSON.parse(localStorage.getItem(localLogsKey) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
         const lGoals = JSON.parse(localStorage.getItem(localGoalsKey) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
         const lJournal = JSON.parse(localStorage.getItem(localJournalKey) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
+        const lInsights = JSON.parse(localStorage.getItem(localInsightsKey) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || '[]');
         if (lLogs.length) setLogs(lLogs);
         if (lGoals.length) setGoals(lGoals);
         if (lJournal.length) setJournalEntries(lJournal);
+        if (lInsights.length) setInsights(lInsights);
         setSyncStatus({
           isSyncing: false,
           lastSyncedAt: res.timestamp,
@@ -248,9 +276,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const lLogs = JSON.parse(localStorage.getItem(localLogsKey) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
       const lGoals = JSON.parse(localStorage.getItem(localGoalsKey) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
       const lJournal = JSON.parse(localStorage.getItem(localJournalKey) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
+      const lInsights = JSON.parse(localStorage.getItem(localInsightsKey) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || '[]');
       if (lLogs.length) setLogs(lLogs);
       if (lGoals.length) setGoals(lGoals);
       if (lJournal.length) setJournalEntries(lJournal);
+      if (lInsights.length) setInsights(lInsights);
       setSyncStatus({
         isSyncing: false,
         lastSyncedAt: res.timestamp,
@@ -269,6 +299,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setIsGuest(false);
         const savedProf = localStorage.getItem(`savantix_user_profile_${parsed.uid}`);
         if (savedProf) setProfile(JSON.parse(savedProf));
+        
+        const savedLogsKey = `savantix_user_logs_${parsed.uid}`;
+        const savedGoalsKey = `savantix_user_goals_${parsed.uid}`;
+        const savedJournalKey = `savantix_user_journal_${parsed.uid}`;
+        const savedInsightsKey = `savantix_user_insights_${parsed.uid}`;
+
         if (parsed.email === 'debanjan8686@gmail.com' || parsed.email === 'partofcosmmos@gmail.com') {
           const seeded = seedDebanjanHistoryIfEmpty(parsed.uid);
           if (seeded) {
@@ -277,9 +313,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setJournalEntries(seeded.mergedJournal);
           }
         } else {
-          const savedLogs = localStorage.getItem(`savantix_user_logs_${parsed.uid}`);
+          const savedLogs = localStorage.getItem(savedLogsKey);
           if (savedLogs) setLogs(JSON.parse(savedLogs));
+          const savedGoals = localStorage.getItem(savedGoalsKey);
+          if (savedGoals) setGoals(JSON.parse(savedGoals));
+          const savedJournal = localStorage.getItem(savedJournalKey);
+          if (savedJournal) setJournalEntries(JSON.parse(savedJournal));
         }
+
+        const savedInsights = localStorage.getItem(savedInsightsKey) || localStorage.getItem(`savantix_user_insights_${parsed.canonicalId || parsed.uid}`);
+        if (savedInsights) {
+          try { setInsights(JSON.parse(savedInsights)); } catch {}
+        }
+
+        // Mount live real-time subscription immediately on startup
+        CloudSyncService.subscribeToCloudSync(parsed.email, parsed.uid, (res) => {
+          const lLogs = JSON.parse(localStorage.getItem(savedLogsKey) || '[]');
+          const lGoals = JSON.parse(localStorage.getItem(savedGoalsKey) || '[]');
+          const lJournal = JSON.parse(localStorage.getItem(savedJournalKey) || '[]');
+          const lInsights = JSON.parse(localStorage.getItem(savedInsightsKey) || '[]');
+          if (lLogs.length) setLogs(lLogs);
+          if (lGoals.length) setGoals(lGoals);
+          if (lJournal.length) setJournalEntries(lJournal);
+          if (lInsights.length) setInsights(lInsights);
+          setSyncStatus({
+            isSyncing: false,
+            lastSyncedAt: res.timestamp,
+            message: res.message
+          });
+        });
 
         // Trigger background cloud sync on app start
         CloudSyncService.pullFromCloud(parsed.email, parsed.uid);
@@ -312,6 +374,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         logsCount: logs.length,
         goalsCount: goals.length,
         journalCount: journalEntries.length,
+        insightsCount: insights.length,
         attendanceCount: 0,
         message: 'Please sign in to synchronize across devices.'
       };
@@ -325,10 +388,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const loadedLogs = JSON.parse(localStorage.getItem(`savantix_user_logs_${userUidKey}`) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
       const loadedGoals = JSON.parse(localStorage.getItem(`savantix_user_goals_${userUidKey}`) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
       const loadedJournal = JSON.parse(localStorage.getItem(`savantix_user_journal_${userUidKey}`) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
+      const loadedInsights = JSON.parse(localStorage.getItem(`savantix_user_insights_${userUidKey}`) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || '[]');
 
       if (loadedLogs.length) setLogs(loadedLogs);
       if (loadedGoals.length) setGoals(loadedGoals);
       if (loadedJournal.length) setJournalEntries(loadedJournal);
+      if (loadedInsights.length) setInsights(loadedInsights);
 
       setSyncStatus({
         isSyncing: false,
@@ -343,6 +408,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         logsCount: logs.length,
         goalsCount: goals.length,
         journalCount: journalEntries.length,
+        insightsCount: insights.length,
         attendanceCount: 0,
         message: err.message || 'Sync failed.'
       };
@@ -353,7 +419,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
       return res;
     }
-  }, [user, isGuest, logs.length, goals.length, journalEntries.length]);
+  }, [user, isGuest, logs.length, goals.length, journalEntries.length, insights.length]);
 
   const login = async () => {
     setLoading(true);
@@ -387,7 +453,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       email: 'guest@savantix.app',
       displayName: 'Guest Scholar',
       schoolHours: 6,
-      targetExams: ['JEE Advanced 2026', 'IPhO'],
+      targetExams: ['IPhO (Gold Track) / NSEP 2026–2027', 'JEE Advanced 2028', 'ISI / CMI 2028', 'CBSE Class 12 Boards (March 2028)'],
       createdAt: Date.now()
     });
     setIsGuest(true);

@@ -6,6 +6,7 @@ import { ExamCountdown } from './ExamCountdown';
 import { useAppContext } from '../context/AppContext';
 import { format, subDays, parseISO, isValid, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { generateMorningRevisionSprint } from '../utils/fsrsEngine';
+import { UniversalAIService } from '../services/universalAIService';
 import {
   Clock,
   BookOpen,
@@ -35,7 +36,9 @@ import {
   Minus,
   Sun,
   BrainCircuit,
-  Target
+  Target,
+  Loader2,
+  Brain
 } from 'lucide-react';
 import {
   getStreakHealthTier,
@@ -59,12 +62,25 @@ import {
 } from '../utils/circadianEngine';
 
 export const Dashboard = () => {
-  const { logs, updateLog, deleteLog, elasticStreak, updateElasticStreak, recomputeElasticStreak, addLog } = useAppContext();
+  const {
+    logs,
+    updateLog,
+    deleteLog,
+    elasticStreak,
+    updateElasticStreak,
+    recomputeElasticStreak,
+    addLog,
+    insights,
+    addInsight,
+    user,
+    profile
+  } = useAppContext();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showHistory, setShowHistory] = useState(false);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState(String(elasticStreak?.targetMinutesDaily || 120));
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isReanalyzingInsights, setIsReanalyzingInsights] = useState(false);
 
   // Rolling 7-Day Logs for Dynamic Subject Equilibrium Matrix
   const logs7Days = useMemo(() => {
@@ -200,6 +216,76 @@ export const Dashboard = () => {
     }
   };
 
+  const handleQuickReanalyzeInsights = async () => {
+    if (!user || todayLogs.length === 0) return;
+    setIsReanalyzingInsights(true);
+    try {
+      const totalMins = todayLogs.reduce((acc, log) => acc + (Math.max(0, Number(log.durationMinutes)) || 0), 0);
+      const totalProbs = todayLogs.reduce((acc, log) => acc + (Math.max(0, Number(log.problemsSolved)) || 0), 0);
+      const avgEff = todayLogs.length > 0
+        ? (todayLogs.reduce((acc, log) => acc + (Number(log.efficiencyScore) || 8), 0) / todayLogs.length).toFixed(1)
+        : '8.0';
+      const avgFoc = todayLogs.length > 0
+        ? (todayLogs.reduce((acc, log) => acc + (Number(log.focusScore) || 8), 0) / todayLogs.length).toFixed(1)
+        : '8.0';
+      const subs = Array.from(new Set(todayLogs.map(l => l.subject).filter(Boolean)));
+      const mists = todayLogs.flatMap(l => (Array.isArray(l.mistakes) ? l.mistakes : [l.mistakes]).filter(Boolean));
+
+      const constraints = {
+        schoolHours: profile?.schoolHours || 6,
+        targetExams: profile?.targetExams || ['IPhO / NSEP Track', 'JEE Advanced 2028', 'ISI / CMI 2028', 'CBSE Class 12 Boards (2028)'],
+        cumulativeDailyStats: {
+          sessionCount: todayLogs.length,
+          totalMinutes: totalMins,
+          totalProblems: totalProbs,
+          avgEfficiency: avgEff,
+          avgFocus: avgFoc,
+          subjects: subs
+        }
+      };
+
+      let insightData: any;
+      try {
+        insightData = await UniversalAIService.generateDailyInsights(todayLogs, constraints);
+      } catch (aiErr) {
+        const subjectListStr = subs.join(', ') || 'General STEM';
+        const mistakeSummary = mists.length > 0
+          ? `Key mistake patterns flagged across sessions: ${mists.slice(0, 3).join('; ')}.`
+          : 'Zero major conceptual traps reported across logged sessions.';
+
+        insightData = {
+          performanceSummary: `Completed ${todayLogs.length} cumulative study session(s) totaling ${Math.floor(totalMins / 60)}h ${totalMins % 60}m across ${subjectListStr}. Solved ${totalProbs} problems with an average efficiency score of ${avgEff}/10 and focus score of ${avgFoc}/10.`,
+          keyInefficiencies: totalMins < 120 ? ['Daily focus volume is below optimal 2-hour threshold'] : ['Pacing optimization recommended on complex multi-step numericals'],
+          biggestMistakePattern: mistakeSummary,
+          hiddenWeakness: `Deep conceptual grounding and formula retention in ${subs[0] || 'Physics'}.`,
+          nextDayPlan: [
+            `Initiate Morning Revision Sprint on ${subs[0] || 'Core STEM'} for 45 mins.`,
+            `Schedule 90-minute high-yield numerical practice block.`,
+            `Review active recall flashcards and error logs prior to evening session.`
+          ],
+          priorityRanking: subs,
+          warnings: totalMins < 60 ? ['Cumulative focus time is below recommended baseline.'] : []
+        };
+      }
+
+      const effectiveDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
+      await addInsight({
+        date: effectiveDate,
+        sessionCount: todayLogs.length,
+        evaluatedMinutes: totalMins,
+        evaluatedProblems: totalProbs,
+        avgEfficiencyScore: Number(avgEff),
+        avgFocusScore: Number(avgFoc),
+        ...insightData
+      });
+      showToast(`🎯 Daily insights re-analyzed for ${todayLogs.length} sessions (${totalMins}m)!`);
+    } catch (err: any) {
+      showToast(`⚠️ Insight re-analysis notice: ${err.message || 'Failed'}`);
+    } finally {
+      setIsReanalyzingInsights(false);
+    }
+  };
+
   const hasSprintCards = revisionSprint.stabilityCard || revisionSprint.consolidationCard || revisionSprint.decayCard;
 
   // ── Circadian Engine — live clock ──────────────────────────────────────────
@@ -233,12 +319,30 @@ export const Dashboard = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">Overview</h1>
             <p className="text-xs sm:text-sm text-zinc-500 mt-1">Select a date to view or log sessions</p>
           </div>
-          <input 
-            type="date" 
-            value={selectedDate} 
-            onChange={(e) => handleDateChange(e.target.value)}
-            className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-full px-4 py-2.5 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner w-full sm:w-auto"
-          />
+          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            {todayLogs.length > 0 && (
+              <button
+                type="button"
+                onClick={handleQuickReanalyzeInsights}
+                disabled={isReanalyzingInsights}
+                title="Re-evaluate cumulative daily performance with latest logs"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-full text-xs font-bold transition-all shadow-md shadow-indigo-600/20 hover:scale-[1.02] cursor-pointer"
+              >
+                {isReanalyzingInsights ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-3.5 h-3.5" />
+                )}
+                <span>{isReanalyzingInsights ? 'Re-analyzing...' : '🔄 Re-analyze with Latest Logs'}</span>
+              </button>
+            )}
+            <input 
+              type="date" 
+              value={selectedDate} 
+              onChange={(e) => handleDateChange(e.target.value)}
+              className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-full px-4 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner"
+            />
+          </div>
         </header>
 
         {/* ========================================================================= */}
@@ -670,8 +774,22 @@ export const Dashboard = () => {
             {/* Recent Logs */}
             <div className="bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-6 shadow-lg">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Sessions</h3>
-                <span className="px-2.5 py-0.5 bg-zinc-800/50 rounded-full text-[10px] text-zinc-500 border border-zinc-700 font-medium">{selectedDate}</span>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Sessions</h3>
+                  <span className="px-2.5 py-0.5 bg-zinc-800/50 rounded-full text-[10px] text-zinc-500 border border-zinc-700 font-medium">{selectedDate}</span>
+                </div>
+                {todayLogs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleQuickReanalyzeInsights}
+                    disabled={isReanalyzingInsights}
+                    title="Re-analyze with latest logs"
+                    className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <RotateCcw className={`w-3 h-3 ${isReanalyzingInsights ? 'animate-spin' : ''}`} />
+                    <span>Re-analyze</span>
+                  </button>
+                )}
               </div>
               {todayLogs.length === 0 ? (
                 <p className="text-sm text-zinc-600 text-center py-8">No sessions logged yet.</p>
