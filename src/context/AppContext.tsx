@@ -74,6 +74,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     lastSyncedAt: (typeof window !== 'undefined' && localStorage.getItem('savantix_last_cloud_sync_time')) || 'Never'
   }));
 
+  // Smart state updaters: deeply verify content equality before updating React state to prevent re-render thrashing
+  const setLogsSmart = useCallback((newLogs: any[]) => {
+    if (!Array.isArray(newLogs)) return;
+    setLogs(prev => {
+      if (prev.length === newLogs.length && prev.length > 0) {
+        if (prev[0]?.id === newLogs[0]?.id && prev[prev.length - 1]?.id === newLogs[newLogs.length - 1]?.id) {
+          return prev;
+        }
+      }
+      return newLogs;
+    });
+  }, []);
+
+  const setGoalsSmart = useCallback((newGoals: any[]) => {
+    if (!Array.isArray(newGoals)) return;
+    setGoals(prev => (prev.length === newGoals.length && prev[0]?.id === newGoals[0]?.id ? prev : newGoals));
+  }, []);
+
+  const setJournalSmart = useCallback((newJournal: any[]) => {
+    if (!Array.isArray(newJournal)) return;
+    setJournalEntries(prev => (prev.length === newJournal.length && prev[0]?.id === newJournal[0]?.id ? prev : newJournal));
+  }, []);
+
+  const setInsightsSmart = useCallback((newInsights: any[]) => {
+    if (!Array.isArray(newInsights)) return;
+    setInsights(prev => (prev.length === newInsights.length && prev[0]?.date === newInsights[0]?.date ? prev : newInsights));
+  }, []);
+
   // Synchronize and evaluate elastic streak health & resilience tokens
   useEffect(() => {
     if (loading) return;
@@ -256,28 +284,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // 2. Real-Time Cloud Sync: Pull remote snapshot & start bidirectional real-time subscription
     CloudSyncService.pullFromCloud(cleanEmail, userUidKey).then(res => {
       if (res.success) {
-        if (res.mergedLogs) setLogs(res.mergedLogs);
-        if (res.mergedGoals) setGoals(res.mergedGoals);
-        if (res.mergedJournal) setJournalEntries(res.mergedJournal);
-        if (res.mergedInsights) setInsights(res.mergedInsights);
-        setSyncStatus({
+        if (res.mergedLogs) setLogsSmart(res.mergedLogs);
+        if (res.mergedGoals) setGoalsSmart(res.mergedGoals);
+        if (res.mergedJournal) setJournalSmart(res.mergedJournal);
+        if (res.mergedInsights) setInsightsSmart(res.mergedInsights);
+        setSyncStatus(prev => ({
           isSyncing: false,
           lastSyncedAt: res.timestamp,
           message: res.message
-        });
+        }));
       }
     });
 
     CloudSyncService.subscribeToCloudSync(cleanEmail, userUidKey, (res) => {
-      if (res.mergedLogs) setLogs(res.mergedLogs);
-      if (res.mergedGoals) setGoals(res.mergedGoals);
-      if (res.mergedJournal) setJournalEntries(res.mergedJournal);
-      if (res.mergedInsights) setInsights(res.mergedInsights);
-      setSyncStatus({
+      if (res.mergedLogs) setLogsSmart(res.mergedLogs);
+      if (res.mergedGoals) setGoalsSmart(res.mergedGoals);
+      if (res.mergedJournal) setJournalSmart(res.mergedJournal);
+      if (res.mergedInsights) setInsightsSmart(res.mergedInsights);
+      setSyncStatus(prev => ({
         isSyncing: false,
         lastSyncedAt: res.timestamp,
         message: res.message
-      });
+      }));
     });
   };
 
@@ -382,16 +410,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSyncStatus(prev => ({ ...prev, isSyncing: true }));
     try {
       const res = await CloudSyncService.pullFromCloud(user.email, user.uid);
-      if (res.mergedLogs) setLogs(res.mergedLogs);
-      if (res.mergedGoals) setGoals(res.mergedGoals);
-      if (res.mergedJournal) setJournalEntries(res.mergedJournal);
-      if (res.mergedInsights) setInsights(res.mergedInsights);
+      if (res.mergedLogs) setLogsSmart(res.mergedLogs);
+      if (res.mergedGoals) setGoalsSmart(res.mergedGoals);
+      if (res.mergedJournal) setJournalSmart(res.mergedJournal);
+      if (res.mergedInsights) setInsightsSmart(res.mergedInsights);
 
-      setSyncStatus({
+      setSyncStatus(prev => ({
         isSyncing: false,
         lastSyncedAt: res.timestamp,
         message: res.message
-      });
+      }));
       return res;
     } catch (err: any) {
       const res: SyncResult = {
@@ -404,24 +432,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         attendanceCount: 0,
         message: err.message || 'Sync failed.'
       };
-      setSyncStatus({
+      setSyncStatus(prev => ({
         isSyncing: false,
         lastSyncedAt: res.timestamp,
         message: res.message
-      });
+      }));
       return res;
     }
-  }, [user, isGuest, logs.length, goals.length, journalEntries.length, insights.length]);
+  }, [user, isGuest, logs.length, goals.length, journalEntries.length, insights.length, setLogsSmart, setGoalsSmart, setJournalSmart, setInsightsSmart]);
 
-  // Continuous Auto-Sync Heartbeat (every 10s + on focus + on tab visibility change + on network reconnect)
+  // Event-Driven Sync & Gentle Background Heartbeat (60s + on focus + on tab visibility change + on network reconnect)
   useEffect(() => {
     if (!user || isGuest) return;
 
-    const handleAutoSync = () => {
-      forceSyncNow().catch(() => {});
+    let isSyncInProgress = false;
+    const handleAutoSync = async () => {
+      if (isSyncInProgress) return;
+      isSyncInProgress = true;
+      try {
+        await forceSyncNow();
+      } finally {
+        isSyncInProgress = false;
+      }
     };
 
-    const intervalId = setInterval(handleAutoSync, 10000); // 10s auto-pull
+    const intervalId = setInterval(handleAutoSync, 60000); // 60s background keep-alive
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {

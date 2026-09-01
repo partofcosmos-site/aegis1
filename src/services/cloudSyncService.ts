@@ -567,9 +567,20 @@ export class CloudSyncService {
     }
 
     const canonicalId = this.getCanonicalUid(email);
-    let lastKnownPayloadJson = '';
+    let lastKnownFingerprint = '';
 
-    // 1. Background Serverless Poller (every 4s)
+    const getContentFingerprint = (payload: any): string => {
+      if (!payload || typeof payload !== 'object') return '';
+      const lCount = payload.logs?.length || 0;
+      const gCount = payload.goals?.length || 0;
+      const jCount = payload.journal?.length || 0;
+      const iCount = payload.insights?.length || 0;
+      const firstLog = payload.logs?.[0]?.id || payload.logs?.[0]?.date || '';
+      const lastLog = payload.logs?.[payload.logs?.length - 1]?.id || '';
+      return `${lCount}_${gCount}_${jCount}_${iCount}_${firstLog}_${lastLog}`;
+    };
+
+    // 1. Gentle Background Poller (every 30s) — only triggers if content signature actually changes
     const pollInterval = setInterval(async () => {
       if (this.isSyncing) return;
       try {
@@ -581,15 +592,9 @@ export class CloudSyncService {
         if (response.ok) {
           const json = await response.json();
           if (json.exists && json.payload) {
-            const currentStr = JSON.stringify({
-              logs: json.payload.logs?.length,
-              goals: json.payload.goals?.length,
-              journal: json.payload.journal?.length,
-              lastSynced: json.payload.lastSyncedAt
-            });
-
-            if (currentStr !== lastKnownPayloadJson) {
-              lastKnownPayloadJson = currentStr;
+            const currentFp = getContentFingerprint(json.payload);
+            if (currentFp && currentFp !== lastKnownFingerprint) {
+              lastKnownFingerprint = currentFp;
               this.isSyncing = true;
               try {
                 const res = this.mergeAndPersist(json.payload as CloudSyncPayload, email, uid);
@@ -601,21 +606,25 @@ export class CloudSyncService {
           }
         }
       } catch {}
-    }, 4000);
+    }, 30000);
 
-    // 2. Firestore WebSocket Listener
+    // 2. Firestore WebSocket Push Listener (Immediate on genuine remote changes)
     this.ensureAuth(email).then(() => {
       try {
         const syncDocRef = doc(db, this.SYNC_COLLECTION, canonicalId);
         const unsub = onSnapshot(syncDocRef, (snap) => {
           if (snap.exists() && !this.isSyncing) {
             const data = snap.data() as CloudSyncPayload;
-            this.isSyncing = true;
-            try {
-              const res = this.mergeAndPersist(data, email, uid);
-              onDataUpdated(res);
-            } finally {
-              this.isSyncing = false;
+            const currentFp = getContentFingerprint(data);
+            if (currentFp && currentFp !== lastKnownFingerprint) {
+              lastKnownFingerprint = currentFp;
+              this.isSyncing = true;
+              try {
+                const res = this.mergeAndPersist(data, email, uid);
+                onDataUpdated(res);
+              } finally {
+                this.isSyncing = false;
+              }
             }
           }
         }, (err) => {
