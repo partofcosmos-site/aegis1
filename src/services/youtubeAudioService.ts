@@ -114,6 +114,42 @@ export const CURATED_FOCUS_TRACKS: YouTubeTrack[] = [
     tag: 'JJK Lo-Fi',
     duration: '3h 00m'
   },
+  {
+    id: 'yt_anime_demon_slayer_battle',
+    title: 'Demon Slayer: Kimetsu no Yaiba Epic Battle & Fighting OST Suite (Gurenge, Mugen Train)',
+    artist: 'Go Shiina & Yuki Kajiura',
+    category: 'anime',
+    youtubeId: '1fueZCTYkpA',
+    tag: 'Demon Slayer Fight',
+    duration: '2h 15m'
+  },
+  {
+    id: 'yt_anime_naruto_fighting_spirit',
+    title: 'Naruto: Strong and Strike & The Raising Fighting Spirit (Epic Battle Suite)',
+    artist: 'Toshio Masuda / Yasuharu Takanashi',
+    category: 'anime',
+    youtubeId: 'mIYzp5rcTvU',
+    tag: 'Fighting Spirit',
+    duration: '1h 50m'
+  },
+  {
+    id: 'yt_anime_aot_battle_theme',
+    title: 'Attack on Titan: YouSeeBIGGIRL / T:T & Ashes on The Fire (Epic Battle Mix)',
+    artist: 'Hiroyuki Sawano & Kohta Yamamoto',
+    category: 'anime',
+    youtubeId: '9E6b3swbnWg',
+    tag: 'AOT Fight',
+    duration: '2h 00m'
+  },
+  {
+    id: 'yt_anime_bleach_battle',
+    title: 'Bleach: Number One & Stand Up Be Strong (Orchestral Battle Theme)',
+    artist: 'Shiro Sagisu',
+    category: 'anime',
+    youtubeId: 'Rb0UmrCXxVA',
+    tag: 'Bleach Battle',
+    duration: '1h 30m'
+  },
 
   // ─── GAMING OST & IMMERSIVE SOUNDSCAPES ────────────────────────────────
   {
@@ -758,7 +794,19 @@ export class YouTubeAudioService {
 
     if (matches.length > 0) return matches;
 
-    // 5. Category fallback
+    // 5. Category & Semantic fallback
+    if (qLower.includes('fight') || qLower.includes('battle') || qLower.includes('epic') || qLower.includes('action') || qLower.includes('phonk') || qLower.includes('boss')) {
+      const fightMatches = healthy.filter(t => 
+        t.title.toLowerCase().includes('fight') || 
+        t.title.toLowerCase().includes('battle') || 
+        t.title.toLowerCase().includes('titan') || 
+        t.title.toLowerCase().includes('demon') || 
+        t.title.toLowerCase().includes('naruto') || 
+        t.title.toLowerCase().includes('bleach') ||
+        t.tag.toLowerCase().includes('fight')
+      );
+      if (fightMatches.length > 0) return fightMatches;
+    }
     if (qLower.includes('anime') || qLower.includes('naruto') || qLower.includes('ghibli') || qLower.includes('titan') || qLower.includes('jujutsu') || qLower.includes('demon')) {
       return healthy.filter(t => t.category === 'anime');
     }
@@ -774,8 +822,18 @@ export class YouTubeAudioService {
     if (qLower.includes('synth') || qLower.includes('cyber') || qLower.includes('wave')) {
       return healthy.filter(t => t.category === 'synthwave');
     }
+    if (qLower.includes('40hz') || qLower.includes('gamma') || qLower.includes('binaural') || qLower.includes('brain')) {
+      return healthy.filter(t => t.category === 'binaural');
+    }
 
     return healthy;
+  }
+
+  public static getTracksByCategory(category: YouTubeCategory): YouTubeTrack[] {
+    const all = this.getHealthyTracks();
+    if (!category || category === 'all') return all;
+    const filtered = all.filter(t => t.category === category);
+    return filtered.length > 0 ? filtered : all;
   }
 
   // ─── MEDIASESSION & BACKGROUND PLAYBACK ────────────────────────────────

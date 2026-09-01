@@ -319,25 +319,28 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
     setAutoLoop(prev => !prev);
   }, []);
 
+  const handleSelectCategory = useCallback((catId: string) => {
+    setYtCategoryFilter(catId);
+    setYtSearchQuery('');
+    const fresh = YouTubeAudioService.getTracksByCategory(catId as any);
+    setYtTracks(fresh);
+    // Crucial: The currently playing song continues playing in the background uninterrupted!
+  }, []);
+
   const handleSelectQuickTag = async (tag: string) => {
     const cleanTag = tag.replace(/^[^\w\s]+/, '').trim();
     setYtSearchQuery(cleanTag);
+    setYtCategoryFilter('all');
     setIsYtSearching(true);
     try {
       const results = await YouTubeAudioService.searchTracks(cleanTag);
       setYtTracks(results);
-      if (results.length > 0) {
-        setSelectedYtTrack(results[0]);
-        setIsYtPlaying(true);
-      }
     } catch {
       setYtTracks(YouTubeAudioService.getHealthyTracks());
     } finally {
       setIsYtSearching(false);
     }
   };
-
-
 
   const handleAddUserTag = (e: React.FormEvent) => {
     e.preventDefault();
@@ -380,10 +383,22 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
 
   const handleYtSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    const query = ytSearchQuery.trim();
+    if (!query) {
+      setYtTracks(YouTubeAudioService.getTracksByCategory(ytCategoryFilter as any));
+      return;
+    }
+    setYtCategoryFilter('all'); // Clear category filter so search results show directly
     setIsYtSearching(true);
     try {
-      const results = await YouTubeAudioService.searchTracks(ytSearchQuery);
+      const results = await YouTubeAudioService.searchTracks(query);
       setYtTracks(results);
+      if (results.length > 0) {
+        setMessage({ type: 'success', text: `Found ${results.length} focus tracks for "${query}"` });
+      } else {
+        setMessage({ type: 'info', text: `No specific video matches for "${query}". Showing recommended focus tracks.` });
+        setYtTracks(YouTubeAudioService.getHealthyTracks());
+      }
     } catch {
       setYtTracks(YouTubeAudioService.getHealthyTracks());
     } finally {
@@ -1789,10 +1804,11 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                   ].map(cat => (
                     <button
                       key={cat.id}
-                      onClick={() => setYtCategoryFilter(cat.id)}
+                      type="button"
+                      onClick={() => handleSelectCategory(cat.id)}
                       className={`px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
                         ytCategoryFilter === cat.id
-                          ? 'bg-rose-600/20 text-rose-300 border border-rose-500/40 font-semibold'
+                          ? 'bg-rose-600/20 text-rose-300 border border-rose-500/40 font-semibold shadow-sm'
                           : 'bg-zinc-950 text-zinc-400 hover:bg-zinc-800 border border-zinc-800'
                       }`}
                     >
@@ -1803,9 +1819,19 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
 
                 {/* Track Selection List */}
                 <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                  {ytTracks
-                    .filter(t => ytCategoryFilter === 'all' || t.category === ytCategoryFilter)
-                    .map((track) => {
+                  {ytTracks.length === 0 ? (
+                    <div className="p-4 text-center rounded-xl bg-zinc-950/60 border border-zinc-800/80 text-zinc-400 text-xs space-y-2">
+                      <p>No tracks found for this query or category.</p>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectCategory('all')}
+                        className="px-3 py-1 bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-semibold cursor-pointer"
+                      >
+                        Browse All Tracks
+                      </button>
+                    </div>
+                  ) : (
+                    ytTracks.map((track) => {
                       const isSelected = selectedYtTrack?.youtubeId === track.youtubeId;
                       return (
                         <div
@@ -1822,6 +1848,7 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                             <div className="text-[10px] text-zinc-400 truncate">{track.artist} • {track.tag}</div>
                           </div>
                           <button
+                            type="button"
                             className={`p-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
                               isSelected
                                 ? 'bg-rose-600 text-white'
@@ -1832,7 +1859,8 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
                           </button>
                         </div>
                       );
-                    })}
+                    })
+                  )}
                 </div>
 
                 {/* Paste Custom YouTube Link / ID Form */}
