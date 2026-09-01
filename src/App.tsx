@@ -22,12 +22,35 @@ export default function App() {
   const [isFortressMode, setIsFortressMode] = useState(false);
 
   useEffect(() => {
+    // 1. In-app navigation custom event listener
     const handleNavigate = (e: any) => {
       if (e.detail && e.detail.tab) {
         setActiveTab(e.detail.tab);
       }
     };
     window.addEventListener('navigate', handleNavigate);
+
+    // 2. Android PWA / Home Screen Widget Shortcut Deep Linking
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const targetTab = params.get('tab') as ActiveTabType;
+      const validTabs = ['dashboard', 'analytics', 'attendance', 'solver', 'graph', 'chat', 'journal', 'goals', 'pomodoro', 'vault', 'settings', 'feedback'];
+      if (targetTab && validTabs.includes(targetTab)) {
+        setActiveTab(targetTab);
+      }
+
+      const action = params.get('action');
+      if (action === 'microlog') {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('savantix_open_microlog'));
+        }, 350);
+      } else if (action === 'aigateway') {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('savantix_open_ai_gateway', { detail: { open: true } }));
+        }, 350);
+      }
+    } catch {}
+
     return () => window.removeEventListener('navigate', handleNavigate);
   }, []);
 

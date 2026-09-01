@@ -65,15 +65,20 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
         e.preventDefault();
         setIsMicroLoggerOpen(prev => !prev);
       }
-      // Check Alt+G — open AI Gateway drawer
       else if (e.altKey && (e.key === 'g' || e.key === 'G')) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('savantix_open_ai_gateway', { detail: { open: true } }));
       }
     };
 
+    const handleOpenMicroLog = () => setIsMicroLoggerOpen(true);
+    window.addEventListener('savantix_open_microlog', handleOpenMicroLog);
+
     window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('savantix_open_microlog', handleOpenMicroLog);
+    };
   }, []);
 
   const tabs = [

@@ -93,68 +93,113 @@ export class CloudSyncService {
   }
 
   /**
+   * Helper to retrieve and union-merge arrays across multiple potential storage keys.
+   */
+  public static getStoredArray(keys: string[], type: 'log' | 'goal' | 'journal' | 'insight' | 'att' | 'fc' = 'log'): any[] {
+    const combined: any[] = [];
+    const seen = new Set<string>();
+
+    const getSig = (item: any): string => {
+      if (!item || typeof item !== 'object') return '';
+      if (item.id && String(item.id).trim()) return String(item.id).trim();
+      if (type === 'log') {
+        const d = item.date || '';
+        const s = item.subject || '';
+        const dur = item.durationMinutes || 0;
+        const txt = (item.rawText || '').slice(0, 30);
+        return `${d}_${s}_${dur}_${txt}`;
+      }
+      if (type === 'goal') return item.title || JSON.stringify(item);
+      if (type === 'journal') return `${item.date || ''}_${item.title || ''}`;
+      if (type === 'insight') return item.date || item.id || JSON.stringify(item);
+      if (type === 'att') return item.id || item.name || '';
+      if (type === 'fc') return item.id || `${item.front || ''}_${item.deck || ''}`;
+      return JSON.stringify(item);
+    };
+
+    keys.forEach(k => {
+      try {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(item => {
+              if (item && typeof item === 'object') {
+                const sig = getSig(item);
+                if (sig && !seen.has(sig)) {
+                  seen.add(sig);
+                  combined.push(item);
+                }
+              }
+            });
+          }
+        }
+      } catch {}
+    });
+
+    return combined;
+  }
+
+  /**
    * Collects all local storage data into a unified sync snapshot.
    */
   public static getLocalSnapshot(email: string, uid: string): CloudSyncPayload {
     const canonicalId = this.getCanonicalUid(email);
     const userUidKey = uid || canonicalId;
 
-    let logs: any[] = [];
-    let goals: any[] = [];
-    let journal: any[] = [];
-    let insights: any[] = [];
-    let attendance: any[] = [];
+    const logs = this.getStoredArray([
+      `savantix_user_logs_${userUidKey}`,
+      `savantix_user_logs_${canonicalId}`,
+      'savantix_logs_backup_latest',
+      'savantix_guest_logs'
+    ], 'log');
+
+    const goals = this.getStoredArray([
+      `savantix_user_goals_${userUidKey}`,
+      `savantix_user_goals_${canonicalId}`,
+      'savantix_guest_goals'
+    ], 'goal');
+
+    const journal = this.getStoredArray([
+      `savantix_user_journal_${userUidKey}`,
+      `savantix_user_journal_${canonicalId}`,
+      'savantix_guest_journal'
+    ], 'journal');
+
+    const insights = this.getStoredArray([
+      `savantix_user_insights_${userUidKey}`,
+      `savantix_user_insights_${canonicalId}`,
+      'savantix_guest_insights'
+    ], 'insight');
+
+    const attendance = this.getStoredArray([
+      'savantix_attendance_data_v1'
+    ], 'att');
+
     let institutional_attendance: any = null;
-    let flashcards: any[] = [];
-    let examTargets: any[] = [];
-    let streakState: any = null;
-    let profile: any = null;
-
-    try {
-      const rawLogs = localStorage.getItem(`savantix_user_logs_${userUidKey}`) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]';
-      logs = JSON.parse(rawLogs);
-    } catch {}
-
-    try {
-      const rawGoals = localStorage.getItem(`savantix_user_goals_${userUidKey}`) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]';
-      goals = JSON.parse(rawGoals);
-    } catch {}
-
-    try {
-      const rawJournal = localStorage.getItem(`savantix_user_journal_${userUidKey}`) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]';
-      journal = JSON.parse(rawJournal);
-    } catch {}
-
-    try {
-      const rawInsights = localStorage.getItem(`savantix_user_insights_${userUidKey}`) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || localStorage.getItem('savantix_guest_insights') || '[]';
-      insights = JSON.parse(rawInsights);
-    } catch {}
-
-    try {
-      const rawAtt = localStorage.getItem('savantix_attendance_data_v1') || '[]';
-      attendance = JSON.parse(rawAtt);
-    } catch {}
-
     try {
       const rawInst = localStorage.getItem('savantix_attendance_institutional_v1');
       if (rawInst) institutional_attendance = JSON.parse(rawInst);
     } catch {}
 
-    try {
-      const rawFc = localStorage.getItem('savantix_flashcards') || localStorage.getItem(`savantix_flashcards_${userUidKey}`) || '[]';
-      flashcards = JSON.parse(rawFc);
-    } catch {}
+    const flashcards = this.getStoredArray([
+      'savantix_flashcards',
+      `savantix_flashcards_${userUidKey}`
+    ], 'fc');
 
+    let examTargets: any[] = [];
     try {
       const rawTargets = localStorage.getItem('savantix_exam_targets') || '[]';
       examTargets = JSON.parse(rawTargets);
     } catch {}
 
+    let streakState: any = null;
     try {
       const rawStreak = localStorage.getItem('savantix_streak_resilience_state_v1');
       if (rawStreak) streakState = JSON.parse(rawStreak);
     } catch {}
 
+    let profile: any = null;
     try {
       const rawProf = localStorage.getItem(`savantix_user_profile_${userUidKey}`);
       if (rawProf) profile = JSON.parse(rawProf);
@@ -166,14 +211,14 @@ export class CloudSyncService {
       canonicalId,
       lastSyncedAt: new Date().toISOString(),
       deviceInfo: typeof navigator !== 'undefined' ? `${navigator.userAgent.slice(0, 80)}` : 'web-client',
-      logs: Array.isArray(logs) ? logs : [],
-      goals: Array.isArray(goals) ? goals : [],
-      journal: Array.isArray(journal) ? journal : [],
-      insights: Array.isArray(insights) ? insights : [],
-      attendance: Array.isArray(attendance) ? attendance : [],
+      logs,
+      goals,
+      journal,
+      insights,
+      attendance,
       institutional_attendance,
-      flashcards: Array.isArray(flashcards) ? flashcards : [],
-      examTargets: Array.isArray(examTargets) ? examTargets : [],
+      flashcards,
+      examTargets,
       streakState,
       profile
     };
@@ -191,23 +236,44 @@ export class CloudSyncService {
     const localJournalKey = `savantix_user_journal_${userUidKey}`;
     const localInsightsKey = `savantix_user_insights_${userUidKey}`;
 
-    // 1. Merge Logs
-    let localLogs: any[] = [];
-    try { localLogs = JSON.parse(localStorage.getItem(localLogsKey) || '[]'); } catch {}
+    // 1. Merge Logs with composite fingerprint signature
+    const localLogs = this.getStoredArray([
+      localLogsKey,
+      `savantix_user_logs_${canonicalId}`,
+      'savantix_logs_backup_latest',
+      'savantix_guest_logs'
+    ], 'log');
+
+    const getLogSig = (l: any): string => {
+      if (!l || typeof l !== 'object') return '';
+      if (l.id && String(l.id).trim()) return String(l.id).trim();
+      const d = l.date || '';
+      const s = l.subject || '';
+      const dur = l.durationMinutes || 0;
+      const txt = (l.rawText || '').slice(0, 30);
+      return `${d}_${s}_${dur}_${txt}`;
+    };
+
     const logsMap = new Map<string, any>();
     (remote.logs || []).forEach(l => {
-      const sig = l.id || `${l.date}_${l.subject}_${l.topic}`;
-      logsMap.set(sig, l);
+      const sig = getLogSig(l);
+      if (sig) logsMap.set(sig, l);
     });
     localLogs.forEach(l => {
-      const sig = l.id || `${l.date}_${l.subject}_${l.topic}`;
-      if (!logsMap.has(sig)) logsMap.set(sig, l);
+      const sig = getLogSig(l);
+      if (sig && !logsMap.has(sig)) logsMap.set(sig, l);
     });
+
     const mergedLogs = Array.from(logsMap.values()).sort((a, b) => {
       const dateA = a.date || a.createdAt || '';
       const dateB = b.date || b.createdAt || '';
-      return dateB.localeCompare(dateA);
+      const cmp = dateB.localeCompare(dateA);
+      if (cmp !== 0) return cmp;
+      const tA = new Date(a.createdAt || a.date || 0).getTime();
+      const tB = new Date(b.createdAt || b.date || 0).getTime();
+      return tB - tA;
     });
+
     localStorage.setItem(localLogsKey, JSON.stringify(mergedLogs));
     localStorage.setItem(`savantix_user_logs_${canonicalId}`, JSON.stringify(mergedLogs));
     localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(mergedLogs));

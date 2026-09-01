@@ -8,6 +8,12 @@
     <meta name="description" content="Savantix is an advanced AI learning and study optimization system designed for JEE Advanced, Olympiads, and competitive academics." />
     <meta name="keywords" content="study optimization, spaced repetition, AI tutor, JEE Advanced, Olympiad, study planner" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Savantix" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <style>
       :root { color-scheme: dark; }
       html, body { background-color: #09090b; color: #f4f4f5; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; }
@@ -17,5 +23,12 @@
   <body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>
