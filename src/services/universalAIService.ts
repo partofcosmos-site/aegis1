@@ -482,7 +482,6 @@ export class UniversalAIService {
     if (config.providerType === 'google' || baseUrl.includes('generativelanguage.googleapis.com')) {
       const candidateModels = [
         config.selectedModel,
-        'gemini-2.5-flash',
         'gemini-2.0-flash',
         'gemini-2.0-flash-lite'
       ].filter((v, i, a) => a.indexOf(v) === i);
@@ -620,10 +619,8 @@ export class UniversalAIService {
         if (config.providerType === 'google' || baseUrl.includes('generativelanguage.googleapis.com')) {
           const candidateModels = [
             config.selectedModel,
-            'gemini-2.5-flash',
             'gemini-2.0-flash',
-            'gemini-2.0-flash-lite',
-            'gemini-2.5-pro'
+            'gemini-2.0-flash-lite'
           ].filter((v, i, a) => a.indexOf(v) === i);
 
           for (const modelName of candidateModels) {
