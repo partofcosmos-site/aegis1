@@ -84,9 +84,9 @@ export const AI_SERVICES: AIService[] = [
   },
   {
     id: "gemini",
-    name: "Google Gemini 2.5 Pro",
-    shortName: "Gemini 2.5 Pro",
-    description: "Gemini 2.5 Pro — 1M token context & Google Search Grounding",
+    name: "Google Gemini",
+    shortName: "Gemini",
+    description: "Google Gemini — 1M token context & Google Search Grounding",
     color: "from-blue-600 to-indigo-600",
     textColor: "text-blue-400",
     emoji: "✨",

@@ -543,7 +543,7 @@ Recent insights: ${JSON.stringify(insights.slice(0, 2))}`;
         
         const chunkText = processedChunks[i];
         const responseStream = await ai.models.generateContentStream({
-          model: "gemini-2.5-flash-preview-tts",
+          model: "gemini-2.0-flash",
           contents: [{ parts: [{ text: chunkText }] }],
           config: {
             responseModalities: ["AUDIO"],

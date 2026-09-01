@@ -539,7 +539,7 @@ export const Settings = () => {
               <label className="block text-xs font-medium text-zinc-400 mb-1.5">Target Exams (comma separated)</label>
               <input
                 type="text"
-                placeholder="e.g., JEE Advanced 2026, IPhO, MIT SAT"
+                placeholder="e.g., IPhO Gold Track / NSEP 2026-2027, JEE Advanced 2028, ISI / CMI 2028, CBSE Class 12 Boards (2028)"
                 value={targetExams}
                 onChange={(e) => setTargetExams(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500"
@@ -700,7 +700,7 @@ response = client.chat.completions.create(model="meta-llama/Llama-3-70b-chat-hf"
                           { id: 'qwen/qwen-2.5-72b-instruct:free', label: 'Qwen 72B (Free)', desc: 'Math' },
                           { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', desc: 'Multimodal' },
                           { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', desc: '1M Context' },
-                          { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', desc: 'Reasoning' }
+                          { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', desc: 'Fast' }
                         ].map(preset => (
                           <button
                             key={preset.id}

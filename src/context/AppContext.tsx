@@ -343,8 +343,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
         });
 
-        // Trigger background cloud sync on app start
-        CloudSyncService.pullFromCloud(parsed.email, parsed.uid);
+        // Trigger background cloud sync on app start and rehydrate state
+        CloudSyncService.pullFromCloud(parsed.email, parsed.uid).then(res => {
+          if (res.success) {
+            const lLogs = JSON.parse(localStorage.getItem(savedLogsKey) || '[]');
+            const lGoals = JSON.parse(localStorage.getItem(savedGoalsKey) || '[]');
+            const lJournal = JSON.parse(localStorage.getItem(savedJournalKey) || '[]');
+            const lInsights = JSON.parse(localStorage.getItem(savedInsightsKey) || '[]');
+            if (lLogs.length) setLogs(lLogs);
+            if (lGoals.length) setGoals(lGoals);
+            if (lJournal.length) setJournalEntries(lJournal);
+            if (lInsights.length) setInsights(lInsights);
+            setSyncStatus({
+              isSyncing: false,
+              lastSyncedAt: res.timestamp,
+              message: res.message
+            });
+          }
+        });
       } catch {}
     } else if (localStorage.getItem('savantix_is_guest') === 'true') {
       const guestUser = { uid: 'guest_user', email: 'guest@savantix.app', displayName: 'Guest Scholar' };
