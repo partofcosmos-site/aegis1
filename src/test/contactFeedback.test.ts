@@ -56,7 +56,7 @@ if (typeof globalThis.localStorage === 'undefined') {
 const DRAFT_STORAGE_KEY = 'savantix_feedback_draft';
 const HISTORY_STORAGE_KEY = 'savantix_submitted_feedback';
 const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/savantix.core@gmail.com';
-const FOUNDER_EMAIL = 'support@savantix.app';
+const GITHUB_ISSUES_URL = 'https://github.com/partofcosmos-site/aegis1/issues';
 
 // ─── VALIDATION ENGINE MIRROR ──────────────────────────────────────────────
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -96,10 +96,8 @@ export function validateFormFields(formData: {
   };
 }
 
-export function generateMailtoUrl(params: {
+export function generateIssuesUrl(params: {
   category: FeedbackCategory;
-  name: string;
-  email: string;
   subject: string;
   message: string;
   priority?: FeaturePriority;
@@ -108,15 +106,15 @@ export function generateMailtoUrl(params: {
   includeDiagnostics?: boolean;
   diagnosticsData?: Record<string, any>;
 }): string {
-  const sub = encodeURIComponent(`[Savantix ${params.category.toUpperCase()}] ${params.subject || 'Feedback'}`);
-  let body = `Hello Savantix Support Team,\n\nName: ${params.name}\nEmail: ${params.email}\nCategory: ${params.category}\n`;
-  if (params.category === 'feature') body += `Priority: ${params.priority || 'medium'}\n`;
-  if (params.category === 'academic') body += `Focus: ${params.academicFocus || 'ipho'}\nAffiliation: ${params.affiliation || 'Independent'}\n`;
-  body += `\nMessage:\n${params.message}\n`;
+  const title = encodeURIComponent(`[Savantix ${params.category.toUpperCase()}] ${params.subject || 'Feedback'}`);
+  let body = `### Feedback Category\n${params.category.toUpperCase()}\n\n`;
+  if (params.category === 'feature') body += `**Priority**: ${params.priority || 'medium'}\n\n`;
+  if (params.category === 'academic') body += `**Focus**: ${params.academicFocus || 'ipho'}\n**Affiliation**: ${params.affiliation || 'Independent'}\n\n`;
+  body += `### Message\n${params.message}\n\n`;
   if (params.includeDiagnostics && params.diagnosticsData) {
-    body += `\n--- Diagnostics ---\n${JSON.stringify(params.diagnosticsData, null, 2)}\n`;
+    body += `### Diagnostics\n\`\`\`json\n${JSON.stringify(params.diagnosticsData, null, 2)}\n\`\`\`\n`;
   }
-  return `mailto:${FOUNDER_EMAIL}?subject=${sub}&body=${encodeURIComponent(body)}`;
+  return `${GITHUB_ISSUES_URL}/new?title=${title}&body=${encodeURIComponent(body)}`;
 }
 
 export function formatFormSubmitPayload(params: {
@@ -317,24 +315,21 @@ export async function runContactFeedbackTests() {
     assert(academicPayload.affiliation === 'National Physics Team', 'Academic payload must include affiliation');
   });
 
-  // 3. Mailto Fallback Generator
-  test('Mailto fallback: generates RFC 6068 compliant mailto URL with correct encoding', () => {
-    const mailto = generateMailtoUrl({
+  // 3. GitHub Issues URL Generator
+  test('GitHub Issues generator: produces valid issue creation URL with parameters', () => {
+    const issues = generateIssuesUrl({
       category: 'bug',
-      name: 'Scholar Researcher',
-      email: 'scholar@savantix.app',
       subject: 'LaTeX & Formula Parser Issue #42',
       message: 'Formula rendering fails on $\\alpha + \\beta$ & <special> chars.',
       includeDiagnostics: true,
       diagnosticsData: { platform: 'Windows', browser: 'Chrome 130' }
     });
 
-    assert(mailto.startsWith(`mailto:${FOUNDER_EMAIL}`), 'Must target founder email');
-    assert(mailto.includes('subject='), 'Must contain subject parameter');
-    assert(mailto.includes('body='), 'Must contain body parameter');
-    assert(mailto.includes('%5BSavantix%20BUG%5D'), 'Subject must encode [Savantix BUG]');
-    assert(mailto.includes('Scholar%20Researcher'), 'Body must encode user name');
-    assert(mailto.includes('Chrome%20130'), 'Body must encode diagnostics data');
+    assert(issues.startsWith(GITHUB_ISSUES_URL), 'Must target GitHub repository issues');
+    assert(issues.includes('title='), 'Must contain title parameter');
+    assert(issues.includes('body='), 'Must contain body parameter');
+    assert(issues.includes('%5BSavantix%20BUG%5D'), 'Title must encode [Savantix BUG]');
+    assert(issues.includes('Chrome%20130'), 'Body must encode diagnostics data');
   });
 
   // 4. FormSubmit Payload & Clipboard Layout

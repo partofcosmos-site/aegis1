@@ -55,7 +55,7 @@ export interface SubmittedTicket {
 const DRAFT_STORAGE_KEY = 'savantix_feedback_draft';
 const HISTORY_STORAGE_KEY = 'savantix_submitted_feedback';
 const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/savantix.core@gmail.com';
-const FOUNDER_EMAIL = 'support@savantix.app';
+const GITHUB_ISSUES_URL = 'https://github.com/partofcosmos-site/aegis1/issues';
 const FOUNDER_GITHUB = 'https://github.com/partofcosmos-site/aegis1';
 
 export const ContactFeedback: React.FC = () => {
@@ -246,18 +246,18 @@ export const ContactFeedback: React.FC = () => {
     return content;
   };
 
-  // Generate mailto link
-  const mailtoUrl = useMemo(() => {
-    const sub = encodeURIComponent(`[Savantix ${category.toUpperCase()}] ${subject || 'Feedback'}`);
-    let body = `Hello Savantix Support Team,\n\nName: ${name}\nEmail: ${email}\nCategory: ${category}\n`;
-    if (category === 'feature') body += `Priority: ${priority}\n`;
-    if (category === 'academic') body += `Focus: ${academicFocus}\nAffiliation: ${affiliation}\n`;
-    body += `\nMessage:\n${message}\n`;
+  // Generate GitHub Issue link
+  const issuesUrl = useMemo(() => {
+    const title = encodeURIComponent(`[Savantix ${category.toUpperCase()}] ${subject || 'Feedback'}`);
+    let body = `### Feedback Category\n${category.toUpperCase()}\n\n`;
+    if (category === 'feature') body += `**Priority**: ${priority}\n\n`;
+    if (category === 'academic') body += `**Focus**: ${academicFocus}\n**Affiliation**: ${affiliation}\n\n`;
+    body += `### Message\n${message}\n\n`;
     if (includeDiagnostics) {
-      body += `\n--- Diagnostics ---\n${JSON.stringify(diagnosticsData, null, 2)}\n`;
+      body += `### Diagnostics\n\`\`\`json\n${JSON.stringify(diagnosticsData, null, 2)}\n\`\`\`\n`;
     }
-    return `mailto:${FOUNDER_EMAIL}?subject=${sub}&body=${encodeURIComponent(body)}`;
-  }, [category, subject, name, email, priority, academicFocus, affiliation, message, includeDiagnostics, diagnosticsData]);
+    return `${GITHUB_ISSUES_URL}/new?title=${title}&body=${encodeURIComponent(body)}`;
+  }, [category, subject, priority, academicFocus, affiliation, message, includeDiagnostics, diagnosticsData]);
 
   // Copy Payload Handler
   const handleCopyPayload = async () => {
@@ -652,12 +652,14 @@ export const ContactFeedback: React.FC = () => {
                     {/* Instant 1-Click Fallback Buttons */}
                     <div className="flex flex-wrap gap-2 pt-1">
                       <a
-                        href={mailtoUrl}
-                        onClick={() => saveTicketToHistory('mailto Fallback')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
+                        href={issuesUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => saveTicketToHistory('Clipboard Export')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
                       >
-                        <Mail className="w-3.5 h-3.5" />
-                        <span>Send via Email Client (mailto:)</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Open GitHub Issue</span>
                       </a>
                       <button
                         type="button"
@@ -1177,16 +1179,11 @@ export const ContactFeedback: React.FC = () => {
 
                 <div className="pt-2 space-y-2 border-t border-zinc-800/80">
                   <div className="flex items-center justify-between text-xs py-1">
-                    <span className="text-zinc-500">Support Email:</span>
-                    <button
-                      type="button"
-                      onClick={handleCopyFounderEmail}
-                      className="font-mono text-zinc-300 hover:text-indigo-300 flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Copy Email"
-                    >
-                      <span>{FOUNDER_EMAIL}</span>
-                      {copiedEmail ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-zinc-500" />}
-                    </button>
+                    <span className="text-zinc-500">Initiative:</span>
+                    <span className="font-medium text-indigo-300 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-indigo-400" />
+                      Part of Cosmos
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between text-xs py-1">
@@ -1206,20 +1203,22 @@ export const ContactFeedback: React.FC = () => {
                 {/* Quick Action Links */}
                 <div className="pt-2 grid grid-cols-2 gap-2">
                   <a
-                    href={`mailto:${FOUNDER_EMAIL}?subject=[Savantix%20Inquiry]%20Direct%20Connect`}
+                    href={`${FOUNDER_GITHUB}/issues`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="px-3 py-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-zinc-700 cursor-pointer text-center"
                   >
-                    <Mail className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Direct Mail</span>
+                    <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Open Issue</span>
                   </a>
 
                   <button
                     type="button"
-                    onClick={handleCopyFounderEmail}
+                    onClick={handleCopyPayload}
                     className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-zinc-800 cursor-pointer"
                   >
                     <Copy className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Copy Address</span>
+                    <span>{copiedPayload ? 'Copied!' : 'Copy Ticket'}</span>
                   </button>
                 </div>
               </div>
