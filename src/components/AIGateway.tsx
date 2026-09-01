@@ -12,6 +12,7 @@ import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { SocraticStemEngine, SocraticSolution } from "../utils/socraticStemEngine";
+import { UniversalAIService } from "../services/universalAIService";
 
 // ─────────────────────────────────────────────────────────
 // AI Service Interface & Roster
@@ -270,6 +271,7 @@ export const AIGatewayDrawer: React.FC<AIGatewayDrawerProps> = ({ isOpen, onClos
   const [copiedDerivation, setCopiedDerivation] = useState(false);
   const [launchToast, setLaunchToast] = useState<{ name: string; message: string; type: 'success' | 'info' } | null>(null);
   const [inAppSolution, setInAppSolution] = useState<SocraticSolution | null>(null);
+  const [isSolvingInApp, setIsSolvingInApp] = useState(false);
   const [activeTab, setActiveTab] = useState<'gateways' | 'in_app'>('gateways');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -305,18 +307,85 @@ export const AIGatewayDrawer: React.FC<AIGatewayDrawerProps> = ({ isOpen, onClos
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Instant In-App Solve Handler (No Login Required)
-  const handleSolveInApp = useCallback(() => {
-    if (!query.trim()) return;
-    const sol = SocraticStemEngine.deriveSolution(query.trim());
-    setInAppSolution(sol);
+  // Dynamic Live Socratic Derivation Handler (Real-Time AI with Offline Fallback)
+  const handleSolveInApp = useCallback(async () => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+
+    setIsSolvingInApp(true);
     setActiveTab('in_app');
-    setLaunchToast({
-      name: "Savantix In-App Engine",
-      message: "Generated 4-Tier Socratic Derivation with KaTeX formulas (Zero Login • 100% Offline)",
-      type: "success"
-    });
-    setTimeout(() => setLaunchToast(null), 4500);
+
+    try {
+      // 1. Attempt live dynamic derivation synthesis via Universal AI / Gemini 3
+      const schemaDesc = `{
+        "id": "string",
+        "title": "string",
+        "subject": "Physics | Mathematics | Chemistry",
+        "difficulty": "JEE Advanced / Olympiad",
+        "topic": "string",
+        "problemStatement": "string",
+        "tier1": {
+          "title": "Tier 1: Core Physical Intuition & Mental Model",
+          "conceptualOverview": "string",
+          "mentalModel": "string",
+          "selfCheckPrompt": "string"
+        },
+        "tier2": {
+          "title": "Tier 2: Governing Laws & Coordinate Setup",
+          "principles": ["string"],
+          "equations": [{"name": "string", "latex": "string", "description": "string"}],
+          "coordinateSetup": "string"
+        },
+        "tier3": {
+          "title": "Tier 3: Step-by-Step Mathematical Derivation",
+          "steps": [{"stepNumber": 1, "title": "string", "explanation": "string", "intermediateLatex": "string", "keyInsight": "string"}],
+          "criticalSubstitutions": ["string"]
+        },
+        "tier4": {
+          "title": "Tier 4: Exact Result & Rigorous Proof",
+          "finalAnswerLatex": "string",
+          "fullRigorousProof": "string",
+          "dimensionalCheck": "string",
+          "numericalExample": "string"
+        }
+      }`;
+
+      const aiSol = await UniversalAIService.executeJsonRequest<SocraticSolution>(
+        `Synthesize a complete 4-Tier Socratic Derivation for this STEM problem with exact KaTeX LaTeX formulas:
+Problem: "${trimmed}"
+
+Requirements:
+- Tier 1: Deep physical intuition and mental models.
+- Tier 2: Conservation laws and coordinate systems.
+- Tier 3: Rigorous algebraic steps with intermediate LaTeX equations ($...$ or $$...$$).
+- Tier 4: Final boxed analytical solution with dimensional homogeneity verification.`,
+        schemaDesc
+      );
+
+      if (aiSol && aiSol.tier1 && aiSol.tier3?.steps?.length > 0) {
+        setInAppSolution(aiSol);
+        setLaunchToast({
+          name: "Socratic AI Engine",
+          message: "Synthesized dynamic first-principles proof with KaTeX formulas!",
+          type: "success"
+        });
+      } else {
+        throw new Error("Invalid structure returned");
+      }
+    } catch (err) {
+      // 2. Offline deterministic fallback
+      console.warn("Live Socratic synthesis offline fallback:", err);
+      const sol = SocraticStemEngine.deriveSolution(trimmed);
+      setInAppSolution(sol);
+      setLaunchToast({
+        name: "Socratic Offline Engine",
+        message: "Generated 4-Tier Socratic Derivation (Zero Login • Offline Ready)",
+        type: "info"
+      });
+    } finally {
+      setIsSolvingInApp(false);
+      setTimeout(() => setLaunchToast(null), 4500);
+    }
   }, [query]);
 
   // Launch external AI handler with auto-copy
@@ -354,6 +423,52 @@ export const AIGatewayDrawer: React.FC<AIGatewayDrawerProps> = ({ isOpen, onClos
 
     setTimeout(() => setLaunchToast(null), 5000);
   }, [query, handleSolveInApp]);
+
+  // Comprehensive Cross-Verification Handler: copies entire derivation + verification prompt to clipboard
+  const handleCrossVerify = useCallback(async (service: AIService) => {
+    if (!inAppSolution) return;
+
+    const payload = `### Socratic Derivation & Proof Audit Request
+**Problem / Concept**: ${query.trim()}
+**Subject Domain**: ${inAppSolution.subject} — ${inAppSolution.title}
+
+#### 1. Physical Intuition & Mental Model:
+${inAppSolution.tier1.conceptualOverview}
+*Mental Model*: ${inAppSolution.tier1.mentalModel}
+
+#### 2. Governing Laws & Setup:
+Coordinate Setup: ${inAppSolution.tier2.coordinateSetup}
+Equations:
+${inAppSolution.tier2.equations.map(e => `- ${e.name} (${e.description}): $$${e.latex}$$`).join('\n')}
+
+#### 3. Step-by-Step Derivation:
+${inAppSolution.tier3.steps.map(s => `Step ${s.stepNumber} (${s.title}):\n${s.explanation}\n$$${s.intermediateLatex}$$\n*Key Insight*: ${s.keyInsight}`).join('\n\n')}
+
+#### 4. Final Result & Boundary Checks:
+Final Analytical Result: $$${inAppSolution.tier4.finalAnswerLatex}$$
+*Dimensional Homogeneity*: ${inAppSolution.tier4.dimensionalCheck}
+*Rigorous Proof*: ${inAppSolution.tier4.fullRigorousProof}
+
+---
+### Verification Directives for ${service.name}:
+1. Rigorously cross-verify every algebraic step, sign convention, and integration limit in this proof.
+2. Verify dimensional consistency and physical boundary limits (e.g. initial conditions and asymptotic limits).
+3. Identify any subtle mathematical oversights, approximations, or hidden assumptions.
+4. Provide alternative Olympiad / First-Principles shortcuts if applicable.`;
+
+    await copyToClipboard(payload);
+    setCopiedId(service.id);
+    setTimeout(() => setCopiedId(null), 2500);
+
+    window.open(service.baseUrl, "_blank", "noopener,noreferrer");
+
+    setLaunchToast({
+      name: `Cross-Verification on ${service.name}`,
+      message: `Full proof & audit prompt copied to clipboard! Paste (Ctrl+V) into ${service.shortName} to audit this derivation.`,
+      type: "success"
+    });
+    setTimeout(() => setLaunchToast(null), 6000);
+  }, [inAppSolution, query]);
 
   // Copy full Socratic derivation in LaTeX + Markdown
   const handleCopyFullDerivation = async () => {
@@ -594,147 +709,181 @@ export const AIGatewayDrawer: React.FC<AIGatewayDrawerProps> = ({ isOpen, onClos
             ))}
           </div>
 
-          {activeTab === 'in_app' && inAppSolution ? (
-            /* In-App Socratic Derivation View with KaTeX */
-            <div className="bg-zinc-950/90 border border-indigo-500/30 rounded-2xl p-5 space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-3 flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full uppercase">
-                    {inAppSolution.subject}
-                  </span>
-                  <h3 className="text-sm font-bold text-zinc-100">{inAppSolution.title}</h3>
+          {activeTab === 'in_app' ? (
+            isSolvingInApp ? (
+              /* Live Socratic Synthesis Loader */
+              <div className="bg-zinc-950/90 border border-indigo-500/40 rounded-2xl p-8 flex flex-col items-center justify-center space-y-4 text-center animate-fadeIn min-h-[320px]">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-lg shadow-indigo-500/20 animate-pulse">
+                  <Sparkles className="w-7 h-7 text-indigo-400 animate-spin" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleCopyFullDerivation}
-                    className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer border border-zinc-700"
-                    title="Copy full derivation with LaTeX formulas to clipboard"
-                  >
-                    {copiedDerivation ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedDerivation ? "Copied LaTeX" : "Copy Derivation"}</span>
-                  </button>
-                  <div className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Zero-Login Socratic Verified</span>
+                <div className="space-y-1 max-w-md">
+                  <h3 className="text-base font-bold text-zinc-100">Synthesizing First-Principles Derivation</h3>
+                  <p className="text-xs text-zinc-400">
+                    Constructing 4-Tier Socratic physical intuition, governing Euler-Lagrange equations, and KaTeX mathematical proofs...
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-indigo-400 font-mono bg-indigo-950/50 px-3 py-1 rounded-full border border-indigo-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+                  <span>Gemini 3 / Socratic Mathematical Kernel Active</span>
+                </div>
+              </div>
+            ) : inAppSolution ? (
+              /* In-App Socratic Derivation View with KaTeX */
+              <div className="bg-zinc-950/90 border border-indigo-500/30 rounded-2xl p-4 sm:p-5 space-y-4 animate-fadeIn">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-3 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full uppercase">
+                      {inAppSolution.subject}
+                    </span>
+                    <h3 className="text-sm font-bold text-zinc-100">{inAppSolution.title}</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyFullDerivation}
+                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer border border-zinc-700"
+                      title="Copy full derivation with LaTeX formulas to clipboard"
+                    >
+                      {copiedDerivation ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedDerivation ? "Copied LaTeX" : "Copy Derivation"}</span>
+                    </button>
+                    <div className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Zero-Login Socratic Verified</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4-Tier Display */}
+                <div className="space-y-3.5 text-xs leading-relaxed text-zinc-300">
+                  {/* Tier 1 */}
+                  <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3.5 space-y-2">
+                    <div className="font-semibold text-indigo-300 flex items-center gap-1.5">
+                      <Brain className="w-4 h-4 text-indigo-400" />
+                      <span>{inAppSolution.tier1.title}</span>
+                    </div>
+                    <p className="text-zinc-300">{inAppSolution.tier1.conceptualOverview}</p>
+                    <div className="text-zinc-300 italic bg-zinc-950/80 p-2.5 rounded-lg border border-zinc-800">
+                      💡 <strong>Mental Model:</strong> {inAppSolution.tier1.mentalModel}
+                    </div>
+                    <div className="text-amber-300/90 text-[11px] bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                      ❓ <strong>Self-Check Prompt:</strong> {inAppSolution.tier1.selfCheckPrompt}
+                    </div>
+                  </div>
+
+                  {/* Tier 2 */}
+                  <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3.5 space-y-2">
+                    <div className="font-semibold text-emerald-300 flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4 text-emerald-400" />
+                      <span>{inAppSolution.tier2.title}</span>
+                    </div>
+                    <p className="text-zinc-400 text-[11px]">Coordinate Setup: {inAppSolution.tier2.coordinateSetup}</p>
+                    <div className="space-y-2 mt-2">
+                      {inAppSolution.tier2.equations.map((eq, i) => (
+                        <div key={i} className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
+                          <div className="text-[11px] text-zinc-400 font-medium mb-1">{eq.name}: {eq.description}</div>
+                          <div className="overflow-x-auto py-1 font-mono text-center text-indigo-200">
+                            <Markdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                              {`$$${eq.latex}$$`}
+                            </Markdown>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tier 3 */}
+                  <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3.5 space-y-3">
+                    <div className="font-semibold text-purple-300 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-purple-400" />
+                      <span>{inAppSolution.tier3.title}</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {inAppSolution.tier3.steps.map((step, i) => (
+                        <div key={i} className="border-l-2 border-indigo-500 pl-3.5 py-1 bg-zinc-950/40 rounded-r-lg">
+                          <div className="font-semibold text-zinc-200 text-xs">Step {step.stepNumber}: {step.title}</div>
+                          <div className="text-zinc-400 mt-0.5">{step.explanation}</div>
+                          <div className="my-2 overflow-x-auto py-1 font-mono text-indigo-300 text-center bg-zinc-950 p-2 rounded border border-zinc-800/80">
+                            <Markdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                              {`$$${step.intermediateLatex}$$`}
+                            </Markdown>
+                          </div>
+                          <div className="text-[11px] text-indigo-300 italic">Key Insight: {step.keyInsight}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tier 4 */}
+                  <div className="bg-zinc-900/80 border border-amber-500/30 rounded-xl p-3.5 space-y-2.5">
+                    <div className="font-semibold text-amber-300 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span>{inAppSolution.tier4.title}</span>
+                    </div>
+
+                    <div className="bg-zinc-950 p-3 rounded-xl border border-amber-500/40 text-center font-mono text-amber-200">
+                      <div className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-1 font-semibold">Exact Analytical Result</div>
+                      <div className="overflow-x-auto py-1">
+                        <Markdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                          {`$$${inAppSolution.tier4.finalAnswerLatex}$$`}
+                        </Markdown>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      <div className="bg-zinc-950/80 p-2.5 rounded-lg border border-zinc-800">
+                        <strong className="text-emerald-400">Dimensional Verification:</strong>
+                        <p className="text-zinc-400 mt-0.5">{inAppSolution.tier4.dimensionalCheck}</p>
+                      </div>
+                      <div className="bg-zinc-950/80 p-2.5 rounded-lg border border-zinc-800">
+                        <strong className="text-indigo-400">Rigorous Assessment:</strong>
+                        <p className="text-zinc-400 mt-0.5">{inAppSolution.tier4.fullRigorousProof}</p>
+                      </div>
+                    </div>
+
+                    {/* True Proof Cross-Verification Action Strip */}
+                    <div className="pt-3 border-t border-zinc-800 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                        <span className="font-semibold text-indigo-300 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Audit & Cross-Verify this Full Derivation:</span>
+                        </span>
+                        <span className="text-[10px] text-zinc-500 hidden sm:inline">Auto-copies full 4-tier proof</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {["deepseek", "chatgpt", "claude", "gemini", "notebooklm", "wolfram"].map(svcId => {
+                          const svc = AI_SERVICES.find(s => s.id === svcId);
+                          if (!svc) return null;
+                          return (
+                            <button
+                              key={svc.id}
+                              type="button"
+                              onClick={() => handleCrossVerify(svc)}
+                              className="px-2.5 py-1.5 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-indigo-500/40 rounded-lg text-xs text-zinc-200 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer group shadow-sm"
+                              title={`Cross-verify derivation on ${svc.name} (Copies full proof & audit directives)`}
+                            >
+                              <span>{svc.emoji}</span>
+                              <span className="font-medium">{svc.shortName}</span>
+                              <ArrowUpRight className="w-3 h-3 text-zinc-500 group-hover:text-indigo-400 transition-colors" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              {/* 4-Tier Display */}
-              <div className="space-y-3.5 text-xs leading-relaxed text-zinc-300">
-                {/* Tier 1 */}
-                <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3.5 space-y-2">
-                  <div className="font-semibold text-indigo-300 flex items-center gap-1.5">
-                    <Brain className="w-4 h-4 text-indigo-400" />
-                    <span>Tier 1: {inAppSolution.tier1.title}</span>
-                  </div>
-                  <p className="text-zinc-300">{inAppSolution.tier1.conceptualOverview}</p>
-                  <div className="text-zinc-300 italic bg-zinc-950/80 p-2.5 rounded-lg border border-zinc-800">
-                    💡 <strong>Mental Model:</strong> {inAppSolution.tier1.mentalModel}
-                  </div>
-                  <div className="text-amber-300/90 text-[11px] bg-amber-500/10 p-2 rounded border border-amber-500/20">
-                    ❓ <strong>Self-Check Prompt:</strong> {inAppSolution.tier1.selfCheckPrompt}
-                  </div>
+            ) : (
+              <div className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto">
+                  <Brain className="w-6 h-6" />
                 </div>
-
-                {/* Tier 2 */}
-                <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3.5 space-y-2">
-                  <div className="font-semibold text-emerald-300 flex items-center gap-1.5">
-                    <BookOpen className="w-4 h-4 text-emerald-400" />
-                    <span>Tier 2: {inAppSolution.tier2.title}</span>
-                  </div>
-                  <p className="text-zinc-400 text-[11px]">Coordinate Setup: {inAppSolution.tier2.coordinateSetup}</p>
-                  <div className="space-y-2 mt-2">
-                    {inAppSolution.tier2.equations.map((eq, i) => (
-                      <div key={i} className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800">
-                        <div className="text-[11px] text-zinc-400 font-medium mb-1">{eq.name}: {eq.description}</div>
-                        <div className="overflow-x-auto py-1 font-mono text-center text-indigo-200">
-                          <Markdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                            {`$$${eq.latex}$$`}
-                          </Markdown>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tier 3 */}
-                <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3.5 space-y-3">
-                  <div className="font-semibold text-purple-300 flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-purple-400" />
-                    <span>Tier 3: {inAppSolution.tier3.title}</span>
-                  </div>
-                  <div className="space-y-2.5">
-                    {inAppSolution.tier3.steps.map((step, i) => (
-                      <div key={i} className="border-l-2 border-indigo-500 pl-3.5 py-1 bg-zinc-950/40 rounded-r-lg">
-                        <div className="font-semibold text-zinc-200 text-xs">Step {step.stepNumber}: {step.title}</div>
-                        <div className="text-zinc-400 mt-0.5">{step.explanation}</div>
-                        <div className="my-2 overflow-x-auto py-1 font-mono text-indigo-300 text-center bg-zinc-950 p-2 rounded border border-zinc-800/80">
-                          <Markdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                            {`$$${step.intermediateLatex}$$`}
-                          </Markdown>
-                        </div>
-                        <div className="text-[11px] text-indigo-300 italic">Key Insight: {step.keyInsight}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tier 4 */}
-                <div className="bg-zinc-900/80 border border-amber-500/30 rounded-xl p-3.5 space-y-2.5">
-                  <div className="font-semibold text-amber-300 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>Tier 4: {inAppSolution.tier4.title}</span>
-                  </div>
-
-                  <div className="bg-zinc-950 p-3 rounded-xl border border-amber-500/40 text-center font-mono text-amber-200">
-                    <div className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-1 font-semibold">Exact Analytical Result</div>
-                    <div className="overflow-x-auto py-1">
-                      <Markdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                        {`$$${inAppSolution.tier4.finalAnswerLatex}$$`}
-                      </Markdown>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                    <div className="bg-zinc-950/80 p-2.5 rounded-lg border border-zinc-800">
-                      <strong className="text-emerald-400">Dimensional Verification:</strong>
-                      <p className="text-zinc-400 mt-0.5">{inAppSolution.tier4.dimensionalCheck}</p>
-                    </div>
-                    <div className="bg-zinc-950/80 p-2.5 rounded-lg border border-zinc-800">
-                      <strong className="text-indigo-400">Rigorous Assessment:</strong>
-                      <p className="text-zinc-400 mt-0.5">{inAppSolution.tier4.fullRigorousProof}</p>
-                    </div>
-                  </div>
-
-                  {/* Cross-Verification Action Strip */}
-                  <div className="pt-2 border-t border-zinc-800">
-                    <div className="text-[11px] text-zinc-400 font-semibold mb-1.5 flex items-center gap-1">
-                      <span>Cross-verify this proof on Frontier AI:</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {["deepseek", "chatgpt", "claude", "gemini", "wolfram"].map(svcId => {
-                        const svc = AI_SERVICES.find(s => s.id === svcId);
-                        if (!svc) return null;
-                        return (
-                          <button
-                            key={svc.id}
-                            type="button"
-                            onClick={() => handleLaunch(svc)}
-                            className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs text-zinc-300 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
-                          >
-                            <span>{svc.emoji}</span>
-                            <span>{svc.shortName}</span>
-                            <ArrowUpRight className="w-3 h-3 text-zinc-500" />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
+                <h3 className="text-sm font-bold text-zinc-200">No Derivation Loaded Yet</h3>
+                <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                  Type a STEM problem or formula above and click <strong>Solve In-App</strong> to synthesize a 4-Tier first-principles derivation.
+                </p>
               </div>
-            </div>
+            )
           ) : (
             /* AI Gateways Grid */
             <div className="space-y-3">
