@@ -57,6 +57,7 @@ const HISTORY_STORAGE_KEY = 'savantix_submitted_feedback';
 const FORMSUBMIT_ENDPOINT = 'https://formsubmit.co/ajax/savantix.core@gmail.com';
 const GITHUB_ISSUES_URL = 'https://github.com/partofcosmos-site/aegis1/issues';
 const FOUNDER_GITHUB = 'https://github.com/partofcosmos-site/aegis1';
+export const FOUNDER_EMAIL = 'debanjan8686@gmail.com';
 
 export const ContactFeedback: React.FC = () => {
   const { user } = useAppContext();

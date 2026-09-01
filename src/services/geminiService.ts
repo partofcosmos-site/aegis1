@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from '@google/genai';
 import { AIVaultService } from './aiVaultService';
 
-const WORKING_MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+const WORKING_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro'];
 
 const getApiKey = () => {
   const envKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
@@ -389,7 +389,7 @@ export const createChatSession = (logs: any[], insights: any[]) => {
   `;
 
   return ai.chats.create({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     config: {
       systemInstruction: `You are Savantix, an elite AI study optimization assistant for serious students (JEE Advanced, Olympiads). You are highly analytical, concise, and strategic. You do not coddle the user; you provide objective, data-driven advice to maximize their study ROI. You respect their constraints (school, fatigue) and focus on high-leverage activities.
       

@@ -688,7 +688,7 @@ export const Goals = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Master Rotational Dynamics (Irodov Level) or Organic Reaction Mechanisms"
+                  placeholder="e.g. IPhO Gold Track: Rotational Dynamics (Pathfinder / Irodov) or JEE Adv 2028 Math"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
@@ -701,7 +701,7 @@ export const Goals = () => {
                   Description / Study Strategy (Optional)
                 </label>
                 <textarea
-                  placeholder="Key focus areas, reference books (HC Verma, Pathfinder, Cengage), and problem targets..."
+                  placeholder="Key focus areas, reference books (Pathfinder, Irodov, Krotov, Cengage, 2028 milestones)..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full h-20 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none text-sm"

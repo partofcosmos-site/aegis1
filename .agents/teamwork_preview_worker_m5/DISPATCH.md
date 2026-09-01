@@ -1,52 +1,29 @@
-# Milestone 5: R5 — Elastic Streak Health Bar & Resilience Token Engine Implementation
+## 2026-09-01T10:31:30Z
 
-## Working Directory
-`C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m5`
+<USER_REQUEST>
+You are Worker 5 for Savantix (Aegis).
+Working directory: C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m5
+Project root: C:\Users\white\master-hub\aegis1
+Original request file: C:\Users\white\master-hub\aegis1\.agents\ORIGINAL_REQUEST.md
 
-## Project Workspace
-`C:\Users\white\master-hub\aegis1`
-
-## Scope & Assigned Files
-- `src/utils/streakResilienceEngine.ts` (create elastic HP & shield token engine)
-- `src/components/Dashboard.tsx` (integrate 100 HP health bar & shield token display)
-- `src/components/StudyHeatmap.tsx` (integrate resilience status badges)
-- `src/context/AppContext.tsx` (persist streak resilience state in localStorage)
-
-## Requirements & Specifications
-Reference files to read:
-- `C:\Users\white\master-hub\aegis1\.agents\ORIGINAL_REQUEST.md`
-- `C:\Users\white\master-hub\aegis1\PROJECT.md`
-- `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_explorer_survey_3\survey_report.md` (Section 6)
-
-Key Implementation Details:
-1. **`src/utils/streakResilienceEngine.ts`**:
-   - `evaluateElasticStreak(currentState: ElasticStreakState, dailyLogs: DailyLogSummary[], targetMinutesDaily?: number): ElasticStreakState`
-   - State interface:
-     - `currentHP`: 0–100 (starts at 100)
-     - `maxHP`: 100
-     - `shieldTokens`: 0–3 (starts at 2 onboarding shields)
-     - `maxShieldTokens`: 3
-     - `activeStreakDays`: integer count
-     - `longestStreakDays`: integer count
-     - `lastEvaluatedDate`: 'yyyy-MM-dd'
-     - `history`: log of daily HP deltas and shield triggers
-   - Daily rules:
-     - Missed study ($T_{\text{actual}} = 0$): If $\mathcal{T} > 0$, auto-consume 1 shield token ($\mathcal{T} \leftarrow \mathcal{T} - 1$), $0\text{ HP}$ loss, streak FROZEN. If $\mathcal{T} = 0$, $HP \leftarrow \max(0, HP - 35)$. If $HP = 0$, streak resets to 0.
-     - Partial study ($0 < T_{\text{actual}} < T_{\text{target}}$): $HP \leftarrow \max(0, HP - 20(1 - T_{\text{actual}}/T_{\text{target}}))$. Streak continues as degraded.
-     - Target reached ($T_{\text{actual}} \ge T_{\text{target}}$): $HP \leftarrow \min(100, HP + 15)$, Streak $+1$.
-     - Surplus overdrive ($T_{\text{actual}} \ge 1.5 \times T_{\text{target}}$): $HP \leftarrow \min(100, HP + 25)$, charge $+1$ Shield Token ($\mathcal{T} \leftarrow \min(3, \mathcal{T} + 1)$).
-2. **`src/components/Dashboard.tsx` & `src/components/StudyHeatmap.tsx`**:
-   - Prominent, beautifully styled **Elastic Streak Health Bar** (e.g. glowing green/emerald at 80-100%, amber at 40-79%, crimson pulse at <40%).
-   - **Resilience Shield Token Rack** (3 shield icons: 🛡️ Charged, 🛡️ Charged, ⚪ Empty slot) with tooltip explaining auto-defense on rest/missed days.
-   - Streak counter indicating active streak status (`🔥 42 Days (Shield Protected)`).
-3. **`src/context/AppContext.tsx`**:
-   - LocalStorage key `savantix_streak_resilience_v1` synchronization so reload maintains HP and tokens.
-4. **Build & Typecheck Verification**:
-   - Run `"C:\Program Files\nodejs\node.exe" node_modules/typescript/bin/tsc --noEmit` and `"C:\Program Files\nodejs\node.exe" node_modules/vite/bin/vite.js build`.
-   - Ensure 0 errors.
-
-## MANDATORY INTEGRITY WARNING
+MANDATORY INTEGRITY WARNING:
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_preview_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
 
-## Handoff Requirements
-Write your detailed report to `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m5\handoff.md` and notify the parent orchestrator.
+Your task:
+1. **Fix Falsy Zero Coercion Bug in `src/services/attendanceRegulatorService.ts`**:
+   In `computeLiveMetrics`:
+   Replace `profile.presentDays || 48`, `profile.workingDaysHeld || 71`, `profile.absentDays || 23`, `profile.onDutyCredits || 10` with nullish coalescing (`??`) or explicit `typeof === 'number'` checks, so that valid `0` values (e.g. 0 present days or 0 on-duty credits during what-if tests) are preserved instead of falling back to default non-zero values.
+2. **Update Academic Timeline & 2028 Exam Targets (per timestamp 2026-09-01T10:29:42Z)**:
+   - Primary Goal for the 2 years (Class 11 & 12): **IPhO (International Physics Olympiad) Gold Track / NSEP 2026–2027 / INPhO / OCSC**.
+   - Class 12 CBSE Board Exams: **March 2028** (e.g. `2028-03-01` / `2028-03-15`).
+   - JEE Advanced: **May 2028** (e.g. `2028-05-28`).
+   - ISI & CMI Mathematics Entrances: **May 2028** (e.g. `2028-05-14` / `2028-05-21`).
+   - NSEP / INPhO (Physics Olympiad): **November 2026** (NSEP: `2026-11-29`) and **January 2027** (INPhO: `2027-01-31`).
+   - Update default exam targets in `src/context/AppContext.tsx`, `src/components/ExamCountdown.tsx`, `src/components/Goals.tsx`, `src/components/Settings.tsx`, `src/components/TriageMode.tsx`, and `src/components/Dashboard.tsx` to reflect this 2028 timeline and IPhO Gold Track priority.
+3. **Verification**:
+   - Run `& "C:\Program Files\nodejs\node.exe" node_modules/typescript/bin/tsc --noEmit` and confirm 0 errors.
+   - Run `& "C:\Program Files\nodejs\node.exe" node_modules/vite/bin/vite.js build` and confirm clean production build.
+   - Run `& "C:\Program Files\nodejs\node.exe" ./node_modules/tsx/dist/cli.mjs src/test/allTests.test.ts` and confirm all tests pass.
+
+Write your handoff report to `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m5\handoff.md` and send a message when complete.
+</USER_REQUEST>

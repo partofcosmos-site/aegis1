@@ -1,30 +1,37 @@
-## 2026-08-28T22:09:19Z
+## 2026-09-01T10:14:12Z
 
-You are Worker 3 implementing Milestone 3 (R3: Speed vs. Accuracy Calibration Matrix - SACM) for Savantix (Aegis).
-Working directory: C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m3
-Project workspace: C:\Users\white\master-hub\aegis1
-Original request: C:\Users\white\master-hub\aegis1\.agents\ORIGINAL_REQUEST.md
-Dispatch file: C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m3\DISPATCH.md
-Project plan & specs: C:\Users\white\master-hub\aegis1\PROJECT.md and C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_explorer_survey_3\survey_report.md (Section 4)
+MANDATORY INTEGRITY WARNING:
+DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_preview_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
 
-Assigned files (exclusive write ownership):
-- `src/utils/sacmCalculator.ts`
-- `src/components/Analytics.tsx`
+Your task: Implement Milestone M5 (AI Gateway Streamlining, Fast Launch Model Roster, KaTeX Derivations, and Cosmos Branding & Anonymity).
 
-Tasks:
-1. Create `src/utils/sacmCalculator.ts`:
-   - `calculateSACMData(sessions: any[], benchmarks?: SACMBenchmarks): SACMReport`
-   - Velocity ($V = \text{problemsSolved} \times 60 / \text{durationMinutes}$ in Q/hr).
-   - Accuracy ($Acc \in [0, 100\%]$ from `accuracyPercent` or derived from `efficiencyScore * 10`).
-   - 4-Quadrant partitioning:
-     - Q1 (Top-Right): Flow / Mastery Zone ($V \ge 15$, $Acc \ge 80\%$)
-     - Q2 (Top-Left): Deliberate / Overthinking Zone ($V < 15$, $Acc \ge 80\%$)
-     - Q3 (Bottom-Right): Rushing / Guessing Zone ($V \ge 15$, $Acc < 80\%$)
-     - Q4 (Bottom-Left): Struggling / Fatigued Zone ($V < 15$, $Acc < 80\%$)
-   - Diagnostic feedback generation per quadrant with actionable STEM exam guidance.
-2. In `src/components/Analytics.tsx`:
-   - Add a comprehensive "Speed vs. Accuracy Calibration Matrix (SACM)" section.
-   - Interactive Recharts `ScatterChart` with X-axis (Velocity in Q/hr), Y-axis (Accuracy in %), reference lines at $X=15$ and $Y=80$, custom tooltips, and quadrant color coding.
-   - 4 Quadrant summary cards with session distribution counts, percentage breakdowns, and actionable diagnostic recommendations.
-   - Subject filtering and time range filtering ('7d', '30d', 'all').
-3. Verify TypeScript compilation (`"C:\Program Files\nodejs\node.exe" node_modules/typescript/bin/tsc --noEmit`) and Vite build (`"C:\Program Files\nodejs\node.exe" node_modules/vite/bin/vite.js build`).
+File Boundaries & Write Ownership:
+You EXCLUSIVELY own and modify:
+- `src/components/AIGateway.tsx`
+- `src/components/Layout.tsx`
+- `src/App.tsx`
+
+Read Explorer 3's detailed survey reports in:
+- `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_explorer_survey_3_3\analysis.md`
+- `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_explorer_survey_3_3\handoff.md`
+
+Specifications to implement:
+1. AI Gateway Streamlining & Fast Model Roster (R5):
+   - Purge deprecated endpoints (such as `You.com` or broken search proxies) in `src/components/AIGateway.tsx`.
+   - Provide instant zero-latency 1-Click Fast Launch buttons for:
+     1. **ChatGPT (GPT-4o/o3)** (`https://chatgpt.com/`)
+     2. **DeepSeek R1** (`https://chat.deepseek.com/`)
+     3. **Google Gemini 2.5 Pro** (`https://gemini.google.com/app`)
+     4. **Claude 3.7 Sonnet** (`https://claude.ai/new`)
+     5. **Perplexity AI** (`https://www.perplexity.ai/`)
+     6. **Wolfram Alpha** (`https://www.wolframalpha.com/`)
+     7. **DuckDuckGo AI Chat** (`https://duckduckgo.com/?q=DuckDuckGo+AI+Chat&ia=chat`)
+   - Ensure launching any external model automatically copies the current mathematical/Socratic prompt payload to `navigator.clipboard` for seamless 1-keystroke pasting (`Ctrl+V`).
+   - Optimize In-App Socratic derivation drawer with crisp KaTeX formula rendering (`rehype-katex`, `remark-math`, `katex.min.css`) and global hotkey `Alt+G`.
+2. Cosmos Branding & User Anonymity (Core Directive 2):
+   - In `src/components/Layout.tsx` and public footers/headers, display the initiative subtitle: *"An initiative of Part of Cosmos"*.
+   - Strictly preserve user identity protection: mask student name to `"Lead Scholar"` or `"Core Researcher"` across public UI elements.
+3. Verify tab routing in `App.tsx` and `Layout.tsx` to ensure `'attendance'` renders `AttendanceTracker` smoothly and all tabs switch with zero state loss.
+4. Verify your implementation by running `& "C:\Program Files\nodejs\node.exe" node_modules/typescript/bin/tsc --noEmit`.
+
+Write your handoff report to `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m3\handoff.md` and send a message when complete.

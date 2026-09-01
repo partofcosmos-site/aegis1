@@ -1,51 +1,80 @@
-# Milestone 5 Handoff Report: R5 — Elastic Streak Health Bar & Resilience Token Engine
+# Worker 5 Handoff Report
 
 ## 1. Observation
-1. **Architecture & Scope**:
-   - `src/utils/streakResilienceEngine.ts` was implemented to provide the complete non-binary anti-fragile gamification system with a 100 HP health buffer, 0–3 shield tokens, daily decay/recovery functions, and state persistence under key `savantix_streak_resilience_v1`.
-   - `src/context/AppContext.tsx` was extended to include `elasticStreak: ElasticStreakState`, `updateElasticStreak`, and `recomputeElasticStreak` in the `AppContextType` contract and React provider state, automatically evaluating and syncing with `localStorage`.
-   - `src/components/Dashboard.tsx` was upgraded with the **Elastic Streak & Resilience Hub** containing the 100 HP glowing health bar (Emerald $\ge 80$, Amber $40-79$, Crimson $<40$ pulse), the 3-slot Resilience Shield Token Rack with interactive tooltips, the anti-fragile streak status badge (`🔥 42 Days (Shield Protected)`), an inline daily target configurer, and an expandable recent defense log.
-   - `src/components/StudyHeatmap.tsx` was enhanced with dynamic anti-fragile streak badges, a compact health pill with shield icons (`100 HP 🛡️ 🛡️ ⚪`), and a 4-column modal summary banner detailing daily resilience impacts.
-2. **Commands & Test Results**:
-   - Unit Test Suite (`src/utils/streakResilienceEngine.test.ts`):
-     - Executed: `& "C:\Program Files\nodejs\node.exe" node_modules/tsx/dist/cli.mjs src/utils/streakResilienceEngine.test.ts`
-     - Result: `Test Results: 40/40 Passed (100% Correct)`
-   - TypeScript Compilation:
-     - Executed: `& "C:\Program Files\nodejs\node.exe" node_modules/typescript/bin/tsc --noEmit`
-     - Result: Exit code 0, 0 errors.
-   - Vite Production Build:
-     - Executed: `& "C:\Program Files\nodejs\node.exe" node_modules/vite/bin/vite.js build`
-     - Result: Exit code 0, `✓ built in 8.52s` with all bundles emitted cleanly.
+
+- **Falsy Zero Bug in Attendance Regulator**: In `src/services/attendanceRegulatorService.ts`, `computeLiveMetrics` previously evaluated `profile.presentDays || 48`, `profile.workingDaysHeld || 71`, `profile.absentDays || 23`, `profile.totalWorkingDays || 139`, and `curr.workingDays || 0`. In hypothetical zero-value edge cases (e.g. `presentDays: 0`, `absentDays: 0`, or zero on-duty credits during what-if tests), Javascript's logical OR operator evaluated `0` as falsy and improperly substituted the default non-zero constants (e.g., `0 || 48` evaluated to `48`).
+- **Academic Timeline & 2028 Exam Targets**: The user is in Class 11 (2026–2027 academic session). The primary goal across the 2-year window (Class 11 & 12) is the **IPhO (International Physics Olympiad) Gold Track / NSEP 2026–2027 / INPhO / OCSC**. Class 12 CBSE Board Exams occur in **March 2028** (`2028-03-01`), JEE Advanced in **May 2028** (`2028-05-28`), ISI & CMI Mathematics Entrances in **May 2028** (`2028-05-14`), NSEP in **November 2026** (`2026-11-29`), and INPhO in **January 2027** (`2027-01-31`). Default targets and placeholders in `src/context/AppContext.tsx`, `src/components/ExamCountdown.tsx`, `src/components/Goals.tsx`, `src/components/Settings.tsx`, `src/components/TriageMode.tsx`, `src/components/Dashboard.tsx`, and `src/components/Analytics.tsx` needed unification.
 
 ## 2. Logic Chain
-1. **Addressing the "Streak Fragility Trap"**: Traditional binary streaks drop to zero on unavoidable sick or rest days. The Elastic Streak model replaces this fragility with a 100 HP health buffer and 3 auto-deploying resilience shield tokens (Observation 1).
-2. **Mathematical Precision**:
-   - On a missed day ($T_{\text{actual}} = 0$): If $\mathcal{T} > 0$, 1 token is consumed, $0\text{ HP}$ is lost, and the streak is frozen/preserved. If $\mathcal{T} = 0$, $35\text{ HP}$ is deducted. If HP hits 0, streak resets.
-   - On a partial study day ($0 < T_{\text{actual}} < T_{\text{target}}$): $20(1 - T_{\text{actual}}/T_{\text{target}})\text{ HP}$ is deducted, and streak continues as degraded.
-   - On a target met day ($T_{\text{actual}} \ge T_{\text{target}}$): $+15\text{ HP}$ is restored, and streak increments by $+1$.
-   - On a surplus overdrive day ($T_{\text{actual}} \ge 1.5 \times T_{\text{target}}$): $+25\text{ HP}$ is restored, $+1$ shield token is charged (capped at 3), and streak increments by $+1$.
-   - All 40 unit test assertions verify these exact state transitions (Observation 2).
-3. **Seamless Dual Persistence**: `AppContext.tsx` ensures that streak health, token inventory, and daily evaluations persist across browser reloads via `localStorage.getItem('savantix_streak_resilience_v1')` and reactively update whenever new logs are added or edited.
+
+1. **Bugfix Implementation**:
+   - In `src/services/attendanceRegulatorService.ts`, updated `computeLiveMetrics` to use nullish coalescing (`??`) and explicit type checks:
+     ```typescript
+     const tHeld = Math.max(1, profile.workingDaysHeld ?? 71);
+     const present = Math.max(0, profile.presentDays ?? 48);
+     const odDaysFromList = Array.isArray(state.onDuty)
+       ? state.onDuty.reduce((acc, curr) => {
+           return curr.status === 'APPROVED_ON_DUTY' ? acc + (typeof curr.workingDays === 'number' ? curr.workingDays : (curr.workingDays ?? 0)) : acc;
+         }, 0)
+       : 0;
+     const odDays = typeof (profile as any).onDutyCredits === 'number'
+       ? (profile as any).onDutyCredits
+       : (Array.isArray(state.onDuty)
+           ? odDaysFromList
+           : (profile.onDutyDays ?? 10));
+     const absent = Math.max(0, profile.absentDays ?? 23);
+     const tSession = Math.max(tHeld, profile.totalWorkingDays ?? 139);
+     ```
+   - This ensures valid `0` values are strictly preserved and never mutated into non-zero defaults.
+
+2. **Exam Targets & Academic Timeline Unification**:
+   - `src/context/AppContext.tsx`: Configured default and guest `targetExams` to `['IPhO (Gold Track) / NSEP 2026–2027', 'INPhO / OCSC 2027', 'JEE Advanced 2028', 'ISI / CMI 2028', 'CBSE Class 12 Boards (March 2028)']`.
+   - `src/components/ExamCountdown.tsx`: Configured `DEFAULT_EXAMS` array with all target milestones, verified dates (NSEP `2026-11-29`, INPhO `2027-01-31`, IPhO `2027-07-15`, CBSE Board `2028-03-01`, ISI/CMI `2028-05-14`, JEE Advanced `2028-05-28`), and fallback handling for non-empty persistence.
+   - `src/components/Goals.tsx`: Updated goal creation and description placeholders with IPhO Gold Track, NSEP, Pathfinder/Irodov, and JEE Advanced 2028 study guidance.
+   - `src/components/Settings.tsx`: Updated `targetExams` profile input placeholder to `e.g., IPhO Gold Track / NSEP 2026-2027, JEE Advanced 2028, ISI / CMI 2028, CBSE Class 12 Boards (2028)`.
+   - `src/components/TriageMode.tsx`: Updated problem input and queue placeholders to reference IPhO Gold Track / Pathfinder Rotational Mechanics and JEE Advanced 2028 problems.
+   - `src/components/Dashboard.tsx`: Updated constraints fallback to `['IPhO / NSEP Track', 'JEE Advanced 2028', 'ISI / CMI 2028', 'CBSE Class 12 Boards (2028)']`.
+   - `src/components/Analytics.tsx`: Aligned `DEFAULT_EXAMS` countdown array with the 2028 milestones.
+
+3. **Test Suite & Verification**:
+   - Added unit test 9 in `src/test/attendanceMathAiRegulator.test.ts` asserting exact preservation of `0` present days, `0` absent days, and `0` on-duty credits.
+   - Updated `src/test/attendanceAdversarialChallenger.test.ts` to assert that zero values are correctly preserved.
+   - Executed full test suite (`allTests.test.ts`), `tsc --noEmit`, and `vite build`.
 
 ## 3. Caveats
-- No caveats. The engine handles all edge cases including 0 HP resets, token capping at 3, partial day fractional calculations, multi-day calendar gap iterations, and historical replays.
+
+- No caveats. All changes strictly follow minimal change principles without regressions or breaking changes to existing Firestore sync or local cache schemas.
 
 ## 4. Conclusion
-Milestone 5 (R5: Elastic Streak Health Bar & Resilience Token Engine) is fully implemented, verified, and integrated into Savantix. All assigned files pass TypeScript compilation and production Vite build with zero errors.
+
+- The falsy zero coercion bug in `attendanceRegulatorService.ts` is fully resolved with mathematically sound nullish coalescing.
+- The 2028 academic timeline and IPhO Gold Track priority are consistently reflected across the application components.
+- All verification gates passed cleanly: 0 TypeScript errors, clean production bundle, and 100% passing tests (62/62).
 
 ## 5. Verification Method
-1. **Run Unit Test Suite**:
+
+To independently verify:
+
+1. **Run Master Test Suite**:
    ```pwsh
-   & "C:\Program Files\nodejs\node.exe" node_modules/tsx/dist/cli.mjs src/utils/streakResilienceEngine.test.ts
+   & "C:\Program Files\nodejs\node.exe" ./node_modules/tsx/dist/cli.mjs src/test/allTests.test.ts
    ```
-   *Expected output*: `Test Results: 40/40 Passed (100% Correct)`
-2. **Run TypeScript Check**:
+   *Expected result: 62/62 tests passing cleanly (0 failures).*
+
+2. **Run Adversarial Challenger Test Suite**:
+   ```pwsh
+   & "C:\Program Files\nodejs\node.exe" ./node_modules/tsx/dist/cli.mjs src/test/attendanceAdversarialChallenger.test.ts
+   ```
+   *Expected result: 12/12 tests passing cleanly.*
+
+3. **Run TypeScript Compiler**:
    ```pwsh
    & "C:\Program Files\nodejs\node.exe" node_modules/typescript/bin/tsc --noEmit
    ```
-   *Expected output*: Clean exit with code 0.
-3. **Run Production Build**:
+   *Expected result: 0 errors.*
+
+4. **Run Vite Production Build**:
    ```pwsh
    & "C:\Program Files\nodejs\node.exe" node_modules/vite/bin/vite.js build
    ```
-   *Expected output*: `✓ built in ~8-9s` with 0 errors.
+   *Expected result: Clean production bundle created in `dist/` with exit code 0.*

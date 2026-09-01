@@ -366,7 +366,7 @@ const TriageMode: React.FC = () => {
                 value={problemName}
                 onChange={e => setProblemName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleStartAttempt()}
-                placeholder="e.g. Q14 — Electrostatics"
+                placeholder="e.g. IPhO Gold Track / Pathfinder Rotational Mechanics Q14"
                 className="flex-1 bg-zinc-900 border border-zinc-700 focus:border-amber-500/60 rounded-xl px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition"
               />
               <button
@@ -462,7 +462,7 @@ const TriageMode: React.FC = () => {
                 type="text"
                 value={nextProblemName}
                 onChange={e => setNextProblemName(e.target.value)}
-                placeholder="Queue next problem (optional)…"
+                placeholder="Queue next problem (e.g. JEE Adv 2028 Math / INPhO Physics)…"
                 className="flex-1 bg-zinc-900/80 border border-zinc-800 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition"
               />
             </div>
@@ -519,7 +519,7 @@ const TriageMode: React.FC = () => {
                   type="text"
                   value={nextProblemName}
                   onChange={e => setNextProblemName(e.target.value)}
-                  placeholder="Queue next problem (optional)…"
+                  placeholder="Queue next problem (e.g. IPhO Mechanics / JEE Adv 2028)…"
                   className="flex-1 bg-zinc-900/80 border border-zinc-800 focus:border-amber-500/50 rounded-xl px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition"
                 />
               </div>

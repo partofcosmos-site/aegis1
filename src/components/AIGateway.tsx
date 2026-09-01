@@ -378,91 +378,121 @@ export const AIGatewayDrawer: React.FC<AIGatewayDrawerProps> = ({ isOpen, onClos
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="bg-zinc-900 border border-zinc-700/80 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md animate-fadeIn">
+      <div className="bg-zinc-900 border border-zinc-700/80 rounded-2xl w-full max-w-4xl max-h-[94vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950/60">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
-              <Globe className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-zinc-100">Universal AI Gateway & STEM Solver</h2>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
-                  Alt+G
-                </span>
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-zinc-800 bg-zinc-950/70 space-y-2 sm:space-y-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 shrink-0">
+                <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <p className="text-xs text-indigo-400 font-medium">
-                An initiative of Part of Cosmos • Zero-Latency Frontier AI Bridge
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-bold text-zinc-100 truncate">AI Gateway & STEM Solver</h2>
+                  <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-bold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
+                    Alt+G
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-indigo-400 font-medium truncate">
+                  An initiative of Part of Cosmos • Zero-Latency Bridge
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Desktop Mode Switcher */}
+              <div className="hidden sm:flex bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('gateways')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    activeTab === 'gateways' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  AI Gateways
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!inAppSolution && query.trim()) handleSolveInApp();
+                    else setActiveTab('in_app');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                    activeTab === 'in_app' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>In-App Derivation</span>
+                </button>
+              </div>
+
+              <button
+                onClick={onClose}
+                className="p-1.5 sm:p-2 rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Mode Switcher */}
-            <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setActiveTab('gateways')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'gateways' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                AI Gateways
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!inAppSolution && query.trim()) handleSolveInApp();
-                  else setActiveTab('in_app');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-                  activeTab === 'in_app' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Zap className="w-3 h-3 text-amber-400" />
-                <span>In-App Derivation</span>
-              </button>
-            </div>
-
+          {/* Mobile Mode Switcher Bar */}
+          <div className="sm:hidden flex bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs font-semibold w-full">
             <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
+              type="button"
+              onClick={() => setActiveTab('gateways')}
+              className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer text-center ${
+                activeTab === 'gateways' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
             >
-              <X className="w-5 h-5" />
+              AI Gateways
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!inAppSolution && query.trim()) handleSolveInApp();
+                else setActiveTab('in_app');
+              }}
+              className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 text-center ${
+                activeTab === 'in_app' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Zap className="w-3 h-3 text-amber-400" />
+              <span>In-App Derivation</span>
             </button>
           </div>
         </div>
 
         {/* Floating Toast Notification */}
         {launchToast && (
-          <div className={`mx-6 mt-3 px-4 py-2.5 rounded-xl text-xs font-medium flex items-center justify-between gap-2 border animate-fadeIn ${
+          <div className={`mx-4 sm:mx-6 mt-3 px-4 py-2 rounded-xl text-xs font-medium flex items-center justify-between gap-2 border animate-fadeIn ${
             launchToast.type === 'success'
               ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
               : 'bg-indigo-950/80 border-indigo-500/40 text-indigo-200'
           }`}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-              <span><strong>{launchToast.name}:</strong> {launchToast.message}</span>
+              <span className="truncate"><strong>{launchToast.name}:</strong> {launchToast.message}</span>
             </div>
-            <button onClick={() => setLaunchToast(null)} className="text-zinc-400 hover:text-zinc-200 text-xs">×</button>
+            <button onClick={() => setLaunchToast(null)} className="text-zinc-400 hover:text-zinc-200 text-xs shrink-0">×</button>
           </div>
         )}
 
         {/* Body Container */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-5">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-5">
           
-          {/* Query Input Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+          {/* Query Input Card with Dedicated Bottom Toolbar (Zero Overlap) */}
+          <div className="bg-zinc-950 border border-zinc-800/90 rounded-2xl p-3 sm:p-4 space-y-2.5 shadow-inner focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+            <div className="flex items-center justify-between text-xs font-semibold text-zinc-400">
+              <label className="flex items-center gap-1.5 text-zinc-300">
                 <Brain className="w-3.5 h-3.5 text-indigo-400" />
-                Enter STEM Problem / Mathematical Query
+                <span>Enter STEM Problem / Mathematical Query</span>
               </label>
               {query.trim() && (
                 <button
+                  type="button"
                   onClick={() => setQuery("")}
                   className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
                 >
@@ -471,79 +501,82 @@ export const AIGatewayDrawer: React.FC<AIGatewayDrawerProps> = ({ isOpen, onClos
               )}
             </div>
 
-            <div className="relative">
-              <textarea
-                ref={textareaRef}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Type your STEM question, concept, derivation, or formula (LaTeX supported $...$ or $$...$$)..."
-                rows={3}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none font-mono"
-              />
+            <textarea
+              ref={textareaRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Type your STEM problem, derivation, or formula (LaTeX supported e.g. $\int x dx$ or $$E=mc^2$$)..."
+              rows={3}
+              className="w-full bg-transparent border-0 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none resize-none font-mono leading-relaxed"
+            />
+
+            {/* Dedicated Action Toolbar (Sits Cleanly Below Textarea) */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-2 border-t border-zinc-900 gap-2">
+              <span className="text-[11px] text-zinc-500 font-mono hidden sm:inline">
+                LaTeX inline <code className="text-zinc-400 bg-zinc-900 px-1 py-0.5 rounded">$...$</code> or block <code className="text-zinc-400 bg-zinc-900 px-1 py-0.5 rounded">$$...$$</code>
+              </span>
               
-              <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSolveInApp}
-                  disabled={!query.trim()}
-                  className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-all shadow-md shadow-indigo-600/30 flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
-                >
-                  <Zap className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Solve In-App (KaTeX)</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleSolveInApp}
+                disabled={!query.trim()}
+                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed ml-auto"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                <span>Solve In-App (KaTeX Proof)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ⚡ 1-Click Fast Launch Frontier Model Roster Bar */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+              <span className="flex items-center gap-1.5 text-amber-300">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>1-Click Fast Launch Roster (Auto-Copies Prompt)</span>
+              </span>
+              <span className="text-[10px] text-zinc-500 hidden sm:inline">Zero-Latency Bridge</span>
             </div>
 
-            {/* ⚡ 1-Click Fast Launch Frontier Model Roster Bar */}
-            <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
-                <span className="flex items-center gap-1.5 text-amber-300">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  1-Click Fast Launch Roster (Auto-Copies Prompt for Ctrl+V)
-                </span>
-                <span className="text-[10px] text-zinc-500">Zero-Latency Bridge</span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5">
-                {fastLaunchServices.map(service => (
-                  <button
-                    key={service.id}
-                    type="button"
-                    onClick={() => handleLaunch(service)}
-                    className="flex items-center gap-1.5 p-2 rounded-xl bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 hover:border-indigo-500/40 text-left transition-all hover:scale-[1.02] active:scale-[0.98] group cursor-pointer"
-                    title={`Launch ${service.name} (Auto-copies query to clipboard)`}
-                  >
-                    <div className={`w-6 h-6 rounded-lg bg-gradient-to-tr ${service.color} flex items-center justify-center shrink-0 text-xs shadow`}>
-                      <span>{service.emoji}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-semibold text-zinc-200 truncate group-hover:text-white flex items-center gap-0.5">
-                        <span className="truncate">{service.shortName}</span>
-                        {copiedId === service.id && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
-                      </div>
-                      <div className="text-[9px] text-zinc-500 truncate group-hover:text-indigo-300">
-                        {service.supportsDirectLink ? "Direct Link" : "1-Key Ctrl+V"}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Preset Prompts */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-thin pt-1">
-              <span className="text-zinc-500 shrink-0">Presets:</span>
-              {PRESET_QUERIES.map((pq, i) => (
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5 sm:gap-2">
+              {fastLaunchServices.map(service => (
                 <button
-                  key={i}
+                  key={service.id}
                   type="button"
-                  onClick={() => setQuery(pq)}
-                  className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-lg whitespace-nowrap transition-colors cursor-pointer"
+                  onClick={() => handleLaunch(service)}
+                  className="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 hover:border-indigo-500/40 text-left transition-all hover:scale-[1.02] active:scale-[0.98] group cursor-pointer"
+                  title={`Launch ${service.name}`}
                 >
-                  {pq.length > 40 ? pq.slice(0, 38) + "…" : pq}
+                  <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-tr ${service.color} flex items-center justify-center shrink-0 text-xs shadow`}>
+                    <span>{service.emoji}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-zinc-200 truncate group-hover:text-white flex items-center gap-0.5">
+                      <span className="truncate">{service.shortName}</span>
+                      {copiedId === service.id && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                    </div>
+                    <div className="text-[9px] text-zinc-500 truncate group-hover:text-indigo-300">
+                      {service.supportsDirectLink ? "Direct Link" : "1-Tap Copy"}
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Quick Preset Prompts */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+            <span className="text-zinc-500 shrink-0 font-medium">Presets:</span>
+            {PRESET_QUERIES.map((pq, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setQuery(pq)}
+                className="px-2.5 py-1 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-lg whitespace-nowrap transition-colors cursor-pointer shrink-0"
+              >
+                {pq.length > 32 ? pq.slice(0, 30) + "…" : pq}
+              </button>
+            ))}
           </div>
 
           {activeTab === 'in_app' && inAppSolution ? (
@@ -762,15 +795,18 @@ export const AIGatewayDrawer: React.FC<AIGatewayDrawerProps> = ({ isOpen, onClos
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-zinc-800 bg-zinc-950/60 flex items-center justify-between text-xs text-zinc-400">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Zero-Leak Security • <span className="text-indigo-400 font-medium">An initiative of Part of Cosmos</span> • Hotkey: <strong>Alt+G</strong></span>
+        <div className="px-4 sm:px-6 py-3 border-t border-zinc-800 bg-zinc-950/60 flex items-center justify-between text-xs text-zinc-400 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+            <span className="truncate">
+              <span className="text-indigo-400 font-medium">Part of Cosmos</span>
+              <span className="hidden sm:inline"> • Hotkey: <strong>Alt+G</strong></span>
+            </span>
           </div>
 
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg font-medium transition-colors cursor-pointer"
+            className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg font-medium transition-colors cursor-pointer shrink-0"
           >
             Close
           </button>

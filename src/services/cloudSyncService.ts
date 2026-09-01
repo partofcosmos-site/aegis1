@@ -19,7 +19,9 @@ export interface CloudSyncPayload {
   logs: any[];
   goals: any[];
   journal: any[];
+  insights?: any[];
   attendance: any[];
+  institutional_attendance?: any;
   flashcards: any[];
   examTargets: any[];
   streakState?: any;
@@ -32,6 +34,7 @@ export interface SyncResult {
   logsCount: number;
   goalsCount: number;
   journalCount: number;
+  insightsCount?: number;
   attendanceCount: number;
   message: string;
 }
@@ -76,7 +79,9 @@ export class CloudSyncService {
     let logs: any[] = [];
     let goals: any[] = [];
     let journal: any[] = [];
+    let insights: any[] = [];
     let attendance: any[] = [];
+    let institutional_attendance: any = null;
     let flashcards: any[] = [];
     let examTargets: any[] = [];
     let streakState: any = null;
@@ -98,8 +103,18 @@ export class CloudSyncService {
     } catch {}
 
     try {
+      const rawInsights = localStorage.getItem(`savantix_user_insights_${userUidKey}`) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || localStorage.getItem('savantix_guest_insights') || '[]';
+      insights = JSON.parse(rawInsights);
+    } catch {}
+
+    try {
       const rawAtt = localStorage.getItem('savantix_attendance_data_v1') || '[]';
       attendance = JSON.parse(rawAtt);
+    } catch {}
+
+    try {
+      const rawInst = localStorage.getItem('savantix_attendance_institutional_v1');
+      if (rawInst) institutional_attendance = JSON.parse(rawInst);
     } catch {}
 
     try {
@@ -131,7 +146,9 @@ export class CloudSyncService {
       logs: Array.isArray(logs) ? logs : [],
       goals: Array.isArray(goals) ? goals : [],
       journal: Array.isArray(journal) ? journal : [],
+      insights: Array.isArray(insights) ? insights : [],
       attendance: Array.isArray(attendance) ? attendance : [],
+      institutional_attendance,
       flashcards: Array.isArray(flashcards) ? flashcards : [],
       examTargets: Array.isArray(examTargets) ? examTargets : [],
       streakState,
@@ -149,6 +166,7 @@ export class CloudSyncService {
     const localLogsKey = `savantix_user_logs_${userUidKey}`;
     const localGoalsKey = `savantix_user_goals_${userUidKey}`;
     const localJournalKey = `savantix_user_journal_${userUidKey}`;
+    const localInsightsKey = `savantix_user_insights_${userUidKey}`;
 
     // 1. Merge Logs
     let localLogs: any[] = [];
@@ -203,7 +221,44 @@ export class CloudSyncService {
     localStorage.setItem(localJournalKey, JSON.stringify(mergedJournal));
     localStorage.setItem(`savantix_user_journal_${canonicalId}`, JSON.stringify(mergedJournal));
 
-    // 4. Merge Attendance Data
+    // 4. Merge Insights (non-destructive signature-based union merge)
+    let localInsights: any[] = [];
+    try { localInsights = JSON.parse(localStorage.getItem(localInsightsKey) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || '[]'); } catch {}
+    const insightsMap = new Map<string, any>();
+    const getInsightTimestamp = (ins: any) => {
+      if (!ins) return 0;
+      const d = ins.createdAt || ins.updatedAt || ins.timestamp || 0;
+      const t = new Date(d).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+
+    (remote.insights || []).forEach(ins => {
+      const sig = ins.date || ins.id;
+      if (sig) insightsMap.set(sig, ins);
+    });
+
+    localInsights.forEach(ins => {
+      const sig = ins.date || ins.id;
+      if (sig) {
+        if (!insightsMap.has(sig)) {
+          insightsMap.set(sig, ins);
+        } else {
+          // If both have insight for this date, keep the one with more evaluated sessions or later timestamp
+          const remoteIns = insightsMap.get(sig);
+          const localSessions = ins.sessionCount || 0;
+          const remoteSessions = remoteIns.sessionCount || 0;
+          if (localSessions > remoteSessions || getInsightTimestamp(ins) >= getInsightTimestamp(remoteIns)) {
+            insightsMap.set(sig, ins);
+          }
+        }
+      }
+    });
+
+    const mergedInsights = Array.from(insightsMap.values()).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    localStorage.setItem(localInsightsKey, JSON.stringify(mergedInsights));
+    localStorage.setItem(`savantix_user_insights_${canonicalId}`, JSON.stringify(mergedInsights));
+
+    // 5. Merge Attendance Data (Subject stats)
     if (Array.isArray(remote.attendance) && remote.attendance.length > 0) {
       let localAtt: any[] = [];
       try { localAtt = JSON.parse(localStorage.getItem('savantix_attendance_data_v1') || '[]'); } catch {}
@@ -219,7 +274,31 @@ export class CloudSyncService {
       localStorage.setItem('savantix_attendance_data_v1', JSON.stringify(Array.from(attMap.values())));
     }
 
-    // 5. Merge Flashcards
+    // 6. Merge Institutional Attendance
+    if (remote.institutional_attendance) {
+      try {
+        let localInst: any = null;
+        const rawInst = localStorage.getItem('savantix_attendance_institutional_v1');
+        if (rawInst) localInst = JSON.parse(rawInst);
+
+        if (!localInst) {
+          localStorage.setItem('savantix_attendance_institutional_v1', JSON.stringify(remote.institutional_attendance));
+        } else {
+          const mergedInst = {
+            ...localInst,
+            ...remote.institutional_attendance,
+            absences: Array.isArray(remote.institutional_attendance.absences) && Array.isArray(localInst.absences)
+              ? Array.from(new Set([...localInst.absences, ...remote.institutional_attendance.absences]))
+              : (remote.institutional_attendance.absences || localInst.absences)
+          };
+          localStorage.setItem('savantix_attendance_institutional_v1', JSON.stringify(mergedInst));
+        }
+      } catch (instErr) {
+        console.warn('[CloudSyncService] Institutional attendance merge error:', instErr);
+      }
+    }
+
+    // 7. Merge Flashcards
     if (Array.isArray(remote.flashcards) && remote.flashcards.length > 0) {
       let localFc: any[] = [];
       try { localFc = JSON.parse(localStorage.getItem('savantix_flashcards') || '[]'); } catch {}
@@ -235,7 +314,7 @@ export class CloudSyncService {
       localStorage.setItem('savantix_flashcards', JSON.stringify(Array.from(fcMap.values())));
     }
 
-    // 6. Exam Targets & Profile
+    // 8. Exam Targets & Profile
     if (Array.isArray(remote.examTargets) && remote.examTargets.length > 0) {
       localStorage.setItem('savantix_exam_targets', JSON.stringify(remote.examTargets));
     }
@@ -252,8 +331,9 @@ export class CloudSyncService {
       logsCount: mergedLogs.length,
       goalsCount: mergedGoals.length,
       journalCount: mergedJournal.length,
+      insightsCount: mergedInsights.length,
       attendanceCount: remote.attendance?.length || 0,
-      message: `Successfully synchronized ${mergedLogs.length} logs, ${mergedGoals.length} goals, and ${mergedJournal.length} journal reflections.`
+      message: `Successfully synchronized ${mergedLogs.length} logs, ${mergedGoals.length} goals, ${mergedJournal.length} journal reflections, and ${mergedInsights.length} daily insights.`
     };
   }
 
@@ -281,6 +361,7 @@ export class CloudSyncService {
         logsCount: snapshot.logs.length,
         goalsCount: snapshot.goals.length,
         journalCount: snapshot.journal.length,
+        insightsCount: snapshot.insights?.length || 0,
         attendanceCount: snapshot.attendance.length,
         message: `Pushed ${snapshot.logs.length} logs to cloud at ${timestamp}`
       };
@@ -292,6 +373,7 @@ export class CloudSyncService {
         logsCount: snapshot.logs.length,
         goalsCount: snapshot.goals.length,
         journalCount: snapshot.journal.length,
+        insightsCount: snapshot.insights?.length || 0,
         attendanceCount: snapshot.attendance.length,
         message: err.message || 'Cloud push failed.'
       };
@@ -330,6 +412,7 @@ export class CloudSyncService {
         logsCount: 0,
         goalsCount: 0,
         journalCount: 0,
+        insightsCount: 0,
         attendanceCount: 0,
         message: err.message || 'Cloud pull failed.'
       };

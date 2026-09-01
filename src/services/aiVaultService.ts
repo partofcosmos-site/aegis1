@@ -67,7 +67,7 @@ export class AIVaultService {
           providerType: 'google',
           baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
           apiKey: '',
-          selectedModel: 'gemini-1.5-flash',
+          selectedModel: 'gemini-2.5-flash',
           temperature: 0.2,
           maxTokens: 8192,
           thinkingLevel: 'high',

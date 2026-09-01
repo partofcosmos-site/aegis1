@@ -1,48 +1,46 @@
-# Milestone 1: R1 — Flowmodoro & Flowtime Engine Implementation
+## 2026-09-01T10:14:12Z
 
-## 2026-08-28T22:06:13Z
+You are Worker 1 for Savantix (Aegis).
+Working directory: C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m1
+Project root: C:\Users\white\master-hub\aegis1
+Original request file: C:\Users\white\master-hub\aegis1\.agents\ORIGINAL_REQUEST.md
 
-## Working Directory
-`C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m1`
-
-## Project Workspace
-`C:\Users\white\master-hub\aegis1`
-
-## Scope & Assigned Files (Exclusive Write Ownership)
-- `src/utils/flowmodoroEngine.ts` (create new engine)
-- `src/components/Pomodoro.tsx` (integrate Flowmodoro count-up stopwatch, dynamic break, flow state indicator, fix `RefreshCw` import)
-
-## Requirements & Specifications
-Reference files to read:
-- `C:\Users\white\master-hub\aegis1\.agents\ORIGINAL_REQUEST.md`
-- `C:\Users\white\master-hub\aegis1\PROJECT.md`
-- `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_explorer_survey_3\survey_report.md` (Section 2)
-
-Key Implementation Details:
-1. **`src/utils/flowmodoroEngine.ts`**:
-   - `calculateDynamicBreak(focusSeconds: number, config?: FlowmodoroConfig): number` where Break = round(Focus / 5) with min 3 min (180s) and max 30 min (1800s) if Focus >= 300s, else 0.
-   - `getFlowStage(focusMinutes: number): { stage: FlowStateStage; label: string; color: string; badge: string }`
-     - 0-15m: Ramp-up / Entering Flow
-     - 15-45m: Deep Focus Zone
-     - 45-90m: Hyper-Focus Peak
-     - 90m+: Fatigue Alert (Break Recommended)
-   - Configuration management with localStorage key `savantix_flowmodoro_config_v1`.
-2. **`src/components/Pomodoro.tsx`**:
-   - Add Mode switcher: classical "Pomodoro" (countdown) vs "Flowtime / Flowmodoro" (count-up stopwatch).
-   - In Flowmodoro mode:
-     - Count-up stopwatch tracking elapsed focus time (`elapsedFocusSeconds`).
-     - Live display of earned dynamic break (e.g., "Earned Break: 12 mins" updating in real-time as `Math.round(elapsedFocusSeconds / 300)`).
-     - Visual Flow State badge indicator (Entering Flow -> Deep Focus Zone -> Hyper-Focus Peak -> Fatigue Alert).
-     - When user clicks "Finish Flow & Take Break": prompts modal / transitions to Dynamic Break Countdown timer.
-     - Dynamic Break countdown counts down from earned break seconds to 00:00, with optional Tibetan bowl / zen chime completion.
-     - Auto-log completed focus session to AppContext upon completion.
-   - Fix the missing `RefreshCw` import from `lucide-react` at top of `Pomodoro.tsx`.
-3. **Build & Typecheck Verification**:
-   - Run `"C:\Program Files\nodejs\node.exe" node_modules/typescript/bin/tsc --noEmit` and `"C:\Program Files\nodejs\node.exe" node_modules/vite/bin/vite.js build`.
-   - Ensure 0 errors.
-
-## MANDATORY INTEGRITY WARNING
+MANDATORY INTEGRITY WARNING:
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_preview_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
 
-## Handoff Requirements
-Write your detailed report to `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_worker_m1\handoff.md` and notify the parent orchestrator.
+Your task: Implement Milestones M1 & M2 (Historical Attendance & Institutional Calendar Ingestion, Attendance Reality Math, and Zero-Cost Gemini Web AI Regulator Bridge).
+
+File Boundaries & Write Ownership:
+You EXCLUSIVELY own and modify:
+- `src/components/AttendanceTracker.tsx`
+- `src/components/AttendanceCalculator.tsx`
+- `src/types/attendance.ts`
+- `src/services/attendanceRegulatorService.ts` (if needed)
+
+Read Explorer 1's detailed survey reports in:
+- `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_explorer_survey_3_1\analysis.md`
+- `C:\Users\white\master-hub\aegis1\.agents\teamwork_preview_explorer_survey_3_1\handoff.md`
+
+Specifications to implement:
+1. Academic Record Ingestion (The Bandhan School Aranghata, Affiliation 2430453, CBSE 10+2, Class XI-Science, Mon-Fri schedule):
+   - Session Start: `2026-04-21`, Lock Date: `2026-12-31`, Projected working days: 139.
+   - Ground Truth as of Sept 1, 2026: Working days held to date = 71 days.
+   - Present days = 48 days. Absent days = 23 days (20 previous logged dates + 2026-08-28 Friday before Raksha Bandhan + 2026-09-01 Tuesday + 3 buffer).
+   - Approved On-Duty Credits = 10 working days for *Kriti RISE IKITIES Program at IIT Kharagpur* (`2026-06-15` to `2026-06-26`, Status: APPROVED_ON_DUTY).
+2. Live Metrics & Reality Math Engine:
+   - Live Effective Attendance: `(48 + 10) / 71 = 58 / 71 = 81.69%`. (Raw: `48 / 71 = 67.61%`).
+   - Dynamic safe future leaves to Dec 31 (68 working days remaining):
+     - Target safe threshold 75%: `68 - (ceil(0.75 * 139) - 58) = 68 - (105 - 58) = 21 days`.
+     - Target condonation threshold 60%: `68 - (ceil(0.60 * 139) - 58) = 68 - (84 - 58) = 42 days`.
+   - Consecutive compulsory recovery formula: `C_rec = max(0, ceil((0.75 * T_held - (P + OD)) / 0.25))`.
+3. Comprehensive Calendar Ledgers:
+   - 28 Official Institutional Holidays (Good Friday, Ambedkar Jayanti, Bengali New Year, May Day, Rabindra Jayanti, Eid-ul-Zuha, Muharram, Rath Yatra, Independence Day, Milad-un-Nabi, Janmashtami, Gandhi Jayanti, Mahalaya, Dussehra, Lakshmi Puja, Kali Puja, Diwali, Bhai Duj, Guru Nanak Jayanti, Christmas, Swami Vivekananda Birthday, Netaji Birthday, Republic Day, Saraswati Puja, Id-ul-Fitr, Dolyatra, Holi).
+   - 4 Vacation Windows: Summer Vacation (2026-05-18 to 2026-06-13), Puja Vacation (2026-10-16 to 2026-10-26), Diwali Break (2026-11-09 to 2026-11-11), Winter Vacation (2026-12-25 to 2027-01-02).
+   - 4 Examination & PTM Milestones: PT1 (Completed), Half-Yearly (2026-09-14 to 2026-09-25, PTM 2026-10-03), PT2 (2026-12-11 to 2026-12-18, PTM 2026-12-24), Annual Exam (2027-03-01 to 2027-03-12, PTM 2027-03-20).
+   - Full absence schedule with reason details and practical day flags.
+4. Zero-Cost Gemini AI Regulator Bridge:
+   - 1-Click "Launch Attendance AI Regulator" button that opens `https://gemini.google.com/app` and copies a rich, structured prompt payload to `navigator.clipboard`.
+   - Embeds CBSE Rule 13.2 / 14 by-laws, dummy schooling vs NIOS vs British A-Levels analysis, integrated coaching balancing, and medical condonation documentation protocol.
+5. Local Persistence & Non-Destructive Storage:
+   - Use `savantix_attendance_institutional_v1` while preserving `savantix_attendance_data_v1` so subject stats remain intact.
+6. Verify your implementation by running `& "C:\Program Files\nodejs\node.exe" node_modules/typescript/bin/tsc --noEmit`.

@@ -1,71 +1,59 @@
-# Project: Savantix (Aegis) — 5 Elite Time Management & Velocity Features
+# Project: Savantix (Aegis) — Institutional Attendance & Production Operating System
 
 ## Architecture
-Savantix is an elite study acceleration platform built with React 19, Vite 6, Tailwind CSS v4, Lucide React, and Recharts.
-- **Viewport Architecture**: `src/App.tsx` employs a Persistent Tab Viewport (`block`/`hidden`) preserving active timers, Web Audio nodes, and form states across view switches.
-- **State & Persistence**: `src/context/AppContext.tsx` provides dual-persistence via Firebase Firestore sync with immediate `localStorage` fallbacks.
-- **Audio Synthesis**: `src/utils/pomodoroAudioEngine.ts` generates real-time Web Audio binaural beats and ambient frequencies.
-- **Domain Utilities**: Modular calculation engines in `src/utils/` for Flowmodoro, Micro-Log NLP Parsing, SACM Calibration, PID Subject Equilibrium, and Elastic Streak Resilience.
+Savantix is an ultra-practical, production-grade study and institutional attendance operating system built with React 19, Vite 6, Tailwind CSS v4, Lucide React, and Recharts.
+- **Institutional Attendance & Reality Engine**: `src/components/AttendanceTracker.tsx` (and `AttendanceCalculator.tsx`, `src/services/attendanceRegulatorService.ts`) delivers official academic record ingestion for The Bandhan School Aranghata (CBSE XI-Science), live percentage math with on-duty credits, consecutive recovery formulas, lock date projections, and zero-cost Gemini Web AI Regulator clipboard bridging.
+- **Dynamic Daily Insight Regeneration**: `src/components/Dashboard.tsx` & `src/components/InsightsPanel.tsx` provide adaptive daily study analysis with explicit "🔄 Re-analyze with Latest Logs" triggers that dynamically aggregate multi-session days without stale locking.
+- **Cross-Device Cloud Sync & Dual-Persistence**: `src/services/cloudSyncService.ts` and `src/context/AppContext.tsx` provide non-destructive real-time bidirectional Firestore synchronization with local cache (34+ persistent keys) adhering strictly to the Zero Data Loss Invariant.
+- **AI Gateway & Fast Model Roster**: `src/components/AIGateway.tsx` provides instant 1-click launch to frontier models (ChatGPT GPT-4o/o3, DeepSeek R1, Google Gemini 2.5 Pro, Claude 3.7 Sonnet, Perplexity AI, Wolfram Alpha, DuckDuckGo AI Chat) and offline 4-tier Socratic KaTeX derivations.
+- **Academic Roadmap & Exam Countdown**: Unified 2-year timeline prioritizing IPhO Gold Track / NSEP 2026 / INPhO 2027, Class 12 CBSE Board Exams (March 2028), ISI & CMI (May 2028), and JEE Advanced (May 2028).
+- **Initiative Branding & User Anonymity**: Uniform placement of *"An initiative of Part of Cosmos"* across Desktop Sidebar, Mobile Header, and Public Footers while masking student identities to "Lead Scholar" / "Core Researcher".
 
 ## Feature Inventory
-Every feature from the user request and survey is assigned to a milestone.
-| # | Feature | Description | Milestone | Source |
-|---|---------|-------------|-----------|--------|
-| 1 | Flowmodoro & Flowtime Count-up Engine | Count-up stopwatch with dynamic break calculation (Break = Focus / 5), stage indicators (Ramp-up, Deep Flow, Hyper-Focus, Fatigue), and auto-break transitions | M1 | ORIGINAL_REQUEST §R1 |
-| 2 | Pomodoro & Flowtime Integration | Seamless mode switching between classical Pomodoro and Flowmodoro with persistent state, audio chimes, and auto-logging | M1 | ORIGINAL_REQUEST §R1 |
-| 3 | Deterministic Micro-Log NLP Parser | Sub-millisecond client-side regex/NLP parser extracting Subject, Topic, Duration, Solved count, Accuracy %, Mistakes, and Energy | M2 | ORIGINAL_REQUEST §R2 |
-| 4 | Global Floating Micro-Logger HUD | Global hotkey (`Alt+L` / `Ctrl+K`) floating HUD with Web Speech API voice capture, live token chips, and instant 1-tap save | M2 | ORIGINAL_REQUEST §R2 |
-| 5 | Speed vs. Accuracy Calibration Matrix (SACM) | 4-Quadrant Velocity vs. Accuracy scatter plot (Flow/Mastery, Overthinking, Rushing, Struggling) with velocity (Q/hr) and accuracy (%) thresholds | M3 | ORIGINAL_REQUEST §R3 |
-| 6 | SACM Diagnostic Insights & Archetype Badges | Real-time diagnostic feedback per quadrant with personalized study actions for STEM exam prep | M3 | ORIGINAL_REQUEST §R3 |
-| 7 | Dynamic Subject Equilibrium Shannon Entropy | Rolling 7-day multi-subject allocation tracking and normalized Shannon entropy balance score ($E \in [0, 100\%]$) | M4 | ORIGINAL_REQUEST §R4 |
-| 8 | Discrete PID Subject Allocator | PID-based corrective study prescription engine calculating daily target minute adjustments to prevent subject neglect | M4 | ORIGINAL_REQUEST §R4 |
-| 9 | 100 HP Elastic Streak Health Bar | Non-binary anti-fragile health bar with daily decay on missed/under-target days and recovery on target/surplus days | M5 | ORIGINAL_REQUEST §R5 |
-| 10 | Resilience Shield Token Engine | 0–3 shield tokens earned through surplus effort and auto-consumed to defend streaks during missed/off days | M5 | ORIGINAL_REQUEST §R5 |
-| 11 | Comprehensive E2E Verification & BrowserOS Live Validation | Verification suite covering all 5 features, TypeScript zero-error compilation, and BrowserOS live validation | M6 | ORIGINAL_REQUEST Acceptance Criteria |
+| # | Feature | Description | Milestone | Source | Status |
+|---|---------|-------------|-----------|--------|--------|
+| 1 | The Bandhan School Record Ingestion | Ingest CBSE XI-Science records (Affiliation 2430453, 71 working days held as of Sept 1 2026, 48 present, 23 absent, 10 on-duty for IIT KGP Kriti RISE) | M1 | ORIGINAL_REQUEST §R1 | DONE |
+| 2 | Institutional Calendar & Absence Ledger | 28 official holidays, 4 vacation windows (36 days saved), 4 exam/PTM schedules, 23 logged absences with practical day tags | M1 | ORIGINAL_REQUEST §R1 | DONE |
+| 3 | Attendance Reality Math Engine | Dynamic effective (81.69%) and raw (67.61%) attendance %, Dec 31 lock date safe leave limits (21 for 75%, 42 for 60%), and consecutive recovery days formula | M2 | ORIGINAL_REQUEST §R2 | DONE |
+| 4 | Zero-Cost Gemini Web AI Regulator Bridge | 1-Click "Launch Attendance AI Regulator" opening Gemini Web with clipboard prompt payload on CBSE Rule 13.2/14 by-laws, dummy schooling, NIOS, and British A-Levels | M2 | ORIGINAL_REQUEST §R2 | DONE |
+| 5 | Dynamic Daily Insight Regeneration | "🔄 Re-analyze with Latest Logs" in Dashboard and InsightsPanel recalculating cumulative daily metrics for multi-session days | M3 | ORIGINAL_REQUEST §R3 | DONE |
+| 6 | State Rehydration for Daily Insights | Startup cache rehydration in `AppContext.tsx` preventing loss of daily insights across page reloads | M3 | ORIGINAL_REQUEST §R3 | DONE |
+| 7 | Real-Time Cross-Device Firestore Sync | Bidirectional Firestore sync supporting `debanjan8686@gmail.com` / `partofcosmmos@gmail.com` with instant React state updates and anonymous auth safety | M4 | ORIGINAL_REQUEST §R4 | DONE |
+| 8 | Zero Data Loss Invariant Protection | Additive non-destructive union merges for all 34+ storage keys, study logs, goals, reflections, and attendance data | M4 | ORIGINAL_REQUEST §R4 | DONE |
+| 9 | AI Gateway Fast Model Roster | 7-model fast launch bar (ChatGPT GPT-4o/o3, DeepSeek R1, Gemini 2.5 Pro, Claude 3.7 Sonnet, Perplexity AI, Wolfram Alpha, DuckDuckGo AI Chat) with clipboard payload | M5 | ORIGINAL_REQUEST §R5 | DONE |
+| 10 | Deprecated Route Purge & Socratic KaTeX | Clean removal of dead endpoints (`You.com`), crisp KaTeX formula rendering in 4-tier derivation drawer with Alt+G shortcut | M5 | ORIGINAL_REQUEST §R5 | DONE |
+| 11 | Cosmos Branding & Identity Anonymity | Subtitle *"An initiative of Part of Cosmos"* on sidebar, mobile header, and footer with identity protection masking | M5 | ORIGINAL_REQUEST §Core Directive 2 | DONE |
+| 12 | 2028 IPhO Gold Track Target Roadmap | Unified 2-year target roadmap (IPhO/NSEP/INPhO, Class 12 Boards March 2028, JEE Advanced May 2028, ISI & CMI May 2028) | M5 | ORIGINAL_REQUEST Timeline Clarification | DONE |
+| 13 | Comprehensive Master Test Suite | E2E test suites in `src/test/` for R1-R5, TypeScript compilation 0 errors, clean Vite build | M6 (Test) | ORIGINAL_REQUEST Acceptance Criteria | DONE |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Flowmodoro & Flowtime Engine | `src/utils/flowmodoroEngine.ts`, `src/components/Pomodoro.tsx` | none | DONE |
-| M2 | Sub-Second Voice/Text Micro-Logger | `src/utils/microLogParser.ts`, `src/components/MicroLoggerModal.tsx`, `src/components/LogInput.tsx`, `src/components/Layout.tsx` | none | DONE |
-| M3 | Speed vs. Accuracy Calibration Matrix (SACM) | `src/utils/sacmCalculator.ts`, `src/components/Analytics.tsx` | none | DONE |
-| M4 | Dynamic Subject Equilibrium Matrix (PID Allocator) | `src/utils/pidEquilibriumEngine.ts`, `src/components/Analytics.tsx`, `src/components/Dashboard.tsx` | none | DONE |
-| M5 | Elastic Streak Health Bar & Resilience Tokens | `src/utils/streakResilienceEngine.ts`, `src/components/Dashboard.tsx`, `src/components/StudyHeatmap.tsx`, `src/context/AppContext.tsx` | none | DONE |
-| M6 | E2E Test Suite & BrowserOS Live Validation | Test suites, TypeScript compilation, BrowserOS validation | M1-M5 | IN_PROGRESS |
+| M1 | Historical Attendance & Institutional Calendar Ingestion | `src/components/AttendanceTracker.tsx`, `src/components/AttendanceCalculator.tsx`, `src/types/attendance.ts`, `src/App.tsx`, `src/components/Layout.tsx` | none | DONE |
+| M2 | Attendance Reality Math & Gemini AI Regulator Bridge | `src/components/AttendanceTracker.tsx`, `src/services/attendanceRegulatorService.ts` | M1 | DONE |
+| M3 | Dynamic Daily Insight Regeneration & Log Adaptation | `src/components/Dashboard.tsx`, `src/components/InsightsPanel.tsx`, `src/context/AppContext.tsx` | none | DONE |
+| M4 | Real-Time Cross-Device Cloud Sync & Persistence | `src/services/cloudSyncService.ts`, `src/context/AppContext.tsx` | none | DONE |
+| M5 | AI Gateway Streamlining, Cosmos Branding & 2028 Targets | `src/components/AIGateway.tsx`, `src/components/Layout.tsx`, `src/App.tsx`, `src/components/ExamCountdown.tsx`, `src/components/Goals.tsx` | none | DONE |
+| M6 | Master E2E Test Suite & Build Verification | `src/test/`, `src/test/allTests.test.ts`, `tsc --noEmit`, `vite build` | M1, M2, M3, M4, M5 | DONE |
 
 ## Interface Contracts
-### Flowmodoro ↔ Pomodoro Component
-- `calculateDynamicBreak(focusSeconds: number, config: FlowmodoroConfig): number`
-- `getFlowStage(focusMinutes: number): { stage: FlowStateStage; label: string; color: string }`
-- State: `{ engineMode: 'pomodoro' | 'flowmodoro', elapsedFocusSeconds: number, earnedBreakSeconds: number, isBreakActive: boolean }`
+### AttendanceTracker ↔ App & Layout
+- Route identifier: `'attendance'` in `ActiveTabType`
+- Label: `"Attendance & Regulatory AI"`, Icon: `GraduationCap`
+- Local storage keys: `savantix_attendance_institutional_v1`, `savantix_attendance_data_v1`
+- Export contract: `AttendanceTracker` component rendered in `App.tsx` (with backwards-compatible export/wrapper for `AttendanceCalculator`)
 
-### MicroLogParser ↔ MicroLoggerModal & LogInput
-- `parseMicroLog(input: string): MicroLogEntity`
-- Input: raw text / speech transcript. Output: `{ subject, topic, durationMinutes, problemsSolved, accuracyPercent, mistakes, focusScore, efficiencyScore, energyMood }`
+### Daily Insights ↔ Dashboard & AppContext
+- Function: `reanalyzeDailyInsights(date: string, todayLogs: StudyLog[])`
+- Component trigger: `<button onClick={handleGenerate}>🔄 Re-analyze with Latest Logs</button>`
+- Local storage key: `savantix_user_insights_${uid}`
+- Cloud Sync payload key: `insights: any[]`
 
-### SACM Calculator ↔ Analytics Component
-- `calculateSACMData(sessions: StudySession[], benchmarks?: SACMBenchmarks): SACMReport`
-- Quadrants: `'Q1_Mastery' | 'Q2_Overthinking' | 'Q3_Rushing' | 'Q4_Struggling'`
+### CloudSyncService ↔ AppContext
+- Listener: `subscribeToCloudSync(canonicalId: string, onUpdate: (data: CloudSyncPayload) => void)`
+- Auth session key: `savantix_user_session`
+- Sync Hub collection: `sync_hub` / `deb_sync_<sanitized_email>`
 
-### PID Equilibrium Engine ↔ Analytics & Dashboard
-- `calculateSubjectEquilibrium(logs7Days: StudySession[], targetWeights?: Record<string, number>): SubjectEquilibriumReport`
-- Output: `{ equilibriumScore: number, status: 'harmonious' | 'mild_skew' | 'severe_neglect', subjectDistributions, actionablePrescription: string }`
-
-### Streak Resilience Engine ↔ Dashboard & Heatmap
-- `evaluateElasticStreak(currentState: ElasticStreakState, dailyLogs: DailyLogSummary[], targetMinutesDaily: number): ElasticStreakState`
-- State: `{ currentHP: number, maxHP: 100, shieldTokens: number, maxShieldTokens: 3, activeStreakDays: number }`
-
-## Code Layout
-- `src/utils/flowmodoroEngine.ts` — Flowmodoro & Flowtime calculation and stage classifier.
-- `src/utils/microLogParser.ts` — Deterministic regex NLP parser for micro-logs.
-- `src/utils/sacmCalculator.ts` — SACM 4-quadrant calibration and diagnostics.
-- `src/utils/pidEquilibriumEngine.ts` — Shannon entropy & PID corrective study balance.
-- `src/utils/streakResilienceEngine.ts` — Elastic 100 HP health bar & shield token engine.
-- `src/components/MicroLoggerModal.tsx` — Global floating micro-logger HUD.
-- `src/components/Pomodoro.tsx` — Pomodoro & Flowmodoro UI and timer integration.
-- `src/components/LogInput.tsx` — Dashboard quick logger with micro-log integration.
-- `src/components/Layout.tsx` — App layout with global hotkey handler (`Alt+L` / `Ctrl+K`).
-- `src/components/Analytics.tsx` — SACM matrix scatter plot and Subject Equilibrium PID panel.
-- `src/components/Dashboard.tsx` — Elastic Streak Health Bar & Shield Tokens display, PID prescription callout.
-- `src/components/StudyHeatmap.tsx` — Streak display and health status integration.
-- `src/context/AppContext.tsx` — LocalStorage persistence and streak health state sync.
+### AI Gateway ↔ Navigation
+- Global trigger: `window.dispatchEvent(new CustomEvent('savantix_open_ai_gateway'))` / `Alt+G`
+- Roster: 7 external frontier model endpoints + In-App Socratic KaTeX solver
