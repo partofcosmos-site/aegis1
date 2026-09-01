@@ -113,9 +113,9 @@ export const AI_SERVICES: AIService[] = [
   },
   {
     id: "claude",
-    name: "Claude 3.7 Sonnet (Hybrid Thinking)",
-    shortName: "Claude 3.7",
-    description: "Anthropic Claude 3.7 Sonnet — extended thinking mode & crystal-clear mathematical proofs",
+    name: "Claude",
+    shortName: "Claude",
+    description: "Anthropic Claude — hybrid thinking mode & crystal-clear mathematical proofs",
     color: "from-orange-600 to-amber-600",
     textColor: "text-orange-400",
     emoji: "🏛️",
@@ -495,7 +495,7 @@ Requirements:
 
     setLaunchToast({
       name: "⚡ Triple-Audit Dispatched",
-      message: "Opened DeepSeek R1, ChatGPT o3, and Claude 3.7 with prompt auto-copied to clipboard!",
+      message: "Opened DeepSeek R1, ChatGPT, and Claude with prompt auto-copied to clipboard!",
       type: "success"
     });
     setTimeout(() => setLaunchToast(null), 6000);
@@ -756,7 +756,7 @@ Final Analytical Result: $$${inAppSolution.tier4.finalAnswerLatex}$$
                   type="button"
                   onClick={handleParallelTripleAudit}
                   className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-amber-300 hover:text-amber-200 border border-amber-500/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                  title="Launch DeepSeek R1 + ChatGPT o3 + Claude 3.7 simultaneously"
+                  title="Launch DeepSeek R1 + ChatGPT + Claude simultaneously"
                 >
                   <Zap className="w-3.5 h-3.5 text-amber-400" />
                   <span>⚡ Triple-Audit</span>

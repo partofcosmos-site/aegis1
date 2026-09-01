@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#121216"
+    android:padding="12dp">
+
+    <!-- Header Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_app_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="SAVANTIX"
+            android:textColor="#818CF8"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.08" />
+
+        <TextView
+            android:id="@+id/widget_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CBSE XI-SCIENCE"
+            android:textColor="#A1A1AA"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Main Metrics Grid -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="6dp">
+
+        <!-- Attendance Column -->
+        <LinearLayout
+            android:id="@+id/widget_attendance_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_attendance_pct"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="69.86%"
+                android:textColor="#34D399"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_attendance_sub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Safe Leaves: 13d (75%)"
+                android:textColor="#71717A"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="32dp"
+            android:background="#27272A"
+            android:layout_marginHorizontal="8dp" />
+
+        <!-- Study Velocity Column -->
+        <LinearLayout
+            android:id="@+id/widget_study_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_today_study"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Today: 0 min"
+                android:textColor="#F4F4F5"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_streak_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="IIT KGP + CBSE Track"
+                android:textColor="#71717A"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Quick Action Launchers Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/btn_quick_log"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="#27272A"
+            android:gravity="center"
+            android:paddingVertical="5dp"
+            android:text="⚡ Quick Log"
+            android:textColor="#E4E4E7"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="4dp" />
+
+        <TextView
+            android:id="@+id/btn_stem_ai"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="#27272A"
+            android:gravity="center"
+            android:paddingVertical="5dp"
+            android:text="🧠 STEM AI"
+            android:textColor="#E4E4E7"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:layout_marginHorizontal="2dp" />
+
+        <TextView
+            android:id="@+id/btn_attendance"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="#27272A"
+            android:gravity="center"
+            android:paddingVertical="5dp"
+            android:text="🏛️ Attendance"
+            android:textColor="#E4E4E7"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+</LinearLayout>

@@ -105,9 +105,9 @@ export const VERIFIED_AI_SERVICES: AIServiceDef[] = [
   },
   {
     id: "claude",
-    name: "Claude 3.7 Sonnet",
-    shortName: "Claude 3.7",
-    description: "Claude 3.7 Sonnet — extended thinking & crystal-clear explanations",
+    name: "Claude",
+    shortName: "Claude",
+    description: "Claude — hybrid thinking & crystal-clear explanations",
     baseUrl: "https://claude.ai/new",
     supportsDirectLink: false,
     requiresLogin: true,

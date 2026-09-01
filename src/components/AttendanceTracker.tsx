@@ -25,6 +25,7 @@ import {
   launchGeminiRegulator,
   DEFAULT_INITIAL_STATE
 } from '../services/attendanceRegulatorService';
+import { WidgetSyncService } from '../services/widgetSyncService';
 
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; ring: string }> = {
   indigo:  { bg: 'bg-indigo-500/10',  border: 'border-indigo-500/30',  text: 'text-indigo-400',  ring: 'ring-indigo-500/40' },
@@ -96,9 +97,15 @@ export const AttendanceTracker: React.FC = () => {
   const [customAIQuery, setCustomAIQuery] = useState<string>('');
   const [copiedSuccess, setCopiedSuccess] = useState<boolean>(false);
 
-  // Save to storage on changes
+  // Save to storage on changes and sync to Native Android/iOS Widget
   useEffect(() => {
     saveInstitutionalState(state);
+    const m = computeLiveMetrics(state);
+    WidgetSyncService.syncToNativeWidget({
+      effectivePct: m.effectivePct,
+      safeLeaves75: m.safeLeaves75,
+      safeLeaves60: m.safeLeaves60
+    });
   }, [state]);
 
   const showToast = (msg: string) => {

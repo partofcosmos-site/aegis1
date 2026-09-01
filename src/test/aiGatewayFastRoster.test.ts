@@ -92,9 +92,9 @@ export const VERIFIED_AI_SERVICES: AIService[] = [
   },
   {
     id: "claude",
-    name: "Claude 3.7 Sonnet",
-    shortName: "Claude 3.7",
-    description: "Claude 3.7 Sonnet — extended thinking & crystal-clear explanations",
+    name: "Claude",
+    shortName: "Claude",
+    description: "Claude — hybrid thinking & crystal-clear explanations",
     color: "from-orange-600 to-amber-600",
     textColor: "text-orange-400",
     emoji: "🏛️",
