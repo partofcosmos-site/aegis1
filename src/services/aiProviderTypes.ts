@@ -231,11 +231,11 @@ export const PROVIDER_TEMPLATES: Record<ProviderType, ProviderTemplate> = {
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     requiresKey: true,
     defaultModels: [
-      { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (Default Fast)', specialization: 'speed' },
-      { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite (Ultra Fast)', specialization: 'speed' },
-      { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash (Reasoning & Speed)', specialization: 'deep_reasoning' },
-      { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Deep Reasoning)', specialization: 'deep_reasoning' },
-      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Stable Fallback)', specialization: 'speed' }
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Multimodal Reasoning)', specialization: 'deep_reasoning' },
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Ultra Fast & Grounded)', specialization: 'speed' },
+      { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash (Hybrid Speed & Logic)', specialization: 'speed' },
+      { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', specialization: 'speed' },
+      { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Deep Preview)', specialization: 'deep_reasoning' }
     ],
     setupGuideUrl: 'https://aistudio.google.com/app/apikey'
   },
@@ -245,8 +245,9 @@ export const PROVIDER_TEMPLATES: Record<ProviderType, ProviderTemplate> = {
     defaultBaseUrl: 'https://api.groq.com/openai/v1',
     requiresKey: true,
     defaultModels: [
-      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile', specialization: 'speed' },
-      { id: 'deepseek-r1-distill-llama-70b', name: 'DeepSeek R1 Distill 70B', specialization: 'deep_reasoning' }
+      { id: 'deepseek-r1-distill-llama-70b', name: 'DeepSeek R1 Distill 70B (Fast Reasoning)', specialization: 'deep_reasoning' },
+      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile (Instant LPU)', specialization: 'speed' },
+      { id: 'qwen-2.5-coder-32b', name: 'Qwen 2.5 Coder 32B', specialization: 'code' }
     ],
     setupGuideUrl: 'https://console.groq.com/keys'
   },
@@ -256,9 +257,12 @@ export const PROVIDER_TEMPLATES: Record<ProviderType, ProviderTemplate> = {
     defaultBaseUrl: 'https://api.openai.com/v1',
     requiresKey: true,
     defaultModels: [
-      { id: 'gpt-4o', name: 'GPT-4o', specialization: 'general' },
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', specialization: 'speed' },
-      { id: 'o3-mini', name: 'o3-mini (High Reasoning)', specialization: 'deep_reasoning' }
+      { id: 'o3-mini', name: 'o3-mini (High STEM Reasoning)', specialization: 'deep_reasoning' },
+      { id: 'o3', name: 'o3 (Full Frontier Reasoning)', specialization: 'deep_reasoning' },
+      { id: 'o1', name: 'o1 / o1-pro (Deep Chain-of-Thought)', specialization: 'deep_reasoning' },
+      { id: 'gpt-4.5-preview', name: 'GPT-4.5 (Frontier World Model)', specialization: 'general' },
+      { id: 'gpt-4o', name: 'GPT-4o (Omni Multimodal)', specialization: 'general' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Fast)', specialization: 'speed' }
     ],
     setupGuideUrl: 'https://platform.openai.com/api-keys'
   },
@@ -268,8 +272,10 @@ export const PROVIDER_TEMPLATES: Record<ProviderType, ProviderTemplate> = {
     defaultBaseUrl: 'https://api.anthropic.com/v1',
     requiresKey: true,
     defaultModels: [
-      { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', specialization: 'deep_reasoning' },
-      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', specialization: 'speed' }
+      { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet (Hybrid Extended Thinking)', specialization: 'deep_reasoning' },
+      { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (v2)', specialization: 'deep_reasoning' },
+      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (Ultra Fast)', specialization: 'speed' },
+      { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', specialization: 'deep_reasoning' }
     ],
     setupGuideUrl: 'https://console.anthropic.com/settings/keys'
   },
@@ -279,10 +285,10 @@ export const PROVIDER_TEMPLATES: Record<ProviderType, ProviderTemplate> = {
     defaultBaseUrl: 'https://api.deepseek.com/v1',
     requiresKey: true,
     defaultModels: [
-      { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 Free', specialization: 'deep_reasoning' },
-      { id: 'deepseek/deepseek-chat:free', name: 'DeepSeek Chat Free', specialization: 'general' },
-      { id: 'deepseek-chat', name: 'DeepSeek Chat', specialization: 'general' },
-      { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner', specialization: 'deep_reasoning' }
+      { id: 'deepseek-reasoner', name: 'DeepSeek-R1 (671B DeepThink Reasoning)', specialization: 'deep_reasoning' },
+      { id: 'deepseek-chat', name: 'DeepSeek-V3 (671B General Chat)', specialization: 'general' },
+      { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Free OpenRouter)', specialization: 'deep_reasoning' },
+      { id: 'deepseek/deepseek-chat:free', name: 'DeepSeek V3 (Free OpenRouter)', specialization: 'general' }
     ],
     setupGuideUrl: 'https://platform.deepseek.com/api_keys'
   },
