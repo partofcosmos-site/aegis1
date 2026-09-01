@@ -256,14 +256,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // 2. Real-Time Cloud Sync: Pull remote snapshot & start bidirectional real-time subscription
     CloudSyncService.pullFromCloud(cleanEmail, userUidKey).then(res => {
       if (res.success) {
-        const lLogs = JSON.parse(localStorage.getItem(localLogsKey) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
-        const lGoals = JSON.parse(localStorage.getItem(localGoalsKey) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
-        const lJournal = JSON.parse(localStorage.getItem(localJournalKey) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
-        const lInsights = JSON.parse(localStorage.getItem(localInsightsKey) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || '[]');
-        if (lLogs.length) setLogs(lLogs);
-        if (lGoals.length) setGoals(lGoals);
-        if (lJournal.length) setJournalEntries(lJournal);
-        if (lInsights.length) setInsights(lInsights);
+        if (res.mergedLogs) setLogs(res.mergedLogs);
+        if (res.mergedGoals) setGoals(res.mergedGoals);
+        if (res.mergedJournal) setJournalEntries(res.mergedJournal);
+        if (res.mergedInsights) setInsights(res.mergedInsights);
         setSyncStatus({
           isSyncing: false,
           lastSyncedAt: res.timestamp,
@@ -273,14 +269,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
 
     CloudSyncService.subscribeToCloudSync(cleanEmail, userUidKey, (res) => {
-      const lLogs = JSON.parse(localStorage.getItem(localLogsKey) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
-      const lGoals = JSON.parse(localStorage.getItem(localGoalsKey) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
-      const lJournal = JSON.parse(localStorage.getItem(localJournalKey) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
-      const lInsights = JSON.parse(localStorage.getItem(localInsightsKey) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || '[]');
-      if (lLogs.length) setLogs(lLogs);
-      if (lGoals.length) setGoals(lGoals);
-      if (lJournal.length) setJournalEntries(lJournal);
-      if (lInsights.length) setInsights(lInsights);
+      if (res.mergedLogs) setLogs(res.mergedLogs);
+      if (res.mergedGoals) setGoals(res.mergedGoals);
+      if (res.mergedJournal) setJournalEntries(res.mergedJournal);
+      if (res.mergedInsights) setInsights(res.mergedInsights);
       setSyncStatus({
         isSyncing: false,
         lastSyncedAt: res.timestamp,
@@ -328,14 +320,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         // Mount live real-time subscription immediately on startup
         CloudSyncService.subscribeToCloudSync(parsed.email, parsed.uid, (res) => {
-          const lLogs = JSON.parse(localStorage.getItem(savedLogsKey) || '[]');
-          const lGoals = JSON.parse(localStorage.getItem(savedGoalsKey) || '[]');
-          const lJournal = JSON.parse(localStorage.getItem(savedJournalKey) || '[]');
-          const lInsights = JSON.parse(localStorage.getItem(savedInsightsKey) || '[]');
-          if (lLogs.length) setLogs(lLogs);
-          if (lGoals.length) setGoals(lGoals);
-          if (lJournal.length) setJournalEntries(lJournal);
-          if (lInsights.length) setInsights(lInsights);
+          if (res.mergedLogs) setLogs(res.mergedLogs);
+          if (res.mergedGoals) setGoals(res.mergedGoals);
+          if (res.mergedJournal) setJournalEntries(res.mergedJournal);
+          if (res.mergedInsights) setInsights(res.mergedInsights);
           setSyncStatus({
             isSyncing: false,
             lastSyncedAt: res.timestamp,
@@ -346,14 +334,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         // Trigger background cloud sync on app start and rehydrate state
         CloudSyncService.pullFromCloud(parsed.email, parsed.uid).then(res => {
           if (res.success) {
-            const lLogs = JSON.parse(localStorage.getItem(savedLogsKey) || '[]');
-            const lGoals = JSON.parse(localStorage.getItem(savedGoalsKey) || '[]');
-            const lJournal = JSON.parse(localStorage.getItem(savedJournalKey) || '[]');
-            const lInsights = JSON.parse(localStorage.getItem(savedInsightsKey) || '[]');
-            if (lLogs.length) setLogs(lLogs);
-            if (lGoals.length) setGoals(lGoals);
-            if (lJournal.length) setJournalEntries(lJournal);
-            if (lInsights.length) setInsights(lInsights);
+            if (res.mergedLogs) setLogs(res.mergedLogs);
+            if (res.mergedGoals) setGoals(res.mergedGoals);
+            if (res.mergedJournal) setJournalEntries(res.mergedJournal);
+            if (res.mergedInsights) setInsights(res.mergedInsights);
             setSyncStatus({
               isSyncing: false,
               lastSyncedAt: res.timestamp,
@@ -398,18 +382,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSyncStatus(prev => ({ ...prev, isSyncing: true }));
     try {
       const res = await CloudSyncService.pullFromCloud(user.email, user.uid);
-      const canonicalId = CloudSyncService.getCanonicalUid(user.email);
-      const userUidKey = user.uid || canonicalId;
-
-      const loadedLogs = JSON.parse(localStorage.getItem(`savantix_user_logs_${userUidKey}`) || localStorage.getItem(`savantix_user_logs_${canonicalId}`) || '[]');
-      const loadedGoals = JSON.parse(localStorage.getItem(`savantix_user_goals_${userUidKey}`) || localStorage.getItem(`savantix_user_goals_${canonicalId}`) || '[]');
-      const loadedJournal = JSON.parse(localStorage.getItem(`savantix_user_journal_${userUidKey}`) || localStorage.getItem(`savantix_user_journal_${canonicalId}`) || '[]');
-      const loadedInsights = JSON.parse(localStorage.getItem(`savantix_user_insights_${userUidKey}`) || localStorage.getItem(`savantix_user_insights_${canonicalId}`) || '[]');
-
-      if (loadedLogs.length) setLogs(loadedLogs);
-      if (loadedGoals.length) setGoals(loadedGoals);
-      if (loadedJournal.length) setJournalEntries(loadedJournal);
-      if (loadedInsights.length) setInsights(loadedInsights);
+      if (res.mergedLogs) setLogs(res.mergedLogs);
+      if (res.mergedGoals) setGoals(res.mergedGoals);
+      if (res.mergedJournal) setJournalEntries(res.mergedJournal);
+      if (res.mergedInsights) setInsights(res.mergedInsights);
 
       setSyncStatus({
         isSyncing: false,
@@ -436,6 +412,42 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return res;
     }
   }, [user, isGuest, logs.length, goals.length, journalEntries.length, insights.length]);
+
+  // Continuous Auto-Sync Heartbeat (every 10s + on focus + on tab visibility change + on network reconnect)
+  useEffect(() => {
+    if (!user || isGuest) return;
+
+    const handleAutoSync = () => {
+      forceSyncNow().catch(() => {});
+    };
+
+    const intervalId = setInterval(handleAutoSync, 10000); // 10s auto-pull
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleAutoSync();
+      }
+    };
+
+    const handleFocus = () => {
+      handleAutoSync();
+    };
+
+    const handleOnline = () => {
+      handleAutoSync();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [user, isGuest, forceSyncNow]);
 
   const login = async () => {
     setLoading(true);
@@ -534,9 +546,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     
     // 1. Optimistic state & persistent storage
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const updatedLogs = [newLog, ...logs];
     setLogs(updatedLogs);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}logs` : `savantix_user_logs_${user.uid}`, JSON.stringify(updatedLogs));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_logs_${canonicalId}`, JSON.stringify(updatedLogs));
+    }
     localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(updatedLogs));
 
     // 2. Safe background Firestore update & Cloud Push
@@ -557,9 +573,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateLog = async (id: string, data: any) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const updated = logs.map(l => l.id === id ? { ...l, ...data } : l);
     setLogs(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}logs` : `savantix_user_logs_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_logs_${canonicalId}`, JSON.stringify(updated));
+    }
     localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(updated));
 
     if (!isGuest) {
@@ -575,9 +595,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteLog = async (id: string) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const updated = logs.filter(l => l.id !== id);
     setLogs(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}logs` : `savantix_user_logs_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_logs_${canonicalId}`, JSON.stringify(updated));
+    }
     localStorage.setItem('savantix_logs_backup_latest', JSON.stringify(updated));
 
     if (!isGuest) {
@@ -593,6 +617,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addInsight = async (insightData: any) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const dateStr = (insightData.date ? String(insightData.date) : new Date().toISOString().substring(0, 10)).substring(0, 10);
     const summary = String(insightData.performanceSummary || insightData.summary || 'Daily Study Review').substring(0, 4999);
     const newInsight = {
@@ -606,6 +631,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updated = [newInsight, ...insights.filter(i => i.date !== dateStr)];
     setInsights(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}insights` : `savantix_user_insights_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_insights_${canonicalId}`, JSON.stringify(updated));
+    }
 
     if (!isGuest) {
       try {
@@ -622,6 +650,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           warnings: insightData.warnings || [],
           createdAt: f.serverTimestamp()
         }));
+        CloudSyncService.pushToCloud(user.email, user.uid);
       } catch (err) {
         console.warn("Firestore addInsight background sync notice:", err);
       }
@@ -631,6 +660,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addGoal = async (goalData: any) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const title = String(goalData.title || 'Target Objective').substring(0, 199);
     const desc = String(goalData.description || '').substring(0, 999);
     const completed = Boolean(goalData.completed || goalData.progress === 100);
@@ -649,6 +679,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updated = [newGoal, ...goals];
     setGoals(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}goals` : `savantix_user_goals_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_goals_${canonicalId}`, JSON.stringify(updated));
+    }
 
     if (!isGuest) {
       try {
@@ -671,9 +704,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateGoal = async (id: string, data: any) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const updated = goals.map(g => g.id === id ? { ...g, ...data } : g);
     setGoals(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}goals` : `savantix_user_goals_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_goals_${canonicalId}`, JSON.stringify(updated));
+    }
 
     if (!isGuest) {
       try {
@@ -688,9 +725,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteGoal = async (id: string) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const updated = goals.filter(g => g.id !== id);
     setGoals(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}goals` : `savantix_user_goals_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_goals_${canonicalId}`, JSON.stringify(updated));
+    }
 
     if (!isGuest) {
       try {
@@ -705,6 +746,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addJournalEntry = async (entryData: any) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const title = String(entryData.title || 'Daily Journal').substring(0, 199);
     const content = String(entryData.content || entryData.notes || 'Reflection note').substring(0, 9999);
     const date = (entryData.date ? String(entryData.date) : new Date().toISOString().substring(0, 10)).substring(0, 10);
@@ -721,6 +763,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updated = [newEntry, ...journalEntries];
     setJournalEntries(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}journal` : `savantix_user_journal_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_journal_${canonicalId}`, JSON.stringify(updated));
+    }
 
     if (!isGuest) {
       try {
@@ -742,9 +787,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateJournalEntry = async (id: string, data: any) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const updated = journalEntries.map(j => j.id === id ? { ...j, ...data } : j);
     setJournalEntries(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}journal` : `savantix_user_journal_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_journal_${canonicalId}`, JSON.stringify(updated));
+    }
 
     if (!isGuest) {
       try {
@@ -759,9 +808,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteJournalEntry = async (id: string) => {
     if (!user) return;
+    const canonicalId = CloudSyncService.getCanonicalUid(user.email);
     const updated = journalEntries.filter(j => j.id !== id);
     setJournalEntries(updated);
     localStorage.setItem(isGuest ? `${GUEST_STORAGE_PREFIX}journal` : `savantix_user_journal_${user.uid}`, JSON.stringify(updated));
+    if (!isGuest && canonicalId) {
+      localStorage.setItem(`savantix_user_journal_${canonicalId}`, JSON.stringify(updated));
+    }
 
     if (!isGuest) {
       try {

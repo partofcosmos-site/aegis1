@@ -37,12 +37,19 @@ export interface SyncResult {
   insightsCount?: number;
   attendanceCount: number;
   message: string;
+  mergedLogs?: any[];
+  mergedGoals?: any[];
+  mergedJournal?: any[];
+  mergedInsights?: any[];
+  mergedAttendance?: any[];
+  mergedInstitutionalAttendance?: any;
 }
 
 export class CloudSyncService {
   private static SYNC_COLLECTION = 'sync_hub';
   private static activeUnsubscribe: (() => void) | null = null;
   private static isSyncing = false;
+  private static syncBus: BroadcastChannel | null = typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('savantix_sync_bus') : null;
 
   /**
    * Deterministic canonical identifier from user email.
@@ -325,7 +332,7 @@ export class CloudSyncService {
     const timestamp = new Date().toLocaleTimeString();
     localStorage.setItem('savantix_last_cloud_sync_time', timestamp);
 
-    return {
+    const result: SyncResult = {
       success: true,
       timestamp,
       logsCount: mergedLogs.length,
@@ -333,8 +340,25 @@ export class CloudSyncService {
       journalCount: mergedJournal.length,
       insightsCount: mergedInsights.length,
       attendanceCount: remote.attendance?.length || 0,
-      message: `Successfully synchronized ${mergedLogs.length} logs, ${mergedGoals.length} goals, ${mergedJournal.length} journal reflections, and ${mergedInsights.length} daily insights.`
+      message: `Successfully synchronized ${mergedLogs.length} logs, ${mergedGoals.length} goals, ${mergedJournal.length} journal reflections, and ${mergedInsights.length} daily insights.`,
+      mergedLogs,
+      mergedGoals,
+      mergedJournal,
+      mergedInsights,
+      mergedAttendance: remote.attendance,
+      mergedInstitutionalAttendance: remote.institutional_attendance
     };
+
+    try {
+      if (this.syncBus) {
+        this.syncBus.postMessage({ type: 'SYNC_COMPLETED', timestamp, email, uid });
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('savantix_cloud_synced', { detail: result }));
+      }
+    } catch {}
+
+    return result;
   }
 
   /**

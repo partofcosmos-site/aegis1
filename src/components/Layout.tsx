@@ -19,7 +19,8 @@ import {
   Zap,
   Lock,
   MessageSquareHeart,
-  GraduationCap
+  GraduationCap,
+  RefreshCw
 } from 'lucide-react';
 import clsx from 'clsx';
 import { MicroLoggerModal } from './MicroLoggerModal';
@@ -46,7 +47,7 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
-  const { user, logout } = useAppContext();
+  const { user, logout, syncStatus, forceSyncNow } = useAppContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMicroLoggerOpen, setIsMicroLoggerOpen] = useState(false);
   const isFounder = ['debanjan8686@gmail.com', 'partofcosmmos@gmail.com'].includes(user?.email || '');
@@ -116,6 +117,16 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Quick Real-Time Sync Button */}
+          <button
+            onClick={() => forceSyncNow()}
+            disabled={syncStatus.isSyncing}
+            className="p-2 text-zinc-400 hover:text-zinc-200 bg-zinc-800/80 border border-zinc-700/60 rounded-lg transition-colors cursor-pointer"
+            title={`Cloud Sync: ${syncStatus.lastSyncedAt || 'Live'}`}
+          >
+            <RefreshCw className={clsx("w-4 h-4", syncStatus.isSyncing && "animate-spin text-indigo-400")} />
+          </button>
+
           {/* Quick Micro-Log HUD Trigger on Mobile */}
           <button
             onClick={() => setIsMicroLoggerOpen(true)}
@@ -188,6 +199,27 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
             </button>
           ))}
         </nav>
+
+        {/* Live Cloud Sync Status Strip */}
+        <div className="px-4 py-2 border-t border-zinc-800/80 bg-zinc-950/40 flex items-center justify-between text-[11px]">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={clsx(
+              "w-2 h-2 rounded-full shrink-0",
+              syncStatus.isSyncing ? "bg-amber-400 animate-ping" : "bg-emerald-400 shadow-sm shadow-emerald-400/50"
+            )} />
+            <span className="text-zinc-400 truncate text-[10px]">
+              {syncStatus.isSyncing ? "Syncing..." : `Live Sync: ${syncStatus.lastSyncedAt || "Active"}`}
+            </span>
+          </div>
+          <button
+            onClick={() => forceSyncNow()}
+            disabled={syncStatus.isSyncing}
+            className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded transition-colors cursor-pointer"
+            title="Force Instant Cloud Sync"
+          >
+            <RefreshCw className={clsx("w-3 h-3", syncStatus.isSyncing && "animate-spin text-indigo-400")} />
+          </button>
+        </div>
 
         {/* User Profile Footer */}
         <div className="p-4 border-t border-zinc-800/80">
