@@ -56,9 +56,9 @@ export const AI_SERVICES: AIService[] = [
   },
   {
     id: "chatgpt",
-    name: "ChatGPT (GPT-4o / o3)",
-    shortName: "ChatGPT",
-    description: "OpenAI GPT-4o / o3 — general reasoning & STEM pre-filled",
+    name: "ChatGPT (GPT-4o / o3 / Deep Research)",
+    shortName: "ChatGPT (o3)",
+    description: "OpenAI o3 & GPT-4o — advanced STEM problem solving & code reasoning",
     color: "from-emerald-600 to-teal-600",
     textColor: "text-emerald-400",
     emoji: "🤖",
@@ -71,9 +71,9 @@ export const AI_SERVICES: AIService[] = [
   },
   {
     id: "deepseek",
-    name: "DeepSeek R1",
+    name: "DeepSeek R1 (DeepThink Reasoner)",
     shortName: "DeepSeek R1",
-    description: "DeepSeek R1 — deep thinking chain-of-thought for Olympiad math",
+    description: "DeepSeek R1 671B — deep thinking chain-of-thought for Olympiad math & physics",
     color: "from-sky-600 to-cyan-600",
     textColor: "text-sky-400",
     emoji: "🔬",
@@ -81,13 +81,13 @@ export const AI_SERVICES: AIService[] = [
     supportsDirectLink: false,
     requiresLogin: true,
     category: "frontier",
-    bestFor: "Complex mathematical deductions & proof verification"
+    bestFor: "Complex mathematical deductions, proofs & self-correction"
   },
   {
     id: "gemini",
-    name: "Google Gemini",
-    shortName: "Gemini",
-    description: "Google Gemini — 1M token context & Google Search Grounding",
+    name: "Google Gemini 3 / Advanced",
+    shortName: "Gemini 3",
+    description: "Gemini 3 — 1M+ token context, Google Search Grounding & multimodality",
     color: "from-blue-600 to-indigo-600",
     textColor: "text-blue-400",
     emoji: "✨",
@@ -98,10 +98,24 @@ export const AI_SERVICES: AIService[] = [
     bestFor: "Multimodal diagrams, textbook chapter analysis & papers"
   },
   {
+    id: "notebooklm",
+    name: "Google NotebookLM (Audio & Sources)",
+    shortName: "NotebookLM",
+    description: "NotebookLM — grounded study guides, Audio Deep Dive podcasts & source synthesis",
+    color: "from-purple-600 to-indigo-600",
+    textColor: "text-purple-400",
+    emoji: "📓",
+    baseUrl: "https://notebooklm.google.com/",
+    supportsDirectLink: false,
+    requiresLogin: true,
+    category: "frontier",
+    bestFor: "Audio Deep Dive podcasts, source-grounded study notes & Q&A"
+  },
+  {
     id: "claude",
-    name: "Claude 3.7 Sonnet",
+    name: "Claude 3.7 Sonnet (Hybrid Thinking)",
     shortName: "Claude 3.7",
-    description: "Claude 3.7 Sonnet — extended thinking & crystal-clear explanations",
+    description: "Anthropic Claude 3.7 Sonnet — extended thinking mode & crystal-clear mathematical proofs",
     color: "from-orange-600 to-amber-600",
     textColor: "text-orange-400",
     emoji: "🏛️",
@@ -112,10 +126,24 @@ export const AI_SERVICES: AIService[] = [
     bestFor: "Conceptual depth, physics intuition, rigorous derivations"
   },
   {
+    id: "grok",
+    name: "xAI Grok 3 (Think Mode / DeepSearch)",
+    shortName: "Grok 3",
+    description: "Grok 3 — frontier STEM thinking, real-time reasoning & code execution",
+    color: "from-zinc-500 to-zinc-600",
+    textColor: "text-zinc-400",
+    emoji: "⚡",
+    baseUrl: "https://grok.com/",
+    supportsDirectLink: false,
+    requiresLogin: true,
+    category: "frontier",
+    bestFor: "Fast physics intuition and coding synthesis"
+  },
+  {
     id: "perplexity",
-    name: "Perplexity AI",
+    name: "Perplexity AI (Academic Pro)",
     shortName: "Perplexity",
-    description: "Perplexity AI — real-time web search with academic citations",
+    description: "Perplexity AI — real-time web search with academic citations & research focus",
     color: "from-violet-600 to-purple-600",
     textColor: "text-violet-400",
     emoji: "🔍",
@@ -128,9 +156,9 @@ export const AI_SERVICES: AIService[] = [
   },
   {
     id: "wolfram",
-    name: "Wolfram Alpha",
+    name: "Wolfram Alpha (Symbolic Engine)",
     shortName: "Wolfram Alpha",
-    description: "Wolfram Alpha — exact algebraic computation & analytical integrals",
+    description: "Wolfram Alpha — exact algebraic computation, ODEs & analytical integrals",
     color: "from-red-700 to-red-600",
     textColor: "text-red-400",
     emoji: "🧮",
@@ -143,7 +171,7 @@ export const AI_SERVICES: AIService[] = [
   },
   {
     id: "duckduckgo",
-    name: "DuckDuckGo AI Chat",
+    name: "DuckDuckGo AI Chat (Private)",
     shortName: "DuckDuckGo AI",
     description: "100% Free Anonymous AI (Claude 3 Haiku, GPT-4o mini, Llama 3.3)",
     color: "from-amber-600 to-orange-600",
@@ -155,48 +183,6 @@ export const AI_SERVICES: AIService[] = [
     requiresLogin: false,
     category: "search",
     bestFor: "100% private, anonymous AI chat with zero login"
-  },
-  {
-    id: "grok",
-    name: "xAI Grok 3",
-    shortName: "Grok 3",
-    description: "Grok 3 — frontier STEM thinking & real-time reasoning",
-    color: "from-zinc-500 to-zinc-600",
-    textColor: "text-zinc-400",
-    emoji: "⚡",
-    baseUrl: "https://grok.com/",
-    supportsDirectLink: false,
-    requiresLogin: true,
-    category: "frontier",
-    bestFor: "Fast physics intuition and coding synthesis"
-  },
-  {
-    id: "notebooklm",
-    name: "Google NotebookLM",
-    shortName: "NotebookLM",
-    description: "NotebookLM — grounded study guides, audio overviews & source synthesis",
-    color: "from-purple-600 to-indigo-600",
-    textColor: "text-purple-400",
-    emoji: "📓",
-    baseUrl: "https://notebooklm.google.com/",
-    supportsDirectLink: false,
-    requiresLogin: true,
-    category: "frontier",
-    bestFor: "Audio Deep Dive podcasts, source-grounded study notes & Q&A"
-  },
-  {
-    id: "huggingchat",
-    name: "HuggingChat (Open Source)",
-    shortName: "HuggingChat",
-    description: "Free access to Qwen 2.5 72B, DeepSeek R1, and Llama 3.3",
-    color: "from-yellow-600 to-amber-600",
-    textColor: "text-yellow-400",
-    emoji: "🤗",
-    baseUrl: "https://huggingface.co/chat/",
-    supportsDirectLink: false,
-    requiresLogin: false,
-    category: "code",
-    bestFor: "Open weights frontier models with zero vendor lock-in"
   }
 ];
 
@@ -207,9 +193,54 @@ export const FAST_LAUNCH_ROSTER_IDS = [
   "gemini",
   "notebooklm",
   "claude",
+  "grok",
   "perplexity",
-  "wolfram",
-  "duckduckgo"
+  "wolfram"
+];
+
+export interface StrategyModifier {
+  id: string;
+  label: string;
+  emoji: string;
+  promptSuffix: string;
+}
+
+export const STRATEGY_MODIFIERS: StrategyModifier[] = [
+  {
+    id: "first_principles",
+    label: "First-Principles Proof",
+    emoji: "🔬",
+    promptSuffix: "\n\n[DIRECTIVE: Provide a rigorous first-principles derivation formatted in KaTeX. State all governing differential equations, conservation laws, and dimensional limits.]"
+  },
+  {
+    id: "fast_heuristic",
+    label: "Speed Shortcut / Trick",
+    emoji: "⚡",
+    promptSuffix: "\n\n[DIRECTIVE: Identify the fastest intuitive shortcut, symmetry argument, or Olympiad heuristic to solve this problem in <60 seconds without long algebra.]"
+  },
+  {
+    id: "trap_boundary",
+    label: "Boundary & Trap Audit",
+    emoji: "⚠️",
+    promptSuffix: "\n\n[DIRECTIVE: Audit all edge-case boundary conditions (e.g. limits -> 0, infinity, friction transitions) and highlight the exact mistake traps students fall into.]"
+  },
+  {
+    id: "notebooklm_audio",
+    label: "NotebookLM Audio Prep",
+    emoji: "🎙️",
+    promptSuffix: "\n\n[DIRECTIVE: Format this as a highly engaging 2-person Socratic discussion script with conversational analogies, ready to be ingested into Google NotebookLM for Audio Overview.]"
+  }
+];
+
+export const MATH_SNIPPETS = [
+  { label: "\\int", snippet: "\\int_{a}^{b} f(x) \\, dx " },
+  { label: "\\frac{a}{b}", snippet: "\\frac{d}{dt} " },
+  { label: "\\sqrt{x}", snippet: "\\sqrt{x} " },
+  { label: "\\sum", snippet: "\\sum_{i=1}^{n} " },
+  { label: "\\lim", snippet: "\\lim_{x \\to 0} " },
+  { label: "\\vec{F}", snippet: "\\vec{F} = m\\vec{a}" },
+  { label: "\\nabla", snippet: "\\nabla \\times \\vec{B}" },
+  { label: "\\theta", snippet: "\\theta" }
 ];
 
 const CATEGORIES = [
@@ -423,6 +454,52 @@ Requirements:
 
     setTimeout(() => setLaunchToast(null), 5000);
   }, [query, handleSolveInApp]);
+
+  // Insert Math Symbol at cursor position
+  const handleInsertMath = (snippet: string) => {
+    if (!textareaRef.current) {
+      setQuery(prev => prev + snippet);
+      return;
+    }
+    const el = textareaRef.current;
+    const start = el.selectionStart || 0;
+    const end = el.selectionEnd || 0;
+    const nextVal = query.substring(0, start) + snippet + query.substring(end);
+    setQuery(nextVal);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + snippet.length, start + snippet.length);
+    }, 50);
+  };
+
+  // Apply Strategy Directive
+  const handleApplyStrategy = (mod: StrategyModifier) => {
+    const cleaned = query.replace(/\n\n\[DIRECTIVE:[\s\S]*?\]/g, '').trim();
+    setQuery(cleaned + mod.promptSuffix);
+    setLaunchToast({
+      name: mod.label,
+      message: `Directive attached to query. Ready for any AI Model.`,
+      type: "info"
+    });
+    setTimeout(() => setLaunchToast(null), 3000);
+  };
+
+  // Launch Multi-Model Parallel Audit (DeepSeek + ChatGPT + Claude)
+  const handleParallelTripleAudit = async () => {
+    const trimmed = query.trim() || "Please provide a rigorous, step-by-step Socratic derivation with first-principles physical intuition and LaTeX mathematical proofs.";
+    await copyToClipboard(trimmed);
+    
+    window.open("https://chat.deepseek.com/", "_blank", "noopener,noreferrer");
+    window.open(`https://chatgpt.com/?q=${encodeURIComponent(trimmed)}`, "_blank", "noopener,noreferrer");
+    window.open("https://claude.ai/new", "_blank", "noopener,noreferrer");
+
+    setLaunchToast({
+      name: "⚡ Triple-Audit Dispatched",
+      message: "Opened DeepSeek R1, ChatGPT o3, and Claude 3.7 with prompt auto-copied to clipboard!",
+      type: "success"
+    });
+    setTimeout(() => setLaunchToast(null), 6000);
+  };
 
   // Comprehensive Cross-Verification Handler: copies entire derivation + verification prompt to clipboard
   const handleCrossVerify = useCallback(async (service: AIService) => {
@@ -640,21 +717,61 @@ Final Analytical Result: $$${inAppSolution.tier4.finalAnswerLatex}$$
               className="w-full bg-transparent border-0 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none resize-none font-mono leading-relaxed"
             />
 
-            {/* Dedicated Action Toolbar (Sits Cleanly Below Textarea) */}
+            {/* Interactive LaTeX Math Snippet Bar */}
+            <div className="flex items-center gap-1 overflow-x-auto pt-1 pb-0.5 no-scrollbar border-t border-zinc-900/80">
+              <span className="text-[10px] text-zinc-500 font-mono shrink-0 mr-1">LaTeX:</span>
+              {MATH_SNIPPETS.map((sn, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleInsertMath(sn.snippet)}
+                  className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-indigo-300 border border-zinc-800/80 rounded text-[11px] font-mono transition-colors cursor-pointer shrink-0"
+                  title={`Insert ${sn.label}`}
+                >
+                  {sn.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Dedicated Action Toolbar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-2 border-t border-zinc-900 gap-2">
-              <span className="text-[11px] text-zinc-500 font-mono hidden sm:inline">
-                LaTeX inline <code className="text-zinc-400 bg-zinc-900 px-1 py-0.5 rounded">$...$</code> or block <code className="text-zinc-400 bg-zinc-900 px-1 py-0.5 rounded">$$...$$</code>
-              </span>
+              {/* Strategy Directives */}
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                <span className="text-[10px] text-zinc-500 font-semibold shrink-0">Strategy:</span>
+                {STRATEGY_MODIFIERS.map(mod => (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() => handleApplyStrategy(mod)}
+                    className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 rounded-lg text-[10px] font-medium transition-colors cursor-pointer shrink-0 flex items-center gap-1"
+                  >
+                    <span>{mod.emoji}</span>
+                    <span>{mod.label}</span>
+                  </button>
+                ))}
+              </div>
               
-              <button
-                type="button"
-                onClick={handleSolveInApp}
-                disabled={!query.trim()}
-                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed ml-auto"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-300" />
-                <span>Solve In-App (KaTeX Proof)</span>
-              </button>
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={handleParallelTripleAudit}
+                  className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-amber-300 hover:text-amber-200 border border-amber-500/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  title="Launch DeepSeek R1 + ChatGPT o3 + Claude 3.7 simultaneously"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>⚡ Triple-Audit</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSolveInApp}
+                  disabled={!query.trim()}
+                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed shrink-0"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Solve In-App (KaTeX)</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -665,16 +782,16 @@ Final Analytical Result: $$${inAppSolution.tier4.finalAnswerLatex}$$
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 <span>1-Click Fast Launch Roster (Auto-Copies Prompt)</span>
               </span>
-              <span className="text-[10px] text-zinc-500 hidden sm:inline">Zero-Latency Bridge</span>
+              <span className="text-[10px] text-zinc-500 hidden sm:inline">Zero-Latency Bridge • Press [1-8]</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-1.5 sm:gap-2">
-              {fastLaunchServices.map(service => (
+              {fastLaunchServices.map((service, idx) => (
                 <button
                   key={service.id}
                   type="button"
                   onClick={() => handleLaunch(service)}
-                  className="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 hover:border-indigo-500/40 text-left transition-all hover:scale-[1.02] active:scale-[0.98] group cursor-pointer"
+                  className="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 hover:border-indigo-500/40 text-left transition-all hover:scale-[1.02] active:scale-[0.98] group cursor-pointer relative"
                   title={`Launch ${service.name}`}
                 >
                   <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-tr ${service.color} flex items-center justify-center shrink-0 text-xs shadow`}>
@@ -689,6 +806,9 @@ Final Analytical Result: $$${inAppSolution.tier4.finalAnswerLatex}$$
                       {service.supportsDirectLink ? "Direct Link" : "1-Tap Copy"}
                     </div>
                   </div>
+                  <span className="absolute top-1 right-1 text-[8px] font-mono text-zinc-600 group-hover:text-zinc-400">
+                    {idx + 1}
+                  </span>
                 </button>
               ))}
             </div>
