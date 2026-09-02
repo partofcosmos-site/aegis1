@@ -126,30 +126,30 @@ export async function runAttendanceMathAiRegulatorTests(): Promise<void> {
   }
 
   // 1. Live Effective vs Raw Attendance Computation
-  test('Live Attendance Math: computes 69.86% live attendance (51 present / 73 held)', () => {
+  test('Live Attendance Math: computes 68.92% live attendance (51 present / 74 held)', () => {
     const metrics = computeLiveMetrics(DEFAULT_INITIAL_STATE);
 
-    assertEqual(metrics.workingDaysHeld, 73, 'Working days held');
+    assertEqual(metrics.workingDaysHeld, 74, 'Working days held');
     assertEqual(metrics.presentDays, 41, 'Physically attended days');
     assertEqual(metrics.onDutyDays, 10, 'On-duty credits');
     assertEqual(metrics.effectiveDays, 51, 'Effective credit days (41 phys + 10 OD = 51)');
     
-    // Effective percentage: 51 / 73 * 100 = 69.86%
-    assertCloseTo(metrics.effectivePct, 69.86, 0.01, 'Effective percentage');
+    // Effective percentage: 51 / 74 * 100 = 68.92%
+    assertCloseTo(metrics.effectivePct, 68.92, 0.01, 'Effective percentage');
     
-    // Raw percentage: 41 / 73 * 100 = 56.16%
-    assertCloseTo(metrics.rawPct, 56.16, 0.01, 'Raw physical percentage');
+    // Raw percentage: 41 / 74 * 100 = 55.41%
+    assertCloseTo(metrics.rawPct, 55.41, 0.01, 'Raw physical percentage');
 
     assertEqual(metrics.statusEffective, 'danger', 'Effective status < 70% is danger / warning');
     assertEqual(metrics.statusRaw, 'danger', 'Raw status < 70% is danger');
   });
 
   // 2. Safe Leaves to Dec 31 Lock Date
-  test('Dec 31 Safe Leaves Projection: computes 13 days for 75% clean and 34 days for 60% floor', () => {
+  test('Dec 31 Safe Leaves Projection: computes 12 days for 75% clean and 33 days for 60% floor', () => {
     const metrics = computeLiveMetrics(DEFAULT_INITIAL_STATE);
 
     assertEqual(metrics.totalSessionDays, 141, 'Total session days');
-    assertEqual(metrics.remainingSessionDays, 68, 'Remaining working days (141 - 73 = 68)');
+    assertEqual(metrics.remainingSessionDays, 67, 'Remaining working days (141 - 74 = 67)');
 
     // Target days for 75% across 141 days = ceil(0.75 * 141) = ceil(105.75) = 106 days
     assertEqual(metrics.targetDays75, 106, 'Target days for 75%');
@@ -157,8 +157,8 @@ export async function runAttendanceMathAiRegulatorTests(): Promise<void> {
     // Days must attend = max(0, 106 - 51) = 55 days
     assertEqual(metrics.daysMustAttend75, 55, 'Days must attend for 75%');
     
-    // Safe leaves remaining = 68 - 55 = 13 days
-    assertEqual(metrics.safeLeaves75, 13, 'Safe leaves for 75% limit');
+    // Safe leaves remaining = 67 - 55 = 12 days
+    assertEqual(metrics.safeLeaves75, 12, 'Safe leaves for 75% limit');
 
     // Target days for 60% across 141 days = ceil(0.60 * 141) = ceil(84.6) = 85 days
     assertEqual(metrics.targetDays60, 85, 'Target days for 60%');
@@ -166,19 +166,19 @@ export async function runAttendanceMathAiRegulatorTests(): Promise<void> {
     // Days must attend for 60% = max(0, 85 - 51) = 34 days
     assertEqual(metrics.daysMustAttend60, 34, 'Days must attend for 60%');
     
-    // Safe leaves remaining for 60% = 68 - 34 = 34 days
-    assertEqual(metrics.safeLeaves60, 34, 'Safe leaves for 60% condonation limit');
+    // Safe leaves remaining for 60% = 67 - 34 = 33 days
+    assertEqual(metrics.safeLeaves60, 33, 'Safe leaves for 60% condonation limit');
   });
 
   // 3. Consecutive Recovery Formula
   test('Consecutive Compulsory Recovery Math: validates formula and buffer surplus', () => {
     const metrics = computeLiveMetrics(DEFAULT_INITIAL_STATE);
 
-    // Raw physical recovery: (0.75 * 73 - 41) / 0.25 = (54.75 - 41) / 0.25 = 13.75 / 0.25 = 55 days
-    assertEqual(metrics.consecutiveRecoveryRaw, 55, 'Raw consecutive recovery days required');
+    // Raw physical recovery: (0.75 * 74 - 41) / 0.25 = (55.5 - 41) / 0.25 = 14.5 / 0.25 = 58 days
+    assertEqual(metrics.consecutiveRecoveryRaw, 58, 'Raw consecutive recovery days required');
 
-    // Effective recovery: (0.75 * 73 - 51) / 0.25 = 3.75 / 0.25 = 15 days
-    assertEqual(metrics.consecutiveRecoveryEffective, 15, 'Effective consecutive recovery days is 15 days');
+    // Effective recovery: (0.75 * 74 - 51) / 0.25 = 4.5 / 0.25 = 18 days
+    assertEqual(metrics.consecutiveRecoveryEffective, 18, 'Effective consecutive recovery days is 18 days');
   });
 
   // 4. Custom Deficit Recovery Test
@@ -207,9 +207,9 @@ export async function runAttendanceMathAiRegulatorTests(): Promise<void> {
     const sim1 = simulateAttendanceScenario(DEFAULT_INITIAL_STATE, 10, 20);
     assertEqual(sim1.hypotheticalAbsences, 10, 'Simulated absences');
     assertEqual(sim1.hypotheticalAttended, 20, 'Simulated attended');
-    assertEqual(sim1.projectedHeldDays, 73 + 30, 'Projected held days = 103');
+    assertEqual(sim1.projectedHeldDays, 74 + 30, 'Projected held days = 104');
     assertEqual(sim1.projectedEffectiveDays, 51 + 20, 'Projected effective days = 71');
-    assertCloseTo(sim1.projectedEffectivePct, 68.93, 0.01, 'Projected effective % (71 / 103 = 68.93%)');
+    assertCloseTo(sim1.projectedEffectivePct, 68.27, 0.01, 'Projected effective % (71 / 104 = 68.27%)');
     assertEqual(sim1.meetsCondonation60, true, 'Meets 60% condonation floor');
 
     // Scenario 2: Take 30 additional leaves and attend only 5 days
@@ -226,10 +226,10 @@ export async function runAttendanceMathAiRegulatorTests(): Promise<void> {
     assert(prompt.includes('The Bandhan School Aranghata'), 'Prompt includes School Name');
     assert(prompt.includes('2430453'), 'Prompt includes Affiliation Number');
     assert(prompt.includes('Class XI — Science'), 'Prompt includes Academic Stream');
-    assert(prompt.includes('69.86%'), 'Prompt includes live effective percentage');
-    assert(prompt.includes('56.16%'), 'Prompt includes live raw percentage');
-    assert(prompt.includes('13 days'), 'Prompt includes 13 safe leaves to Dec 31');
-    assert(prompt.includes('34 days'), 'Prompt includes 34 safe leaves for condonation');
+    assert(prompt.includes('68.92%'), 'Prompt includes live effective percentage');
+    assert(prompt.includes('55.41%'), 'Prompt includes live raw percentage');
+    assert(prompt.includes('12 days'), 'Prompt includes 12 safe leaves to Dec 31');
+    assert(prompt.includes('33 days'), 'Prompt includes 33 safe leaves for condonation');
 
     // Verify CBSE by-laws and strategic pathways
     assert(prompt.includes('CBSE Examination By-Laws Rule 13.2'), 'Prompt references Rule 13.2');

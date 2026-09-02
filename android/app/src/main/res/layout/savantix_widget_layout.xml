@@ -5,7 +5,10 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="#121216"
-    android:padding="12dp">
+    android:paddingLeft="12dp"
+    android:paddingTop="10dp"
+    android:paddingRight="12dp"
+    android:paddingBottom="10dp">
 
     <!-- Header Row -->
     <LinearLayout
@@ -22,8 +25,7 @@
             android:text="SAVANTIX"
             android:textColor="#818CF8"
             android:textSize="13sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.08" />
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/widget_badge"
@@ -42,7 +44,8 @@
         android:layout_weight="1"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginTop="6dp">
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp">
 
         <!-- Attendance Column -->
         <LinearLayout
@@ -56,26 +59,27 @@
                 android:id="@+id/widget_attendance_pct"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="69.86%"
+                android:text="68.92%"
                 android:textColor="#34D399"
-                android:textSize="22sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/widget_attendance_sub"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Safe Leaves: 13d (75%)"
+                android:text="Safe Leaves: 12d (75%)"
                 android:textColor="#71717A"
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- Divider -->
-        <View
+        <!-- RemoteViews-Safe FrameLayout Divider -->
+        <FrameLayout
             android:layout_width="1dp"
-            android:layout_height="32dp"
+            android:layout_height="28dp"
             android:background="#27272A"
-            android:layout_marginHorizontal="8dp" />
+            android:layout_marginLeft="6dp"
+            android:layout_marginRight="6dp" />
 
         <!-- Study Velocity Column -->
         <LinearLayout
@@ -89,9 +93,9 @@
                 android:id="@+id/widget_today_study"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Today: 0 min"
+                android:text="Today: Active"
                 android:textColor="#F4F4F5"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -109,7 +113,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="4dp">
+        android:layout_marginTop="2dp">
 
         <TextView
             android:id="@+id/btn_quick_log"
@@ -118,12 +122,13 @@
             android:layout_weight="1"
             android:background="#27272A"
             android:gravity="center"
-            android:paddingVertical="5dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
             android:text="⚡ Quick Log"
             android:textColor="#E4E4E7"
             android:textSize="10sp"
             android:textStyle="bold"
-            android:layout_marginEnd="4dp" />
+            android:layout_marginRight="3dp" />
 
         <TextView
             android:id="@+id/btn_stem_ai"
@@ -132,12 +137,14 @@
             android:layout_weight="1"
             android:background="#27272A"
             android:gravity="center"
-            android:paddingVertical="5dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
             android:text="🧠 STEM AI"
             android:textColor="#E4E4E7"
             android:textSize="10sp"
             android:textStyle="bold"
-            android:layout_marginHorizontal="2dp" />
+            android:layout_marginLeft="2dp"
+            android:layout_marginRight="2dp" />
 
         <TextView
             android:id="@+id/btn_attendance"
@@ -146,11 +153,12 @@
             android:layout_weight="1"
             android:background="#27272A"
             android:gravity="center"
-            android:paddingVertical="5dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
             android:text="🏛️ Attendance"
             android:textColor="#E4E4E7"
             android:textSize="10sp"
             android:textStyle="bold"
-            android:layout_marginStart="4dp" />
+            android:layout_marginLeft="3dp" />
     </LinearLayout>
 </LinearLayout>

@@ -46,6 +46,7 @@ export const DEFAULT_ABSENCES: AbsenceEntry[] = [
   { id: 'abs_18', date: '2026-08-25', dayOfWeek: 'Tuesday', reason: 'Chemistry Organic reaction mechanisms sprint', category: 'jee_prep', isPracticalDay: false, notes: 'Reaction pathways & mechanisms' },
   { id: 'abs_19', date: '2026-08-27', dayOfWeek: 'Thursday', reason: 'Practical Day absence (Physics lab self-study)', category: 'self_study', isPracticalDay: true, notes: 'ABSENT_PRACTICAL_DAY' },
   { id: 'abs_20', date: '2026-09-01', dayOfWeek: 'Tuesday', reason: 'Half-Yearly exam preparation & syllabus revision', category: 'exam_prep', isPracticalDay: false, notes: 'Class XI Half-Yearly exam revision' },
+  { id: 'abs_21', date: '2026-09-02', dayOfWeek: 'Wednesday', reason: 'Class XI Half-Yearly intensive self-study & revision', category: 'exam_prep', isPracticalDay: false, notes: 'Class XI Half-Yearly self-study day' },
   { id: 'abs_buf_1', date: '2026-05-11', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 1', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
   { id: 'abs_buf_2', date: '2026-07-06', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 2', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
   { id: 'abs_buf_3', date: '2026-08-17', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 3', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
@@ -141,9 +142,9 @@ export const DEFAULT_PROFILE: InstitutionalProfile = {
   sessionStart: '2026-04-21',
   lockDate: '2026-12-31',
   totalWorkingDays: 141,
-  workingDaysHeld: 73,
+  workingDaysHeld: 74,
   presentDays: 41, // 41 physical present + 10 On-Duty = 51 total present
-  absentDays: 22,
+  absentDays: 23,
   onDutyDays: 10,
   subjects: DEFAULT_SUBJECTS
 };
@@ -155,6 +156,39 @@ export const DEFAULT_INITIAL_STATE: InstitutionalAttendanceState = {
   vacations: DEFAULT_VACATIONS,
   exams: DEFAULT_EXAMS,
   onDuty: DEFAULT_ON_DUTY,
+  lastUpdated: new Date().toISOString()
+};
+
+// Clean neutral default state for other users / guest accounts
+export const NEUTRAL_DEFAULT_PROFILE: InstitutionalProfile = {
+  schoolName: 'CBSE Senior Secondary School',
+  affiliationNo: '',
+  board: 'CBSE (Senior Secondary 10+2)',
+  stream: 'Class XI — Science (PCM + STEM)',
+  sessionStart: '2026-04-21',
+  lockDate: '2026-12-31',
+  totalWorkingDays: 140,
+  workingDaysHeld: 0,
+  presentDays: 0,
+  absentDays: 0,
+  onDutyDays: 0,
+  subjects: [
+    { id: 'phy', name: 'Physics', attended: 0, total: 0, required: 75, color: 'indigo', isPracticalSubject: true },
+    { id: 'chem', name: 'Chemistry', attended: 0, total: 0, required: 75, color: 'rose', isPracticalSubject: true },
+    { id: 'math', name: 'Mathematics', attended: 0, total: 0, required: 75, color: 'emerald', isPracticalSubject: false },
+    { id: 'eng', name: 'English Core', attended: 0, total: 0, required: 75, color: 'purple', isPracticalSubject: false },
+    { id: 'pe', name: 'Physical Education', attended: 0, total: 0, required: 75, color: 'amber', isPracticalSubject: true },
+    { id: 'cs', name: 'Computer Science / Web App', attended: 0, total: 0, required: 75, color: 'sky', isPracticalSubject: true }
+  ]
+};
+
+export const NEUTRAL_DEFAULT_INITIAL_STATE: InstitutionalAttendanceState = {
+  profile: NEUTRAL_DEFAULT_PROFILE,
+  absences: [],
+  holidays: DEFAULT_HOLIDAYS,
+  vacations: DEFAULT_VACATIONS,
+  exams: DEFAULT_EXAMS,
+  onDuty: [],
   lastUpdated: new Date().toISOString()
 };
 
@@ -386,68 +420,69 @@ export async function launchGeminiRegulator(
   }
 }
 
+export const isDebanjanAccount = (identifier?: string): boolean => {
+  if (identifier === undefined || identifier === '') return true; // Default fallback in test / root context
+  const clean = String(identifier).trim().toLowerCase();
+  return clean === 'debanjan8686@gmail.com' || clean === 'partofcosmmos@gmail.com' || clean === 'debanjan';
+};
+
+export function getInstitutionalStorageKey(identifier?: string): string {
+  if (isDebanjanAccount(identifier)) {
+    return 'savantix_attendance_institutional_debanjan';
+  }
+  if (identifier && identifier !== 'guest' && identifier !== 'guest_user') {
+    return `savantix_attendance_institutional_${identifier}`;
+  }
+  return 'savantix_attendance_institutional_guest';
+}
+
 /**
- * Load institutional state from localStorage with seamless fallback and backward compatibility
+ * Load institutional state from localStorage with seamless fallback and account partitioning
  */
-export function loadInstitutionalState(): InstitutionalAttendanceState {
+export function loadInstitutionalState(identifier?: string): InstitutionalAttendanceState {
   try {
-    const rawInstitutional = localStorage.getItem(INSTITUTIONAL_STORAGE_KEY);
-    let state: InstitutionalAttendanceState = DEFAULT_INITIAL_STATE;
+    const isDebanjan = isDebanjanAccount(identifier);
+    const key = getInstitutionalStorageKey(identifier);
+    const rawData = localStorage.getItem(key) || (isDebanjan ? localStorage.getItem(INSTITUTIONAL_STORAGE_KEY) : null);
+    const baseline = isDebanjan ? DEFAULT_INITIAL_STATE : NEUTRAL_DEFAULT_INITIAL_STATE;
 
-    if (rawInstitutional) {
-      const parsed = JSON.parse(rawInstitutional);
+    let state: InstitutionalAttendanceState = baseline;
+
+    if (rawData) {
+      const parsed = JSON.parse(rawData);
       state = {
-        ...DEFAULT_INITIAL_STATE,
+        ...baseline,
         ...parsed,
-        profile: { ...DEFAULT_PROFILE, ...(parsed.profile || {}) },
-        absences: Array.isArray(parsed.absences) && parsed.absences.length > 0 ? parsed.absences : DEFAULT_ABSENCES,
-        holidays: Array.isArray(parsed.holidays) && parsed.holidays.length > 0 ? parsed.holidays : DEFAULT_HOLIDAYS,
-        vacations: Array.isArray(parsed.vacations) && parsed.vacations.length > 0 ? parsed.vacations : DEFAULT_VACATIONS,
-        exams: Array.isArray(parsed.exams) && parsed.exams.length > 0 ? parsed.exams : DEFAULT_EXAMS,
-        onDuty: Array.isArray(parsed.onDuty) && parsed.onDuty.length > 0 ? parsed.onDuty : DEFAULT_ON_DUTY,
+        profile: { ...baseline.profile, ...(parsed.profile || {}) },
+        absences: Array.isArray(parsed.absences) ? parsed.absences : baseline.absences,
+        holidays: Array.isArray(parsed.holidays) && parsed.holidays.length > 0 ? parsed.holidays : baseline.holidays,
+        vacations: Array.isArray(parsed.vacations) && parsed.vacations.length > 0 ? parsed.vacations : baseline.vacations,
+        exams: Array.isArray(parsed.exams) && parsed.exams.length > 0 ? parsed.exams : baseline.exams,
+        onDuty: Array.isArray(parsed.onDuty) ? parsed.onDuty : baseline.onDuty,
       };
-    }
-
-    // Merge with legacy subject counter if present
-    const rawLegacy = localStorage.getItem(LEGACY_SUBJECTS_STORAGE_KEY);
-    if (rawLegacy) {
-      try {
-        const legacySubjects = JSON.parse(rawLegacy);
-        if (Array.isArray(legacySubjects) && legacySubjects.length > 0) {
-          // If legacy subjects exist and match or add to state, keep subject stats in sync
-          state.profile.subjects = legacySubjects.map(s => {
-            const existing = state.profile.subjects.find(sub => sub.id === s.id || sub.name.toLowerCase() === s.name.toLowerCase());
-            return {
-              id: s.id || existing?.id || `subj_${Math.random().toString(36).slice(2, 7)}`,
-              code: s.code || existing?.code || '',
-              name: s.name || existing?.name || 'Subject',
-              attended: typeof s.attended === 'number' ? s.attended : existing?.attended || 0,
-              total: typeof s.total === 'number' ? s.total : existing?.total || 0,
-              required: typeof s.required === 'number' ? s.required : existing?.required || 75,
-              color: s.color || existing?.color || 'indigo',
-              isPracticalSubject: existing?.isPracticalSubject ?? false
-            };
-          });
-        }
-      } catch {}
     }
 
     return state;
   } catch (e) {
-    return DEFAULT_INITIAL_STATE;
+    return isDebanjanAccount(identifier) ? DEFAULT_INITIAL_STATE : NEUTRAL_DEFAULT_INITIAL_STATE;
   }
 }
 
 /**
  * Save institutional state to localStorage and maintain legacy array for cloud sync compatibility
  */
-export function saveInstitutionalState(state: InstitutionalAttendanceState): void {
+export function saveInstitutionalState(state: InstitutionalAttendanceState, identifier?: string): void {
   try {
     const updatedState: InstitutionalAttendanceState = {
       ...state,
       lastUpdated: new Date().toISOString()
     };
-    localStorage.setItem(INSTITUTIONAL_STORAGE_KEY, JSON.stringify(updatedState));
+    const key = getInstitutionalStorageKey(identifier);
+    localStorage.setItem(key, JSON.stringify(updatedState));
+
+    if (isDebanjanAccount(identifier)) {
+      localStorage.setItem(INSTITUTIONAL_STORAGE_KEY, JSON.stringify(updatedState));
+    }
 
     // Also persist subjects to legacy storage key so cloudSyncService continues without interruption
     if (Array.isArray(state.profile?.subjects)) {

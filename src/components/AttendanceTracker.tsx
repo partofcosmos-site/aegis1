@@ -26,6 +26,7 @@ import {
   DEFAULT_INITIAL_STATE
 } from '../services/attendanceRegulatorService';
 import { WidgetSyncService } from '../services/widgetSyncService';
+import { useAppContext } from '../context/AppContext';
 
 const COLOR_MAP: Record<string, { bg: string; border: string; text: string; ring: string }> = {
   indigo:  { bg: 'bg-indigo-500/10',  border: 'border-indigo-500/30',  text: 'text-indigo-400',  ring: 'ring-indigo-500/40' },
@@ -41,9 +42,17 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string; ring
 type ActiveTab = 'overview' | 'calendar' | 'absences' | 'subjects' | 'ai_regulator';
 
 export const AttendanceTracker: React.FC = () => {
-  const [state, setState] = useState<InstitutionalAttendanceState>(() => loadInstitutionalState());
+  const { user, isGuest } = useAppContext();
+  const userIdentifier = user?.email || (isGuest ? 'guest' : undefined);
+
+  const [state, setState] = useState<InstitutionalAttendanceState>(() => loadInstitutionalState(userIdentifier));
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Reload state if active account changes (e.g. login/logout)
+  useEffect(() => {
+    setState(loadInstitutionalState(userIdentifier));
+  }, [userIdentifier]);
 
   // Reality Math Simulator State
   const [simLeaves, setSimLeaves] = useState<number>(0);
@@ -99,14 +108,14 @@ export const AttendanceTracker: React.FC = () => {
 
   // Save to storage on changes and sync to Native Android/iOS Widget
   useEffect(() => {
-    saveInstitutionalState(state);
+    saveInstitutionalState(state, userIdentifier);
     const m = computeLiveMetrics(state);
     WidgetSyncService.syncToNativeWidget({
       effectivePct: m.effectivePct,
       safeLeaves75: m.safeLeaves75,
       safeLeaves60: m.safeLeaves60
     });
-  }, [state]);
+  }, [state, userIdentifier]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
