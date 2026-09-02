@@ -90,81 +90,13 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
               </div>
             )}
 
-            {/* Quick 1-Tap Access for Scholar Accounts */}
-            <div className="space-y-2">
-              <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                1-Tap Instant Sign-In (Mobile & Web)
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setErrorMsg(null);
-                    setIsSubmittingEmail(true);
-                    try {
-                      await loginWithEmail('debanjan8686@gmail.com');
-                    } catch (e: any) {
-                      setErrorMsg(e.message || 'Login failed.');
-                    } finally {
-                      setIsSubmittingEmail(false);
-                    }
-                  }}
-                  disabled={isSubmittingEmail || isGoogleLoading}
-                  className="flex items-center gap-2.5 bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-200 border border-indigo-500/40 hover:border-indigo-400 p-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-indigo-600/30 flex items-center justify-center text-indigo-300 font-bold text-xs shrink-0 group-hover:scale-105 transition-transform">
-                    DB
-                  </div>
-                  <div className="truncate">
-                    <div className="text-white font-bold text-xs truncate">Debanjan Biswas</div>
-                    <div className="text-[10px] text-zinc-400 truncate">debanjan8686@gmail.com</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setErrorMsg(null);
-                    setIsSubmittingEmail(true);
-                    try {
-                      await loginWithEmail('partofcosmmos@gmail.com');
-                    } catch (e: any) {
-                      setErrorMsg(e.message || 'Login failed.');
-                    } finally {
-                      setIsSubmittingEmail(false);
-                    }
-                  }}
-                  disabled={isSubmittingEmail || isGoogleLoading}
-                  className="flex items-center gap-2.5 bg-zinc-950/60 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 hover:border-zinc-500 p-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-purple-600/30 flex items-center justify-center text-purple-300 font-bold text-xs shrink-0 group-hover:scale-105 transition-transform">
-                    PC
-                  </div>
-                  <div className="truncate">
-                    <div className="text-white font-bold text-xs truncate">Part of Cosmos</div>
-                    <div className="text-[10px] text-zinc-400 truncate">partofcosmmos@gmail.com</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Clean Section Divider */}
-            <div className="relative flex items-center justify-center py-0.5">
-              <div className="border-t border-zinc-800 w-full" />
-              <span className="bg-zinc-900 px-3 text-[10px] text-zinc-500 uppercase tracking-widest font-bold whitespace-nowrap">
-                Or Continue with Google / Email
-              </span>
-              <div className="border-t border-zinc-800 w-full" />
-            </div>
-
             {/* Primary Google Auth Button */}
             <div className="space-y-3">
               <button
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={isGoogleLoading || isSubmittingEmail}
-                className="w-full flex items-center justify-center gap-3 bg-zinc-800/90 hover:bg-zinc-800 active:bg-zinc-700 text-zinc-100 hover:text-white border border-zinc-700/80 hover:border-indigo-500/60 px-5 py-3 rounded-2xl font-semibold text-sm transition-all duration-200 shadow-sm cursor-pointer disabled:opacity-50 group"
+                className="w-full flex items-center justify-center gap-3 bg-zinc-800/90 hover:bg-zinc-800 active:bg-zinc-700 text-zinc-100 hover:text-white border border-zinc-700/80 hover:border-indigo-500/60 px-5 py-3.5 rounded-2xl font-semibold text-sm transition-all duration-200 shadow-sm cursor-pointer disabled:opacity-50 group"
               >
                 {isGoogleLoading ? (
                   <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
@@ -178,6 +110,15 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
                 )}
                 <span>Continue with Google</span>
               </button>
+            </div>
+
+            {/* Clean Section Divider */}
+            <div className="relative flex items-center justify-center py-1">
+              <div className="border-t border-zinc-800 w-full" />
+              <span className="bg-zinc-900 px-3 text-[10px] text-zinc-500 uppercase tracking-widest font-bold whitespace-nowrap">
+                Or Sign In with Email
+              </span>
+              <div className="border-t border-zinc-800 w-full" />
             </div>
 
             {/* Email Sign-In Form */}
