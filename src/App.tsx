@@ -16,10 +16,22 @@ import { ErrorVault } from './components/ErrorVault';
 import { DeepWorkFortress } from './components/DeepWorkFortress';
 import { ContactFeedback } from './components/ContactFeedback';
 import { AttendanceCalculator } from './components/AttendanceCalculator';
+import { Flashcards } from './components/Flashcards';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
   const [isFortressMode, setIsFortressMode] = useState(false);
+  // Keep-alive lazy mounting: only mount heavy components when first visited
+  const [mountedTabs, setMountedTabs] = useState<Set<ActiveTabType>>(() => new Set(['dashboard']));
+
+  useEffect(() => {
+    setMountedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   useEffect(() => {
     // 1. In-app navigation custom event listener
@@ -34,7 +46,7 @@ export default function App() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get('tab') as ActiveTabType;
-      const validTabs = ['dashboard', 'analytics', 'attendance', 'solver', 'graph', 'chat', 'journal', 'goals', 'pomodoro', 'vault', 'settings', 'feedback'];
+      const validTabs = ['dashboard', 'analytics', 'attendance', 'flashcards', 'solver', 'graph', 'chat', 'journal', 'goals', 'pomodoro', 'vault', 'settings', 'feedback'];
       if (targetTab && validTabs.includes(targetTab)) {
         setActiveTab(targetTab);
       }
@@ -60,43 +72,72 @@ export default function App() {
         <AuthWrapper>
           {isFortressMode && <DeepWorkFortress onClose={() => setIsFortressMode(false)} />}
           <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-            {/* Persistent Tab Viewport: Preserves background streams, solvers & timers across tab switches */}
-            <div className={`h-full w-full ${activeTab === 'dashboard' ? 'block' : 'hidden'}`}>
-              <Dashboard />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'analytics' ? 'block' : 'hidden'}`}>
-              <Analytics />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'solver' ? 'block' : 'hidden'}`}>
-              <StemSolver />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'graph' ? 'block' : 'hidden'}`}>
-              <ConceptGraph />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
-              <Chatbot setActiveTab={setActiveTab} />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'journal' ? 'block' : 'hidden'}`}>
-              <Journal />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'goals' ? 'block' : 'hidden'}`}>
-              <Goals />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'pomodoro' ? 'block' : 'hidden'}`}>
-              <Pomodoro isFortressMode={isFortressMode} setIsFortressMode={setIsFortressMode} />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
-              <Settings />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'vault' ? 'block' : 'hidden'}`}>
-              <ErrorVault />
-            </div>
-            <div className={`h-full w-full ${activeTab === 'feedback' ? 'block' : 'hidden'}`}>
-              <ContactFeedback />
-            </div>
-            <div className={`h-full w-full overflow-y-auto ${activeTab === 'attendance' ? 'block' : 'hidden'}`}>
-              <AttendanceCalculator />
-            </div>
+            {/* Optimized Lazy-Mount Keep-Alive Viewport: Prevents 12 heavy components from freezing DOM concurrently */}
+            {(mountedTabs.has('dashboard') || activeTab === 'dashboard') && (
+              <div className={`h-full w-full ${activeTab === 'dashboard' ? 'block' : 'hidden'}`}>
+                <Dashboard />
+              </div>
+            )}
+            {(mountedTabs.has('analytics') || activeTab === 'analytics') && (
+              <div className={`h-full w-full ${activeTab === 'analytics' ? 'block' : 'hidden'}`}>
+                <Analytics />
+              </div>
+            )}
+            {(mountedTabs.has('flashcards') || activeTab === 'flashcards') && (
+              <div className={`h-full w-full ${activeTab === 'flashcards' ? 'block' : 'hidden'}`}>
+                <Flashcards />
+              </div>
+            )}
+            {(mountedTabs.has('solver') || activeTab === 'solver') && (
+              <div className={`h-full w-full ${activeTab === 'solver' ? 'block' : 'hidden'}`}>
+                <StemSolver />
+              </div>
+            )}
+            {(mountedTabs.has('graph') || activeTab === 'graph') && (
+              <div className={`h-full w-full ${activeTab === 'graph' ? 'block' : 'hidden'}`}>
+                <ConceptGraph />
+              </div>
+            )}
+            {(mountedTabs.has('chat') || activeTab === 'chat') && (
+              <div className={`h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
+                <Chatbot setActiveTab={setActiveTab} />
+              </div>
+            )}
+            {(mountedTabs.has('journal') || activeTab === 'journal') && (
+              <div className={`h-full w-full ${activeTab === 'journal' ? 'block' : 'hidden'}`}>
+                <Journal />
+              </div>
+            )}
+            {(mountedTabs.has('goals') || activeTab === 'goals') && (
+              <div className={`h-full w-full ${activeTab === 'goals' ? 'block' : 'hidden'}`}>
+                <Goals />
+              </div>
+            )}
+            {(mountedTabs.has('pomodoro') || activeTab === 'pomodoro') && (
+              <div className={`h-full w-full ${activeTab === 'pomodoro' ? 'block' : 'hidden'}`}>
+                <Pomodoro isFortressMode={isFortressMode} setIsFortressMode={setIsFortressMode} />
+              </div>
+            )}
+            {(mountedTabs.has('settings') || activeTab === 'settings') && (
+              <div className={`h-full w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
+                <Settings />
+              </div>
+            )}
+            {(mountedTabs.has('vault') || activeTab === 'vault') && (
+              <div className={`h-full w-full ${activeTab === 'vault' ? 'block' : 'hidden'}`}>
+                <ErrorVault />
+              </div>
+            )}
+            {(mountedTabs.has('feedback') || activeTab === 'feedback') && (
+              <div className={`h-full w-full ${activeTab === 'feedback' ? 'block' : 'hidden'}`}>
+                <ContactFeedback />
+              </div>
+            )}
+            {(mountedTabs.has('attendance') || activeTab === 'attendance') && (
+              <div className={`h-full w-full ${activeTab === 'attendance' ? 'block' : 'hidden'}`}>
+                <AttendanceCalculator />
+              </div>
+            )}
           </Layout>
         </AuthWrapper>
       </AppProvider>

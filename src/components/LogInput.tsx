@@ -251,6 +251,17 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
     }
   };
 
+  const handleAddChip = (chipText: string) => {
+    setText(prev => {
+      const clean = prev.trim();
+      if (!clean) return chipText;
+      return `${clean}, ${chipText}`;
+    });
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
   const currentSubjectStyle = SUBJECT_COLORS[parsedMicro.subject] || SUBJECT_COLORS.General;
 
   return (
@@ -275,6 +286,90 @@ export const LogInput = ({ selectedDate }: { selectedDate: string }) => {
             {message.text}
           </span>
         )}
+      </div>
+
+      {/* 1-Click Fast Presets Strip */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+        <span className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider shrink-0">Presets:</span>
+        <button
+          type="button"
+          onClick={() => handleAddChip('Physics')}
+          className="px-2 py-0.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 font-medium transition-all shrink-0 cursor-pointer"
+        >
+          ⚛️ Physics
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddChip('Mathematics')}
+          className="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium transition-all shrink-0 cursor-pointer"
+        >
+          📐 Math
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddChip('Chemistry')}
+          className="px-2 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium transition-all shrink-0 cursor-pointer"
+        >
+          🧪 Chemistry
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddChip('Biology')}
+          className="px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 font-medium transition-all shrink-0 cursor-pointer"
+        >
+          🧬 Biology
+        </button>
+        <div className="w-px h-3.5 bg-zinc-800 shrink-0 mx-0.5" />
+        <button
+          type="button"
+          onClick={() => handleAddChip('45m')}
+          className="px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/60 font-mono transition-all shrink-0 cursor-pointer"
+        >
+          +45m
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddChip('60m')}
+          className="px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/60 font-mono transition-all shrink-0 cursor-pointer"
+        >
+          +60m
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddChip('90m')}
+          className="px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/60 font-mono transition-all shrink-0 cursor-pointer"
+        >
+          +90m
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddChip('120m')}
+          className="px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/60 font-mono transition-all shrink-0 cursor-pointer"
+        >
+          +120m
+        </button>
+        <div className="w-px h-3.5 bg-zinc-800 shrink-0 mx-0.5" />
+        <button
+          type="button"
+          onClick={() => handleAddChip('10 Qs')}
+          className="px-2 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono font-medium transition-all shrink-0 cursor-pointer"
+        >
+          +10 Qs
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddChip('25 Qs')}
+          className="px-2 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono font-medium transition-all shrink-0 cursor-pointer"
+        >
+          +25 Qs
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddChip('50 Qs')}
+          className="px-2 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono font-medium transition-all shrink-0 cursor-pointer"
+        >
+          +50 Qs
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="relative">

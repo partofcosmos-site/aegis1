@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { LogInput } from './LogInput';
+import { DailyAgendaDesk } from './DailyAgendaDesk';
 import { InsightsPanel } from './InsightsPanel';
 import { StudyHeatmap } from './StudyHeatmap';
 import { ExamCountdown } from './ExamCountdown';
@@ -711,6 +712,11 @@ export const Dashboard = () => {
           </div>
         </div>
 
+        {/* Practical Daily Study Agenda Checklist & Live Desk Problem Counter */}
+        <div className="w-full">
+          <DailyAgendaDesk selectedDate={selectedDate} />
+        </div>
+
         <div className="w-full">
           <LogInput selectedDate={selectedDate} />
         </div>
@@ -844,20 +850,20 @@ export const Dashboard = () => {
                             <span className="text-sm font-semibold text-zinc-200">{log.subject}</span>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-zinc-400 font-medium bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">{log.durationMinutes}m</span>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1.5">
                                 <button 
                                   onClick={() => handleEditClick(log)} 
-                                  className="p-1.5 text-zinc-400 hover:text-indigo-300 hover:bg-zinc-800 rounded-lg transition-colors border border-zinc-800/80 cursor-pointer"
+                                  className="p-1.5 text-zinc-300 hover:text-indigo-300 bg-zinc-900 hover:bg-indigo-950/40 rounded-lg transition-all border border-zinc-700 hover:border-indigo-500/50 cursor-pointer shadow-sm"
                                   title="Edit Log"
                                 >
-                                  <Edit2 className="w-3 h-3" />
+                                  <Edit2 className="w-3.5 h-3.5" />
                                 </button>
                                 <button 
                                   onClick={() => handleDeleteLog(log.id)} 
-                                  className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors border border-zinc-800/80 cursor-pointer"
+                                  className="p-1.5 text-zinc-300 hover:text-rose-300 bg-zinc-900 hover:bg-rose-950/40 rounded-lg transition-all border border-zinc-700 hover:border-rose-500/50 cursor-pointer shadow-sm"
                                   title="Delete Log"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>

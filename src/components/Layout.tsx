@@ -31,6 +31,7 @@ export type ActiveTabType =
   | 'chat' 
   | 'analytics' 
   | 'attendance'
+  | 'flashcards'
   | 'solver'
   | 'graph'
   | 'journal' 
@@ -85,6 +86,7 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analytics', label: 'Analytics & Heatmap', icon: BarChart2 },
     { id: 'attendance', label: 'Attendance Tracker', icon: GraduationCap },
+    { id: 'flashcards', label: 'Flashcards (SM-2)', icon: Layers },
     { id: 'solver', label: 'Socratic STEM Solver', icon: Sparkles },
     { id: 'graph', label: 'Concept Mastery Graph', icon: Network },
     { id: 'chat', label: 'Savantix Chat (AI Council)', icon: MessageSquare },

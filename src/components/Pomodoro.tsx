@@ -250,11 +250,6 @@ export const Pomodoro: React.FC<PomodoroProps> = ({ isFortressMode, setIsFortres
   };
 
   const handleSaveCompletedSession = async () => {
-    if (!user) {
-      setMessage({ type: 'error', text: 'Please sign in to record study logs.' });
-      setShowLogPromptModal(false);
-      return;
-    }
     setIsSavingSessionLog(true);
     try {
       await addLog({
