@@ -43,7 +43,7 @@ type ActiveTab = 'overview' | 'calendar' | 'absences' | 'subjects' | 'ai_regulat
 
 export const AttendanceTracker: React.FC = () => {
   const { user, isGuest } = useAppContext();
-  const userIdentifier = user?.email || (isGuest ? 'guest' : undefined);
+  const userIdentifier = user?.email || (isGuest ? 'guest' : 'anonymous');
 
   const [state, setState] = useState<InstitutionalAttendanceState>(() => loadInstitutionalState(userIdentifier));
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');

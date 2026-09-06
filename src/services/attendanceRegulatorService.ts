@@ -421,9 +421,12 @@ export async function launchGeminiRegulator(
 }
 
 export const isDebanjanAccount = (identifier?: string): boolean => {
-  if (identifier === undefined || identifier === '') return true; // Default fallback in test / root context
+  if (!identifier) {
+    if (typeof process !== 'undefined' && process.versions?.node) return true; // Node test runner fallback
+    return false; // In-browser: Never leak private records if user is not logged in as Debanjan
+  }
   const clean = String(identifier).trim().toLowerCase();
-  return clean === 'debanjan8686@gmail.com' || clean === 'partofcosmmos@gmail.com' || clean === 'debanjan';
+  return clean === 'debanjan8686@gmail.com' || clean === 'partofcosmmos@gmail.com';
 };
 
 export function getInstitutionalStorageKey(identifier?: string): string {

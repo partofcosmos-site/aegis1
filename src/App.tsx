@@ -16,7 +16,6 @@ import { ErrorVault } from './components/ErrorVault';
 import { DeepWorkFortress } from './components/DeepWorkFortress';
 import { ContactFeedback } from './components/ContactFeedback';
 import { AttendanceCalculator } from './components/AttendanceCalculator';
-import { Flashcards } from './components/Flashcards';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
@@ -46,7 +45,7 @@ export default function App() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get('tab') as ActiveTabType;
-      const validTabs = ['dashboard', 'analytics', 'attendance', 'flashcards', 'solver', 'graph', 'chat', 'journal', 'goals', 'pomodoro', 'vault', 'settings', 'feedback'];
+      const validTabs = ['dashboard', 'analytics', 'attendance', 'solver', 'graph', 'chat', 'journal', 'goals', 'pomodoro', 'vault', 'settings', 'feedback'];
       if (targetTab && validTabs.includes(targetTab)) {
         setActiveTab(targetTab);
       }
@@ -81,11 +80,6 @@ export default function App() {
             {(mountedTabs.has('analytics') || activeTab === 'analytics') && (
               <div className={`h-full w-full ${activeTab === 'analytics' ? 'block' : 'hidden'}`}>
                 <Analytics />
-              </div>
-            )}
-            {(mountedTabs.has('flashcards') || activeTab === 'flashcards') && (
-              <div className={`h-full w-full ${activeTab === 'flashcards' ? 'block' : 'hidden'}`}>
-                <Flashcards />
               </div>
             )}
             {(mountedTabs.has('solver') || activeTab === 'solver') && (
