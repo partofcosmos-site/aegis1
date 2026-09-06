@@ -458,13 +458,27 @@ export const StemSolver: React.FC = () => {
 
   useEffect(() => {
     const handleNavigate = (e: any) => {
-      if (e.detail && e.detail.tab === 'solver' && e.detail.topic) {
-        setProblemText(prev => prev ? prev : `Revision Topic: ${e.detail.topic}\n\nPlease provide a problem for this topic...`);
+      if (e.detail && e.detail.tab === 'solver') {
+        if (e.detail.problemText) {
+          setProblemText(e.detail.problemText);
+        } else if (e.detail.topic) {
+          setProblemText(prev => prev ? prev : `Revision Topic: ${e.detail.topic}\n\nPlease provide a problem for this topic...`);
+        }
+        if (e.detail.subject) setSubject(e.detail.subject as Subject);
+      }
+    };
+    const handlePreload = (e: any) => {
+      if (e.detail && e.detail.problemText) {
+        setProblemText(e.detail.problemText);
         if (e.detail.subject) setSubject(e.detail.subject as Subject);
       }
     };
     window.addEventListener('navigate', handleNavigate);
-    return () => window.removeEventListener('navigate', handleNavigate);
+    window.addEventListener('savantix_stemsolver_preload', handlePreload);
+    return () => {
+      window.removeEventListener('navigate', handleNavigate);
+      window.removeEventListener('savantix_stemsolver_preload', handlePreload);
+    };
   }, []);
 
   // Save current solution to history (including canvas diagram if present)
