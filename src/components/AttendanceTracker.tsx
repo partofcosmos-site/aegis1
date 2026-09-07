@@ -4,7 +4,7 @@ import {
   AlertTriangle, CheckCircle2, Clock, ShieldAlert, FileText, Copy,
   ExternalLink, Plus, Trash2, Edit3, Save, X, ChevronDown, ChevronUp,
   BookOpen, Filter, Search, Check, RefreshCw, Sliders, Info, Scale, ArrowRight,
-  Compass
+  Compass, Lock, Unlock, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import clsx from 'clsx';
 import {
@@ -39,15 +39,46 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string; ring
   teal:    { bg: 'bg-teal-500/10',    border: 'border-teal-500/30',    text: 'text-teal-400',    ring: 'ring-teal-500/40' },
 };
 
-type ActiveTab = 'overview' | 'calendar' | 'absences' | 'subjects' | 'ai_regulator';
+export type ActiveTab = 'locked_matrix' | 'overview' | 'calendar' | 'absences' | 'subjects' | 'ai_regulator';
+
+export interface CalendarDayInfo {
+  dateStr: string;
+  dayNum: number;
+  dayOfWeek: string;
+  isCurrentMonth: boolean;
+  isWeekend: boolean;
+  lockedAbsence?: AbsenceEntry;
+  isOnDuty: boolean;
+  holiday?: HolidayEntry;
+  vacation?: VacationEntry;
+  isToday: boolean;
+}
+
+export const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+export const QUICK_REASON_PRESETS: { label: string; category: AbsenceCategory; reason: string }[] = [
+  { label: '⚡ Olympiad Sprint', category: 'olympiad', reason: 'IPhO / NSEP theoretical problem solving & optics sprint' },
+  { label: '⚡ JEE Mechanics & Calculus', category: 'jee_prep', reason: 'Rotational dynamics, calculus & coordinate geometry' },
+  { label: '⚡ Tutopia Self-Study', category: 'self_study', reason: 'Tutopia CBSE PCM syllabus consolidation' },
+  { label: '⚡ Half-Yearly Revision', category: 'exam_prep', reason: 'Class XI Half-Yearly syllabus revision' },
+  { label: '⚡ Medical / Health Rest', category: 'recovery', reason: 'Health recovery & sleep consolidation' },
+];
 
 export const AttendanceTracker: React.FC = () => {
   const { user, isGuest } = useAppContext();
   const userIdentifier = user?.email || (isGuest ? 'guest' : 'anonymous');
 
   const [state, setState] = useState<InstitutionalAttendanceState>(() => loadInstitutionalState(userIdentifier));
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('locked_matrix');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Mobile Calendar & Locked-In Matrix State
+  const [calYear, setCalYear] = useState<number>(2026);
+  const [calMonth, setCalMonth] = useState<number>(8); // September = 8 (0-indexed)
+  const [selectedCalDate, setSelectedCalDate] = useState<CalendarDayInfo | null>(null);
 
   // Reload state if active account changes (e.g. login/logout)
   useEffect(() => {
@@ -309,11 +340,130 @@ export const AttendanceTracker: React.FC = () => {
         a.reason.toLowerCase().includes(absenceSearch.toLowerCase()) ||
         a.date.includes(absenceSearch) ||
         a.dayOfWeek.toLowerCase().includes(absenceSearch.toLowerCase()) ||
-        (a.notes && a.notes.toLowerCase().includes(absenceSearch.toLowerCase()));
+        (a.notes ? a.notes.toLowerCase().includes(absenceSearch.toLowerCase()) : false);
 
       return matchesCat && matchesSearch;
     });
   }, [state.absences, absenceCategoryFilter, absenceSearch]);
+
+  // Compute interactive monthly calendar matrix
+  const calendarDays = useMemo(() => {
+    const days: CalendarDayInfo[] = [];
+    const firstDay = new Date(calYear, calMonth, 1);
+    const lastDay = new Date(calYear, calMonth + 1, 0);
+    const totalDays = lastDay.getDate();
+
+    let startDay = firstDay.getDay() - 1;
+    if (startDay < 0) startDay = 6; // Monday = 0, Sunday = 6
+
+    // Previous month padding
+    const prevMonthLastDay = new Date(calYear, calMonth, 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      const pDay = prevMonthLastDay - i;
+      const prevDate = new Date(calYear, calMonth - 1, pDay);
+      const dateStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(pDay).padStart(2, '0')}`;
+      const dow = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][prevDate.getDay()];
+      days.push({
+        dateStr,
+        dayNum: pDay,
+        dayOfWeek: dow,
+        isCurrentMonth: false,
+        isWeekend: prevDate.getDay() === 0 || prevDate.getDay() === 6,
+        isToday: false,
+        isOnDuty: false
+      });
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Current month days
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const currDate = new Date(calYear, calMonth, d);
+      const dow = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][currDate.getDay()];
+      const isWeekend = currDate.getDay() === 0 || currDate.getDay() === 6;
+
+      const lockedAbsence = state.absences.find(a => a.date === dateStr);
+      const isOnDuty = (state.onDuty || []).some(od => dateStr >= od.startDate && dateStr <= od.endDate);
+      const holiday = state.holidays.find(h => h.date === dateStr);
+      const vacation = state.vacations.find(v => dateStr >= v.startDate && dateStr <= v.endDate);
+
+      days.push({
+        dateStr,
+        dayNum: d,
+        dayOfWeek: dow,
+        isCurrentMonth: true,
+        isWeekend,
+        lockedAbsence,
+        isOnDuty,
+        holiday,
+        vacation,
+        isToday: dateStr === todayStr
+      });
+    }
+
+    // Next month padding to fill complete weeks (multiple of 7)
+    const remaining = (7 - (days.length % 7)) % 7;
+    for (let d = 1; d <= remaining; d++) {
+      const nextDate = new Date(calYear, calMonth + 1, d);
+      const dateStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dow = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][nextDate.getDay()];
+      days.push({
+        dateStr,
+        dayNum: d,
+        dayOfWeek: dow,
+        isCurrentMonth: false,
+        isWeekend: nextDate.getDay() === 0 || nextDate.getDay() === 6,
+        isToday: false,
+        isOnDuty: false
+      });
+    }
+
+    return days;
+  }, [calYear, calMonth, state.absences, state.onDuty, state.holidays, state.vacations]);
+
+  // Locked-in absence count in the currently selected month
+  const monthLockedCount = useMemo(() => {
+    return calendarDays.filter(d => d.isCurrentMonth && d.lockedAbsence).length;
+  }, [calendarDays]);
+
+  const monthOnDutyCount = useMemo(() => {
+    return calendarDays.filter(d => d.isCurrentMonth && d.isOnDuty).length;
+  }, [calendarDays]);
+
+  const monthHolidayCount = useMemo(() => {
+    return calendarDays.filter(d => d.isCurrentMonth && (d.holiday || d.vacation)).length;
+  }, [calendarDays]);
+
+  // Quick 1-tap lock-in for a specific calendar day
+  const handleQuickLockInDay = (day: CalendarDayInfo, preset?: { category: AbsenceCategory; reason: string }) => {
+    if (day.lockedAbsence) return; // already locked
+    const category = preset ? preset.category : newAbsCategory;
+    const reason = preset ? preset.reason : (newAbsReason.trim() || 'Self-study & intensive preparation');
+
+    const newEntry: AbsenceEntry = {
+      id: `abs_${Date.now()}`,
+      date: day.dateStr,
+      dayOfWeek: day.dayOfWeek,
+      reason,
+      category,
+      isPracticalDay: newAbsIsPractical,
+      notes: `Quick locked-in via Mobile Calendar`
+    };
+
+    setState(prev => ({
+      ...prev,
+      profile: {
+        ...prev.profile,
+        absentDays: prev.profile.absentDays + 1,
+        workingDaysHeld: prev.profile.workingDaysHeld + 1
+      },
+      absences: [newEntry, ...prev.absences]
+    }));
+
+    setSelectedCalDate(null);
+    showToast(`🔒 Locked in absence for ${day.dateStr} (${day.dayOfWeek})`);
+  };
 
   return (
     <div className="w-full min-h-screen bg-zinc-950 text-zinc-100 px-3 sm:px-6 py-6 max-w-7xl mx-auto space-y-6">
@@ -383,11 +533,12 @@ export const AttendanceTracker: React.FC = () => {
         {/* Navigation Tabs */}
         <div className="relative z-10 flex items-center gap-2 mt-6 pt-4 border-t border-zinc-800/60 overflow-x-auto no-scrollbar">
           {[
-            { id: 'overview', label: 'Overview & Reality Math', icon: Scale },
-            { id: 'calendar', label: 'Institutional Calendar & Holidays', icon: Calendar, badge: '28 Holidays' },
-            { id: 'absences', label: 'Absence & On-Duty Ledger', icon: Award, badge: `${state.absences.length} Logged` },
-            { id: 'subjects', label: 'Subject Roster & Micro-Tracker', icon: BookOpen, badge: `${state.profile.subjects.length}` },
-            { id: 'ai_regulator', label: 'AI Regulator Dossier & Legal', icon: FileText },
+            { id: 'locked_matrix', label: '🔒 Locked Dates Matrix', icon: Lock, badge: `${state.profile.absentDays} Locked` },
+            { id: 'absences', label: 'Absence Ledger', icon: Award, badge: `${state.absences.length}` },
+            { id: 'overview', label: 'Reality Math', icon: Scale },
+            { id: 'calendar', label: 'Holidays (28)', icon: Calendar },
+            { id: 'subjects', label: 'Subjects (6)', icon: BookOpen },
+            { id: 'ai_regulator', label: 'AI Regulator', icon: FileText },
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -417,6 +568,474 @@ export const AttendanceTracker: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Mobile Top Quick-Stat & Action Bar (Visible on mobile viewports) */}
+      <div className="md:hidden bg-zinc-900/95 border border-zinc-800/90 rounded-2xl p-3 backdrop-blur-xl shadow-2xl flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className={clsx(
+            "px-2.5 py-1 rounded-xl text-xs font-extrabold font-mono",
+            metrics.effectivePct >= 75 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+          )}>
+            {metrics.effectivePct.toFixed(1)}%
+          </div>
+          <div className="text-[11px] text-zinc-300 font-semibold">
+            <span className="text-rose-400 font-bold">{state.profile.absentDays}</span> Locked · <span className="text-emerald-400 font-bold">{metrics.safeLeaves75}</span> Safe Left
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            setActiveTab('locked_matrix');
+            const todayStr = '2026-09-02';
+            const foundDay = calendarDays.find(d => d.dateStr === todayStr) || calendarDays.find(d => d.isCurrentMonth && !d.isWeekend) || calendarDays[0];
+            setSelectedCalDate(foundDay);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/30 cursor-pointer shrink-0"
+        >
+          <Lock className="w-3.5 h-3.5" />
+          <span>Lock Date</span>
+        </button>
+      </div>
+
+      {/* TAB 0: INTERACTIVE LOCKED-IN ABSENCE MATRIX & MOBILE CALENDAR */}
+      {activeTab === 'locked_matrix' && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Mobile-Optimized Hero Bar */}
+          <div className="bg-gradient-to-r from-rose-950/40 via-zinc-900/90 to-zinc-900/90 border border-rose-500/30 rounded-3xl p-5 shadow-2xl backdrop-blur-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-rose-500/15 border border-rose-500/30 rounded-2xl text-rose-400 shrink-0">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs uppercase font-extrabold text-rose-400 tracking-wider">
+                      Locked-In Absence Matrix
+                    </span>
+                    <span className="px-2 py-0.5 bg-rose-500/20 text-rose-300 text-[10px] font-extrabold rounded-md border border-rose-500/30">
+                      {state.profile.absentDays} DATES LOCKED
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-zinc-100 mt-0.5">
+                    Tap any date to inspect, lock in as absent, or unlock
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Live Attendance: <strong className="text-rose-400">{metrics.effectivePct.toFixed(2)}%</strong> · Remaining Safe Leaves: <strong className="text-emerald-400">{metrics.safeLeaves75} Days</strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Jumpers for Academic Session Months */}
+              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                {[
+                  { name: 'May', m: 4 },
+                  { name: 'Jun', m: 5 },
+                  { name: 'Jul', m: 6 },
+                  { name: 'Aug', m: 7 },
+                  { name: 'Sep', m: 8 },
+                  { name: 'Oct', m: 9 },
+                  { name: 'Nov', m: 10 },
+                  { name: 'Dec', m: 11 },
+                ].map(item => (
+                  <button
+                    key={item.name}
+                    onClick={() => {
+                      setCalYear(2026);
+                      setCalMonth(item.m);
+                    }}
+                    className={clsx(
+                      "px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer border",
+                      calMonth === item.m
+                        ? "bg-rose-600 text-white shadow-md shadow-rose-600/30 border-rose-400/40"
+                        : "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 border-zinc-800"
+                    )}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Monthly Status Metric Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-4 border-t border-zinc-800/80 text-xs">
+              <div className="bg-zinc-950/70 border border-rose-500/25 rounded-2xl p-2.5 flex items-center justify-between">
+                <span className="text-zinc-400 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-rose-400" /> Locked Absences
+                </span>
+                <span className="font-extrabold text-rose-400 font-mono text-sm">{monthLockedCount}</span>
+              </div>
+              <div className="bg-zinc-950/70 border border-emerald-500/25 rounded-2xl p-2.5 flex items-center justify-between">
+                <span className="text-zinc-400 flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5 text-emerald-400" /> Approved On-Duty
+                </span>
+                <span className="font-extrabold text-emerald-400 font-mono text-sm">{monthOnDutyCount}</span>
+              </div>
+              <div className="bg-zinc-950/70 border border-amber-500/25 rounded-2xl p-2.5 flex items-center justify-between">
+                <span className="text-zinc-400 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-amber-400" /> Holidays / Breaks
+                </span>
+                <span className="font-extrabold text-amber-400 font-mono text-sm">{monthHolidayCount}</span>
+              </div>
+              <div className="bg-zinc-950/70 border border-indigo-500/25 rounded-2xl p-2.5 flex items-center justify-between">
+                <span className="text-zinc-400 flex items-center gap-1.5">
+                  <Scale className="w-3.5 h-3.5 text-indigo-400" /> Target (75%)
+                </span>
+                <span className={clsx("font-extrabold font-mono text-sm", metrics.effectivePct >= 75 ? "text-emerald-400" : "text-amber-400")}>
+                  {metrics.statusEffective === 'safe' ? '✓ SAFE' : 'CONDONABLE'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Month Navigation Bar */}
+          <div className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-4 backdrop-blur-md flex items-center justify-between">
+            <button
+              onClick={() => {
+                if (calMonth === 0) {
+                  setCalYear(y => y - 1);
+                  setCalMonth(11);
+                } else {
+                  setCalMonth(m => m - 1);
+                }
+              }}
+              className="p-2 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+            >
+              <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Previous</span>
+            </button>
+
+            <div className="text-center">
+              <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+                {MONTH_NAMES[calMonth]} {calYear}
+              </h3>
+              <p className="text-[11px] text-zinc-400">
+                {monthLockedCount} absence dates locked in this month
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                if (calMonth === 11) {
+                  setCalYear(y => y + 1);
+                  setCalMonth(0);
+                } else {
+                  setCalMonth(m => m + 1);
+                }
+              }}
+              className="p-2 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+            >
+              <span className="hidden sm:inline">Next</span> <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* 7-Column Calendar Matrix Grid */}
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-3 sm:p-5 backdrop-blur-md space-y-2 shadow-2xl">
+            {/* Days Header */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-zinc-500 font-bold text-[11px] uppercase tracking-wider pb-2 border-b border-zinc-800/80">
+              <div>Mon</div>
+              <div>Tue</div>
+              <div>Wed</div>
+              <div>Thu</div>
+              <div>Fri</div>
+              <div className="text-zinc-600">Sat</div>
+              <div className="text-zinc-600">Sun</div>
+            </div>
+
+            {/* Date Cells */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              {calendarDays.map((day, idx) => {
+                const isLocked = Boolean(day.lockedAbsence);
+                const isOD = day.isOnDuty;
+                const isHol = Boolean(day.holiday || day.vacation);
+                const isWknd = day.isWeekend;
+
+                return (
+                  <button
+                    key={`${day.dateStr}_${idx}`}
+                    onClick={() => setSelectedCalDate(day)}
+                    className={clsx(
+                      "relative flex flex-col items-start justify-between p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer min-h-[58px] sm:min-h-[76px] text-left border",
+                      !day.isCurrentMonth && "opacity-30 border-transparent bg-zinc-950/40",
+                      day.isCurrentMonth && isLocked && "bg-rose-950/40 border-rose-500/60 text-rose-100 shadow-md shadow-rose-950/40 hover:border-rose-400",
+                      day.isCurrentMonth && isOD && "bg-emerald-950/30 border-emerald-500/50 text-emerald-100 hover:border-emerald-400",
+                      day.isCurrentMonth && !isLocked && !isOD && isHol && "bg-amber-950/25 border-amber-500/35 text-amber-200 hover:border-amber-400",
+                      day.isCurrentMonth && !isLocked && !isOD && !isHol && isWknd && "bg-zinc-950/50 border-zinc-900 text-zinc-600",
+                      day.isCurrentMonth && !isLocked && !isOD && !isHol && !isWknd && "bg-zinc-950/80 border-zinc-800/80 hover:border-indigo-500/50 text-zinc-300",
+                      day.isToday && "ring-2 ring-indigo-500"
+                    )}
+                  >
+                    <div className="w-full flex items-center justify-between">
+                      <span className={clsx(
+                        "text-xs sm:text-sm font-bold font-mono",
+                        isLocked ? "text-rose-400" : isOD ? "text-emerald-400" : isHol ? "text-amber-400" : day.isCurrentMonth ? "text-zinc-300" : "text-zinc-600"
+                      )}>
+                        {day.dayNum}
+                      </span>
+                      {isLocked && <Lock className="w-3 h-3 text-rose-400 shrink-0" />}
+                      {isOD && <Award className="w-3 h-3 text-emerald-400 shrink-0" />}
+                      {isHol && <Calendar className="w-3 h-3 text-amber-400 shrink-0" />}
+                    </div>
+
+                    <div className="w-full mt-1">
+                      {isLocked && (
+                        <div className="w-full">
+                          <span className="hidden sm:inline-block px-1.5 py-0.5 bg-rose-500/20 text-rose-300 text-[9px] font-extrabold rounded truncate max-w-full">
+                            LOCKED IN
+                          </span>
+                          <span className="sm:hidden block w-2 h-2 rounded-full bg-rose-500" />
+                        </div>
+                      )}
+                      {isOD && (
+                        <div className="w-full">
+                          <span className="hidden sm:inline-block px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-[9px] font-extrabold rounded truncate max-w-full">
+                            ON-DUTY
+                          </span>
+                          <span className="sm:hidden block w-2 h-2 rounded-full bg-emerald-500" />
+                        </div>
+                      )}
+                      {isHol && (
+                        <div className="w-full">
+                          <span className="hidden sm:inline-block px-1.5 py-0.5 bg-amber-500/20 text-amber-300 text-[9px] font-extrabold rounded truncate max-w-full">
+                            {day.holiday?.name.split(' ')[0] || 'HOLIDAY'}
+                          </span>
+                          <span className="sm:hidden block w-2 h-2 rounded-full bg-amber-500" />
+                        </div>
+                      )}
+                      {day.isCurrentMonth && !isLocked && !isOD && !isHol && !isWknd && (
+                        <div className="w-full hidden sm:block">
+                          <span className="text-[9px] text-zinc-500 hover:text-indigo-400">+ Lock In</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Quick Lock-In Form & Preset Launcher */}
+          <div className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-5 sm:p-6 backdrop-blur-md space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm sm:text-base font-bold text-zinc-100 flex items-center gap-2">
+                <Plus className="w-4 h-4 text-rose-400" />
+                Quick Lock-In Absent Date (Mobile-First)
+              </h4>
+              <span className="text-xs text-zinc-400">1-Tap Action</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[11px] text-zinc-400 uppercase tracking-wide">Target Date</label>
+                <input
+                  type="date"
+                  value={newAbsDate}
+                  onChange={(e) => setNewAbsDate(e.target.value)}
+                  className="mt-1 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-[11px] text-zinc-400 uppercase tracking-wide">Select 1-Tap Academic Preset</label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {QUICK_REASON_PRESETS.map((preset, pIdx) => (
+                    <button
+                      key={pIdx}
+                      onClick={() => {
+                        setNewAbsReason(preset.reason);
+                        setNewAbsCategory(preset.category);
+                      }}
+                      className={clsx(
+                        "px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border",
+                        newAbsReason === preset.reason
+                          ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/30"
+                          : "bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border-zinc-800"
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={newAbsIsPractical}
+                  onChange={(e) => setNewAbsIsPractical(e.target.checked)}
+                  className="rounded border-zinc-700 bg-zinc-950 text-rose-600 focus:ring-rose-500"
+                />
+                <span>Was this a Practical / Laboratory day at school?</span>
+              </label>
+
+              <button
+                onClick={handleAddAbsence}
+                disabled={!newAbsReason.trim() || !newAbsDate}
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-rose-600/30 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Confirm & Lock In Absent Date</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Date Inspection & Quick Lock/Unlock Modal */}
+      {selectedCalDate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => setSelectedCalDate(null)}
+              className="absolute top-5 right-5 p-1.5 text-zinc-400 hover:text-zinc-200 rounded-xl hover:bg-zinc-800 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* If Date is Locked In */}
+            {selectedCalDate.lockedAbsence ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-400">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="px-2 py-0.5 bg-rose-500/20 text-rose-300 text-[10px] font-extrabold rounded border border-rose-500/30">
+                      LOCKED IN AS ABSENT
+                    </span>
+                    <h3 className="text-lg font-bold text-white mt-0.5">
+                      {selectedCalDate.dayOfWeek}, {selectedCalDate.dateStr}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Reason:</span>
+                    <span className="font-semibold text-zinc-100">{selectedCalDate.lockedAbsence.reason}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Category:</span>
+                    <span className="font-semibold text-rose-300 uppercase font-mono">{selectedCalDate.lockedAbsence.category}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Practical Day:</span>
+                    <span className="font-semibold text-zinc-100">{selectedCalDate.lockedAbsence.isPracticalDay ? '🧪 Practical Lab Day' : 'Theory Day'}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      handleDeleteAbsence(selectedCalDate.lockedAbsence!.id);
+                      setSelectedCalDate(null);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-600/30 cursor-pointer transition-colors"
+                  >
+                    <Unlock className="w-4 h-4" />
+                    <span>Unlock Date (Remove Absence)</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedCalDate(null)}
+                    className="px-4 py-2.5 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 rounded-xl text-xs font-semibold cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : selectedCalDate.holiday ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 bg-amber-500/20 border border-amber-500/30 rounded-2xl text-amber-400">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-extrabold rounded border border-amber-500/30">
+                      OFFICIAL SCHOOL HOLIDAY
+                    </span>
+                    <h3 className="text-lg font-bold text-white mt-0.5">
+                      {selectedCalDate.holiday.name}
+                    </h3>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-400">
+                  Date: <strong>{selectedCalDate.dateStr}</strong> ({selectedCalDate.dayOfWeek}) · Classification: {selectedCalDate.holiday.classification}.
+                  School is officially closed on this day.
+                </p>
+                <button
+                  onClick={() => setSelectedCalDate(null)}
+                  className="w-full py-2.5 bg-zinc-800 text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            ) : selectedCalDate.isOnDuty ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl text-emerald-400">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold rounded border border-emerald-500/30">
+                      APPROVED ON-DUTY (CBSE RULE 14.ii)
+                    </span>
+                    <h3 className="text-lg font-bold text-white mt-0.5">
+                      Kriti RISE IKITIES Program (IIT Kharagpur)
+                    </h3>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-400">
+                  This working day is accredited by CBSE By-Laws as <strong>PRESENT</strong> under authorized academic research deputation.
+                </p>
+                <button
+                  onClick={() => setSelectedCalDate(null)}
+                  className="w-full py-2.5 bg-zinc-800 text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 bg-zinc-800 border border-zinc-700 rounded-2xl text-zinc-300">
+                    <Plus className="w-5 h-5 text-rose-400" />
+                  </div>
+                  <div>
+                    <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[10px] font-extrabold rounded border border-zinc-700">
+                      WORKING SCHOOL DAY
+                    </span>
+                    <h3 className="text-lg font-bold text-white mt-0.5">
+                      Lock In {selectedCalDate.dayOfWeek}, {selectedCalDate.dateStr}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] text-zinc-400 uppercase tracking-wide">Choose 1-Tap Preset</label>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {QUICK_REASON_PRESETS.map((preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        onClick={() => handleQuickLockInDay(selectedCalDate, preset)}
+                        className="w-full text-left px-3 py-2 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:border-rose-500/40 rounded-xl text-xs text-zinc-200 transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <span className="font-bold">{preset.label}</span>
+                        <span className="text-[10px] text-zinc-500 truncate max-w-[160px]">{preset.reason}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedCalDate(null)}
+                  className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: OVERVIEW & REALITY MATH */}
       {activeTab === 'overview' && (
@@ -1091,8 +1710,8 @@ export const AttendanceTracker: React.FC = () => {
             </div>
           </div>
 
-          {/* Absence Table */}
-          <div className="overflow-x-auto rounded-3xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-md">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto rounded-3xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-md">
             <table className="w-full text-left text-xs text-zinc-300">
               <thead className="bg-zinc-950 text-zinc-400 font-semibold border-b border-zinc-800">
                 <tr>
@@ -1146,6 +1765,76 @@ export const AttendanceTracker: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Touch Card Stream */}
+          <div className="md:hidden space-y-3">
+            {filteredAbsences.length === 0 ? (
+              <div className="p-8 text-center bg-zinc-900/60 rounded-3xl border border-zinc-800 space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                <p className="text-sm font-semibold text-zinc-200">No absences matching selected filter</p>
+                <p className="text-xs text-zinc-500">All working days in this view are credited as attended.</p>
+              </div>
+            ) : (
+              filteredAbsences.map((abs: AbsenceEntry, idx: number) => (
+                <div
+                  key={abs.id}
+                  className="bg-zinc-900/90 border border-zinc-800/90 hover:border-zinc-700 rounded-2xl p-4 space-y-2.5 shadow-lg backdrop-blur-md"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-400">
+                        <Lock className="w-3.5 h-3.5" />
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs font-bold text-white">{abs.date}</span>
+                          <span className="text-[11px] text-zinc-400">({abs.dayOfWeek})</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-zinc-500">#{idx + 1} locked record</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteAbsence(abs.id)}
+                      className="p-2 text-zinc-400 hover:text-rose-400 bg-zinc-950/70 hover:bg-zinc-800 border border-zinc-800/80 rounded-xl transition-colors cursor-pointer"
+                      title="Unlock this date"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <p className="text-xs font-semibold text-zinc-100 pl-0.5">
+                    {abs.reason}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-zinc-800/60 text-[10px]">
+                    <span className={clsx(
+                      'px-2 py-0.5 rounded-full font-bold uppercase border',
+                      abs.category === 'olympiad' ? 'bg-purple-500/10 text-purple-300 border-purple-500/30' :
+                      abs.category === 'jee_prep' ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30' :
+                      abs.category === 'self_study' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' :
+                      abs.category === 'buffer' ? 'bg-zinc-800 text-zinc-400 border-zinc-700' :
+                      'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                    )}>
+                      {abs.category.replace('_', ' ')}
+                    </span>
+
+                    {abs.isPracticalDay && (
+                      <span className="px-2 py-0.5 bg-rose-500/15 text-rose-300 border border-rose-500/30 rounded-md font-bold">
+                        🧪 Lab / Practical Day
+                      </span>
+                    )}
+
+                    {abs.notes && (
+                      <span className="text-zinc-500 italic truncate max-w-[200px]">
+                        {abs.notes}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
