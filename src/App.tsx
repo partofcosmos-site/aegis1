@@ -3,16 +3,12 @@ import { AppProvider } from './context/AppContext';
 import { AuthWrapper } from './components/AuthWrapper';
 import { Layout, ActiveTabType } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
-import { Chatbot } from './components/Chatbot';
 import { Analytics } from './components/Analytics';
 import { Journal } from './components/Journal';
 import { Goals } from './components/Goals';
 import { Pomodoro } from './components/Pomodoro';
 import { Settings } from './components/Settings';
-import { StemSolver } from './components/StemSolver';
-import { ConceptGraph } from './components/ConceptGraph';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { ErrorVault } from './components/ErrorVault';
 import { DeepWorkFortress } from './components/DeepWorkFortress';
 import { ContactFeedback } from './components/ContactFeedback';
 import { AttendanceCalculator } from './components/AttendanceCalculator';
@@ -45,7 +41,7 @@ export default function App() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get('tab') as ActiveTabType;
-      const validTabs = ['dashboard', 'analytics', 'attendance', 'solver', 'graph', 'chat', 'journal', 'goals', 'pomodoro', 'vault', 'settings', 'feedback'];
+      const validTabs: ActiveTabType[] = ['dashboard', 'pomodoro', 'analytics', 'attendance', 'goals', 'journal', 'settings', 'feedback'];
       if (targetTab && validTabs.includes(targetTab)) {
         setActiveTab(targetTab);
       }
@@ -71,40 +67,10 @@ export default function App() {
         <AuthWrapper>
           {isFortressMode && <DeepWorkFortress onClose={() => setIsFortressMode(false)} />}
           <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-            {/* Optimized Lazy-Mount Keep-Alive Viewport: Prevents 12 heavy components from freezing DOM concurrently */}
+            {/* Optimized Lazy-Mount Keep-Alive Viewport for Study Time Management Suite */}
             {(mountedTabs.has('dashboard') || activeTab === 'dashboard') && (
               <div className={`h-full w-full ${activeTab === 'dashboard' ? 'block' : 'hidden'}`}>
                 <Dashboard />
-              </div>
-            )}
-            {(mountedTabs.has('analytics') || activeTab === 'analytics') && (
-              <div className={`h-full w-full ${activeTab === 'analytics' ? 'block' : 'hidden'}`}>
-                <Analytics />
-              </div>
-            )}
-            {(mountedTabs.has('solver') || activeTab === 'solver') && (
-              <div className={`h-full w-full ${activeTab === 'solver' ? 'block' : 'hidden'}`}>
-                <StemSolver />
-              </div>
-            )}
-            {(mountedTabs.has('graph') || activeTab === 'graph') && (
-              <div className={`h-full w-full ${activeTab === 'graph' ? 'block' : 'hidden'}`}>
-                <ConceptGraph />
-              </div>
-            )}
-            {(mountedTabs.has('chat') || activeTab === 'chat') && (
-              <div className={`h-full w-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
-                <Chatbot setActiveTab={setActiveTab} />
-              </div>
-            )}
-            {(mountedTabs.has('journal') || activeTab === 'journal') && (
-              <div className={`h-full w-full ${activeTab === 'journal' ? 'block' : 'hidden'}`}>
-                <Journal />
-              </div>
-            )}
-            {(mountedTabs.has('goals') || activeTab === 'goals') && (
-              <div className={`h-full w-full ${activeTab === 'goals' ? 'block' : 'hidden'}`}>
-                <Goals />
               </div>
             )}
             {(mountedTabs.has('pomodoro') || activeTab === 'pomodoro') && (
@@ -112,24 +78,34 @@ export default function App() {
                 <Pomodoro isFortressMode={isFortressMode} setIsFortressMode={setIsFortressMode} />
               </div>
             )}
-            {(mountedTabs.has('settings') || activeTab === 'settings') && (
-              <div className={`h-full w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
-                <Settings />
-              </div>
-            )}
-            {(mountedTabs.has('vault') || activeTab === 'vault') && (
-              <div className={`h-full w-full ${activeTab === 'vault' ? 'block' : 'hidden'}`}>
-                <ErrorVault />
-              </div>
-            )}
-            {(mountedTabs.has('feedback') || activeTab === 'feedback') && (
-              <div className={`h-full w-full ${activeTab === 'feedback' ? 'block' : 'hidden'}`}>
-                <ContactFeedback />
+            {(mountedTabs.has('analytics') || activeTab === 'analytics') && (
+              <div className={`h-full w-full ${activeTab === 'analytics' ? 'block' : 'hidden'}`}>
+                <Analytics />
               </div>
             )}
             {(mountedTabs.has('attendance') || activeTab === 'attendance') && (
               <div className={`h-full w-full ${activeTab === 'attendance' ? 'block' : 'hidden'}`}>
                 <AttendanceCalculator />
+              </div>
+            )}
+            {(mountedTabs.has('goals') || activeTab === 'goals') && (
+              <div className={`h-full w-full ${activeTab === 'goals' ? 'block' : 'hidden'}`}>
+                <Goals />
+              </div>
+            )}
+            {(mountedTabs.has('journal') || activeTab === 'journal') && (
+              <div className={`h-full w-full ${activeTab === 'journal' ? 'block' : 'hidden'}`}>
+                <Journal />
+              </div>
+            )}
+            {(mountedTabs.has('settings') || activeTab === 'settings') && (
+              <div className={`h-full w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
+                <Settings />
+              </div>
+            )}
+            {(mountedTabs.has('feedback') || activeTab === 'feedback') && (
+              <div className={`h-full w-full ${activeTab === 'feedback' ? 'block' : 'hidden'}`}>
+                <ContactFeedback />
               </div>
             )}
           </Layout>

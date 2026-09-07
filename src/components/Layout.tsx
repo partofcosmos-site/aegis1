@@ -28,16 +28,12 @@ import { AIGatewayButton } from './AIGateway';
 
 export type ActiveTabType = 
   | 'dashboard' 
-  | 'chat' 
+  | 'pomodoro' 
   | 'analytics' 
   | 'attendance'
-  | 'solver'
-  | 'graph'
-  | 'journal' 
   | 'goals' 
-  | 'pomodoro' 
+  | 'journal' 
   | 'settings'
-  | 'vault'
   | 'feedback';
 
 interface LayoutProps {
@@ -82,16 +78,12 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
   }, []);
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Dashboard & Study Logger', icon: LayoutDashboard },
+    { id: 'pomodoro', label: 'Pomodoro & Flowmodoro', icon: Clock },
     { id: 'analytics', label: 'Analytics & Heatmap', icon: BarChart2 },
     { id: 'attendance', label: 'Attendance Tracker', icon: GraduationCap },
-    { id: 'solver', label: 'Socratic STEM Solver', icon: Sparkles },
-    { id: 'graph', label: 'Concept Mastery Graph', icon: Network },
-    { id: 'chat', label: 'Savantix Chat (AI Council)', icon: MessageSquare },
-    { id: 'journal', label: 'Journal & Reflections', icon: BookOpen },
     { id: 'goals', label: 'Goals & Milestones', icon: Target },
-    { id: 'pomodoro', label: 'Pomodoro Focus Timer', icon: Clock },
-    { id: 'vault', label: '🔒 Error Vault', icon: Lock },
+    { id: 'journal', label: 'Journal & Reflections', icon: BookOpen },
     { id: 'settings', label: 'Universal AI Providers', icon: Settings },
     { id: 'feedback', label: 'Contact & Feedback', icon: MessageSquareHeart },
   ] as const;
@@ -204,6 +196,64 @@ export const Layout = ({ children, activeTab, setActiveTab }: LayoutProps) => {
             </button>
           ))}
         </nav>
+
+        {/* Cosmic Knowledge Suite External Links (Live on Part of Cosmos) */}
+        <div className="px-4 py-3 border-t border-zinc-800/80 bg-zinc-950/20">
+          <p className="text-[10px] font-mono uppercase text-zinc-500 font-bold px-2 mb-2 tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3 text-cyan-400" />
+            <span>Cosmic Knowledge Suite</span>
+          </p>
+          <div className="space-y-0.5">
+            <a
+              href="https://partofcosmos.pages.dev/stem-solver/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-cyan-300 hover:bg-zinc-800/60 transition-all group"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <span>STEM Solver</span>
+              </div>
+              <span className="text-[10px] text-zinc-500 group-hover:text-cyan-400">↗</span>
+            </a>
+            <a
+              href="https://partofcosmos.pages.dev/concept-graph/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-purple-300 hover:bg-zinc-800/60 transition-all group"
+            >
+              <div className="flex items-center gap-2">
+                <Network className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
+                <span>Concept Graph</span>
+              </div>
+              <span className="text-[10px] text-zinc-500 group-hover:text-purple-400">↗</span>
+            </a>
+            <a
+              href="https://partofcosmos.pages.dev/flashcards/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-emerald-300 hover:bg-zinc-800/60 transition-all group"
+            >
+              <div className="flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                <span>Flashcards Vault</span>
+              </div>
+              <span className="text-[10px] text-zinc-500 group-hover:text-emerald-400">↗</span>
+            </a>
+            <a
+              href="https://partofcosmos.pages.dev/ai/council.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-amber-300 hover:bg-zinc-800/60 transition-all group"
+            >
+              <div className="flex items-center gap-2">
+                <Crown className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span>AI Council</span>
+              </div>
+              <span className="text-[10px] text-zinc-500 group-hover:text-amber-400">↗</span>
+            </a>
+          </div>
+        </div>
 
         {/* Live Cloud Sync Status Strip */}
         <div className="px-4 py-2 border-t border-zinc-800/80 bg-zinc-950/40 flex items-center justify-between text-[11px]">
