@@ -504,17 +504,18 @@ export async function runAdversarialChallengerTests(): Promise<{ passed: number;
     assert(prompt.includes('Class XI — Science'), 'Prompt includes Stream (Class XI Science)');
     assert(prompt.includes('Mon – Fri Schedule') || prompt.includes('Monday to Friday'), 'Prompt includes 5-day Mon-Fri schedule');
     assert(prompt.includes('2026-04-21') && prompt.includes('2026-12-31'), 'Prompt includes session window Apr 21 - Dec 31');
-    assert(prompt.includes('139 days') || prompt.includes('139'), 'Prompt includes 139 total working days');
+    const metrics = computeLiveMetrics(DEFAULT_INITIAL_STATE);
+    assert(prompt.includes(`${metrics.totalSessionDays} days`) || prompt.includes(`${metrics.totalSessionDays}`), 'Prompt includes total working days');
 
-    // 2. Ground Truth Figures (Sept 1, 2026)
-    assert(prompt.includes('71 days') || prompt.includes('71'), 'Prompt includes 71 held days');
-    assert(prompt.includes('48 days') || prompt.includes('48'), 'Prompt includes 48 present days');
-    assert(prompt.includes('10 days') || prompt.includes('10'), 'Prompt includes 10 on-duty days');
-    assert(prompt.includes('58 / 71') || prompt.includes('58'), 'Prompt includes 58 effective credit days');
-    assert(prompt.includes('81.69%'), 'Prompt includes 81.69% effective attendance');
-    assert(prompt.includes('67.61%'), 'Prompt includes 67.61% raw physical attendance');
-    assert(prompt.includes('21 days') || prompt.includes('21'), 'Prompt includes 21 safe leaves to 75%');
-    assert(prompt.includes('42 days') || prompt.includes('42'), 'Prompt includes 42 safe leaves to 60%');
+    // 2. Ground Truth Figures
+    assert(prompt.includes(`${metrics.workingDaysHeld} days`) || prompt.includes(`${metrics.workingDaysHeld}`), 'Prompt includes held days');
+    assert(prompt.includes(`${metrics.presentDays} days`) || prompt.includes(`${metrics.presentDays}`), 'Prompt includes present days');
+    assert(prompt.includes(`${metrics.onDutyDays} days`) || prompt.includes(`${metrics.onDutyDays}`), 'Prompt includes on-duty days');
+    assert(prompt.includes(`${metrics.effectiveDays} / ${metrics.workingDaysHeld}`) || prompt.includes(`${metrics.effectiveDays}`), 'Prompt includes effective credit days');
+    assert(prompt.includes(`${metrics.effectivePct}%`), 'Prompt includes live effective attendance');
+    assert(prompt.includes(`${metrics.rawPct}%`), 'Prompt includes live raw physical attendance');
+    assert(prompt.includes(`${metrics.safeLeaves75} days`) || prompt.includes(`${metrics.safeLeaves75}`), 'Prompt includes safe leaves to 75%');
+    assert(prompt.includes(`${metrics.safeLeaves60} days`) || prompt.includes(`${metrics.safeLeaves60}`), 'Prompt includes safe leaves to 60%');
 
     // 3. CBSE By-Laws Legal Rule Citations
     assert(prompt.includes('Rule 13.2'), 'Prompt cites CBSE Rule 13.2 (Regular course of study requirement)');

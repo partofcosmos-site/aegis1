@@ -24,7 +24,7 @@ export const DEFAULT_SUBJECTS: SubjectAttendance[] = [
   { id: 'eng_301', code: '301', name: 'English Core', attended: 48, total: 71, required: 75, color: 'purple', isPracticalSubject: false },
 ];
 
-// 20 Logged Absence Dates (from Authoritative JSON) + 3 Buffer Entries = 23 Total Entries
+// 21 Logged Absence Dates (from Authoritative JSON) + 3 Buffer Entries = 24 Total Entries
 export const DEFAULT_ABSENCES: AbsenceEntry[] = [
   { id: 'abs_1', date: '2026-06-30', dayOfWeek: 'Tuesday', reason: 'PT1 exam consolidation & self-study', category: 'self_study', isPracticalDay: false, notes: 'Post PT1 syllabus alignment' },
   { id: 'abs_2', date: '2026-07-03', dayOfWeek: 'Friday', reason: 'Post-IIT KGP consolidation & sleep recovery', category: 'recovery', isPracticalDay: true, notes: 'Consolidation of research logs & sleep debt recovery' },
@@ -34,7 +34,6 @@ export const DEFAULT_ABSENCES: AbsenceEntry[] = [
   { id: 'abs_6', date: '2026-07-20', dayOfWeek: 'Monday', reason: 'Mathematics Vectors & 3D Geometry sprint', category: 'jee_prep', isPracticalDay: false, notes: 'Vector algebra and coordinate geometry' },
   { id: 'abs_7', date: '2026-07-21', dayOfWeek: 'Tuesday', reason: 'Electrostatics Gauss Law & Potential derivations', category: 'jee_prep', isPracticalDay: false, notes: 'Vector calculus applications in electrostatics' },
   { id: 'abs_8', date: '2026-07-28', dayOfWeek: 'Tuesday', reason: 'Full-syllabus mock test calibration', category: 'exam_prep', isPracticalDay: false, notes: 'Error vault review & mock calibration' },
-  { id: 'abs_9', date: '2026-08-01', dayOfWeek: 'Saturday', reason: 'Weekend special study session (Logged)', category: 'self_study', isPracticalDay: false, notes: 'Weekend intensive study logged' },
   { id: 'abs_10', date: '2026-08-03', dayOfWeek: 'Monday', reason: 'Physics Electromagnetism problem solving', category: 'olympiad', isPracticalDay: false, notes: 'Lorentz force and magnetic fields' },
   { id: 'abs_11', date: '2026-08-05', dayOfWeek: 'Wednesday', reason: 'Web Application practical project development', category: 'school_work', isPracticalDay: false, notes: 'Full-stack frontend development' },
   { id: 'abs_12', date: '2026-08-06', dayOfWeek: 'Thursday', reason: 'Practical Day absence (Chemistry lab self-study)', category: 'self_study', isPracticalDay: true, notes: 'ABSENT_PRACTICAL_DAY' },
@@ -45,8 +44,9 @@ export const DEFAULT_ABSENCES: AbsenceEntry[] = [
   { id: 'abs_17', date: '2026-08-21', dayOfWeek: 'Friday', reason: 'Official NSEP 2026 registration day & problem sets', category: 'olympiad', isPracticalDay: true, notes: 'Official registration & Krotov optics' },
   { id: 'abs_18', date: '2026-08-25', dayOfWeek: 'Tuesday', reason: 'Chemistry Organic reaction mechanisms sprint', category: 'jee_prep', isPracticalDay: false, notes: 'Reaction pathways & mechanisms' },
   { id: 'abs_19', date: '2026-08-27', dayOfWeek: 'Thursday', reason: 'Practical Day absence (Physics lab self-study)', category: 'self_study', isPracticalDay: true, notes: 'ABSENT_PRACTICAL_DAY' },
-  { id: 'abs_20', date: '2026-09-01', dayOfWeek: 'Tuesday', reason: 'Half-Yearly exam preparation & syllabus revision', category: 'exam_prep', isPracticalDay: false, notes: 'Class XI Half-Yearly exam revision' },
-  { id: 'abs_21', date: '2026-09-02', dayOfWeek: 'Wednesday', reason: 'Class XI Half-Yearly intensive self-study & revision', category: 'exam_prep', isPracticalDay: false, notes: 'Class XI Half-Yearly self-study day' },
+  { id: 'abs_20', date: '2026-08-28', dayOfWeek: 'Friday', reason: 'Pre-festival self-study & Olympiad problem sets (Day before Raksha Bandhan)', category: 'self_study', isPracticalDay: true, notes: 'Pre-festival self-study' },
+  { id: 'abs_21', date: '2026-09-01', dayOfWeek: 'Tuesday', reason: 'Half-Yearly exam preparation & syllabus revision', category: 'exam_prep', isPracticalDay: false, notes: 'Class XI Half-Yearly exam revision' },
+  { id: 'abs_22', date: '2026-09-02', dayOfWeek: 'Wednesday', reason: 'Class XI Half-Yearly intensive self-study & revision', category: 'exam_prep', isPracticalDay: false, notes: 'Class XI Half-Yearly self-study day' },
   { id: 'abs_buf_1', date: '2026-05-11', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 1', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
   { id: 'abs_buf_2', date: '2026-07-06', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 2', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
   { id: 'abs_buf_3', date: '2026-08-17', dayOfWeek: 'Monday', reason: 'Institutional Buffer Absence 3', category: 'buffer', isPracticalDay: false, notes: 'Administrative buffer logged' },
@@ -463,6 +463,34 @@ export function loadInstitutionalState(identifier?: string): InstitutionalAttend
         exams: Array.isArray(parsed.exams) && parsed.exams.length > 0 ? parsed.exams : baseline.exams,
         onDuty: Array.isArray(parsed.onDuty) ? parsed.onDuty : baseline.onDuty,
       };
+    } else {
+      // Legacy migration from savantix_attendance_data_v1 if no institutional state exists yet
+      const legacyRaw = localStorage.getItem(LEGACY_SUBJECTS_STORAGE_KEY);
+      if (legacyRaw) {
+        try {
+          const legacySubjects = JSON.parse(legacyRaw);
+          if (Array.isArray(legacySubjects) && legacySubjects.length > 0) {
+            state = {
+              ...state,
+              profile: {
+                ...state.profile,
+                subjects: legacySubjects.map(s => ({
+                  id: s.id || `subj_${Math.random().toString(36).substring(2, 7)}`,
+                  name: s.name || 'Subject',
+                  attended: typeof s.attended === 'number' ? s.attended : 0,
+                  total: typeof s.total === 'number' ? s.total : 0,
+                  required: typeof s.required === 'number' ? s.required : 75,
+                  color: s.color || 'indigo',
+                  code: s.code,
+                  isPracticalSubject: Boolean(s.isPracticalSubject)
+                }))
+              }
+            };
+          }
+        } catch (e) {
+          // Ignore JSON parse error
+        }
+      }
     }
 
     return state;

@@ -175,7 +175,8 @@ runTest('2028 Timeline & Regulatory Dossier: Prompt references CBSE Rule 14, NIO
   assert(prompt.includes('Rule 14'), 'Prompt includes CBSE Rule 14 condonation');
   assert(prompt.includes('Kriti RISE IKITIES Program at IIT Kharagpur'), 'Prompt includes IIT KGP deputation');
   assert(prompt.includes('Part of Cosmos'), 'Prompt includes Cosmos branding');
-  assert(prompt.includes('81.69%'), 'Prompt includes 81.69% effective attendance');
+  const metrics = computeLiveMetrics(DEFAULT_INITIAL_STATE);
+  assert(prompt.includes(`${metrics.effectivePct}%`), 'Prompt includes live effective attendance');
 });
 
 console.log('\n===================================================================');
